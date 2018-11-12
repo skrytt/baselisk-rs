@@ -1,0 +1,85 @@
+//! Modified example of using dsp-chain's `Graph` type to create a simple synth.
+
+extern crate dsp;
+extern crate portaudio;
+
+mod defs;
+mod dsp_node;
+mod generator;
+
+use dsp::{Node, Walker};
+use dsp::sample::ToFrameSliceMut;
+
+use portaudio as pa;
+
+fn main() {
+    run().unwrap()
+}
+
+fn setup() -> (dsp::Graph<[defs::Output; 2], dsp_node::DspNode<defs::Output>>, dsp::NodeIndex) {
+    let mut graph = dsp::Graph::new();
+    let synth = graph.add_node(dsp_node::DspNode::Synth);
+
+    graph.add_input(dsp_node::DspNode::Oscillator(Box::new(
+        generator::SineOscillator{params: generator::OscillatorParams::new(880.0, 0.2)})),
+        synth
+    );
+    graph.add_input(dsp_node::DspNode::Oscillator(Box::new(
+        generator::SawtoothOscillator{params: generator::OscillatorParams::new(440.0, 0.2)})),
+        synth
+    );
+    graph.add_input(dsp_node::DspNode::Oscillator(Box::new(
+        generator::SquareOscillator{params: generator::OscillatorParams::new(110.0, 0.2)})),
+        synth
+    );
+
+    graph.set_master(Some(synth));
+
+    (graph, synth)
+}
+
+fn run() -> Result<(), pa::Error> {
+
+    let (mut graph, synth) = setup();
+
+    // The callback we'll use to pass to the Stream. It will request audio from our dsp_graph.
+    let callback = move |pa::OutputStreamCallbackArgs { buffer, .. }| {
+
+        let buffer: &mut [[defs::Output; defs::CHANNELS]] = buffer.to_frame_slice_mut().unwrap();
+        dsp::slice::equilibrium(buffer);
+        graph.audio_requested(buffer, defs::SAMPLE_HZ);
+
+        // Traverse inputs or outputs of a node with the following pattern.
+        let mut inputs = graph.inputs(synth);
+
+        while let Some(_input_idx) = inputs.next_node(&graph) {
+        }
+
+        pa::Continue
+    };
+
+    // Construct PortAudio and the stream.
+    let pa = try!(pa::PortAudio::new());
+
+    match pa.default_host_api() {
+        Ok(v) => println!("Default Host API: {:#?}", v),
+        Err(e) => panic!("Can't get default host API: {}", e),
+    }
+
+    let settings = try!(pa.default_output_stream_settings::<defs::Output>(
+        defs::CHANNELS as i32,
+        defs::SAMPLE_HZ,
+        defs::FRAMES,
+    ));
+
+    let mut stream = try!(pa.open_non_blocking_stream(settings, callback));
+    try!(stream.start());
+
+    // Wait for our stream to finish.
+    while let true = try!(stream.is_active()) {
+        ::std::thread::sleep(::std::time::Duration::from_millis(16));
+    }
+
+    Ok(())
+}
+
