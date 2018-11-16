@@ -3,14 +3,19 @@
 extern crate dsp;
 extern crate portaudio;
 
+#[macro_use]
+extern crate text_io;
+
 mod defs;
 mod dsp_node;
 mod generator;
 mod midi;
 mod oscillator;
 
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::io::prelude::*;
+use std::io;
+use std::rc::Rc;
 use dsp::{Node, Walker};
 use dsp::sample::ToFrameSliceMut;
 
@@ -88,7 +93,25 @@ fn run() -> Result<(), pa::Error> {
 
     // Wait for our stream to finish.
     while let true = try!(stream.is_active()) {
-        ::std::thread::sleep(::std::time::Duration::from_millis(16));
+        //::std::thread::sleep(::std::time::Duration::from_millis(16));
+        print!("{}> ", defs::PROGNAME);
+        io::stdout().flush().ok().expect("Could not flush stdout");
+
+        let input_line: String = read!("{}\n");
+        let input_line: String = input_line.to_lowercase();
+        let input_args: Vec<&str> = input_line
+            .split(' ')
+            .filter( |s| { s.len() > 0 })
+            .collect();
+        let mut input_args_iter = input_args.iter();
+
+        // For now, just provide a way to quit
+        if let Some(arg) = input_args_iter.next() {
+            if *arg == "quit" {
+                println!("Quitting...");
+                try!(stream.stop());
+            }
+        }
     }
 
     Ok(())

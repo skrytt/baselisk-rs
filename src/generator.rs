@@ -1,6 +1,5 @@
 
 extern crate dsp;
-extern crate portmidi;
 
 use std::fmt;
 

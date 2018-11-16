@@ -8,3 +8,4 @@ pub const CHANNELS: usize = 2;
 pub const FRAMES: u32 = 64;
 pub const SAMPLE_HZ: f64 = 44_100.0;
 pub const MIDI_BUF_LEN: usize = 1024;
+pub const PROGNAME: &str = "baselisk";

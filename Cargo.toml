@@ -7,3 +7,4 @@ authors = ["skrytt"]
 dsp-chain = "0.13.1"
 portaudio = "0.7.0"
 portmidi = "0.2.4"
+text_io = "0.1.7"
