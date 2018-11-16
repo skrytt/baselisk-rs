@@ -30,22 +30,8 @@ fn setup_graph(midi_input_buffer: Rc<RefCell<midi::InputBuffer>>) -> (
     let synth = graph.add_node(dsp_node::DspNode::Synth);
 
     graph.add_input(dsp_node::DspNode::Oscillator(Box::new(
-        generator::SawtoothOscillator{
-            params: generator::OscillatorParams::new(1000.0, 0.2),
-            midi_input_buffer: Rc::clone(&midi_input_buffer),
-        })),
-        synth
-    );
-    graph.add_input(dsp_node::DspNode::Oscillator(Box::new(
-        generator::SquareOscillator{
-            params: generator::OscillatorParams::new(400.0, 0.2),
-            midi_input_buffer: Rc::clone(&midi_input_buffer),
-        })),
-        synth
-    );
-    graph.add_input(dsp_node::DspNode::Oscillator(Box::new(
         generator::SineOscillator{
-            params: generator::OscillatorParams::new(200.0, 0.2),
+            params: generator::OscillatorParams::new(0.2),
             midi_input_buffer: Rc::clone(&midi_input_buffer),
         })),
         synth
