@@ -91,9 +91,7 @@ impl<S> Generator<S> for SineOscillator {
 
         params.phase += 2.0 * PI * params.frequency / defs::SAMPLE_HZ;
         while params.phase >= PI {
-            println!("Phase bounding (pre): {}", params.phase);
             params.phase -= PI * 2.0;
-            println!("Phase bounding (post): {}", params.phase);
         }
 
         res
