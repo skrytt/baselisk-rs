@@ -1,8 +1,9 @@
 [package]
 name = "dsp_chain_synth"
 version = "0.1.0"
-authors = ["skrytt <matt.kemp.1992@gmail.com>"]
+authors = ["skrytt"]
 
 [dependencies]
 dsp-chain = "0.13.1"
 portaudio = "0.7.0"
+portmidi = "0.2.4"

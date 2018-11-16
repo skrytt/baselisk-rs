@@ -4,6 +4,7 @@ extern crate dsp;
 use defs;
 use generator;
 
+/// DspNode enumerates types that can feature in our DSP graph.
 pub enum DspNode<S>
 where
     S: dsp::Sample + dsp::FromSample<f32>,
@@ -13,7 +14,12 @@ where
 }
 
 impl dsp::Node<[defs::Output; defs::CHANNELS]> for DspNode<defs::Output> {
-    fn audio_requested(&mut self, buffer: &mut [[defs::Output; defs::CHANNELS]], _sample_hz: f64) {
+    fn audio_requested(
+        &mut self,
+        buffer: &mut [[defs::Output; defs::CHANNELS]],
+        _sample_hz: f64
+)
+{
         match *self {
             DspNode::Synth => (),
             DspNode::Oscillator(ref mut oscillator) => {
