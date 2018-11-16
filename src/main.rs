@@ -89,11 +89,12 @@ fn run() -> Result<(), pa::Error> {
 
     println!("Opening and starting PortAudio stream...");
     let mut stream = try!(pa.open_non_blocking_stream(settings, callback));
+    let mut running: bool = true;
     try!(stream.start());
 
-    // Wait for our stream to finish.
-    while let true = try!(stream.is_active()) {
-        //::std::thread::sleep(::std::time::Duration::from_millis(16));
+    // Users may quit by typing 'quit'.
+    // The commands 'pause' and 'resume' can also control stream processing.
+    while let true = try!(stream.is_active()) || running {
         print!("{}> ", defs::PROGNAME);
         io::stdout().flush().ok().expect("Could not flush stdout");
 
@@ -109,7 +110,14 @@ fn run() -> Result<(), pa::Error> {
         if let Some(arg) = input_args_iter.next() {
             if *arg == "quit" {
                 println!("Quitting...");
-                try!(stream.stop());
+                let _ = stream.stop();
+                running = false;
+            }
+            else if *arg == "pause" {
+                let _ = stream.stop();
+            }
+            else if *arg == "resume" {
+                let _ = stream.start();
             }
         }
     }
