@@ -7,6 +7,7 @@ mod defs;
 mod dsp_node;
 mod generator;
 mod midi;
+mod oscillator;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -30,8 +31,8 @@ fn setup_graph(midi_input_buffer: Rc<RefCell<midi::InputBuffer>>) -> (
     let synth = graph.add_node(dsp_node::DspNode::Synth);
 
     graph.add_input(dsp_node::DspNode::Oscillator(Box::new(
-        generator::SineOscillator{
-            params: generator::OscillatorParams::new(0.2),
+        oscillator::SineOscillator{
+            params: oscillator::Params::new(0.2),
             midi_input_buffer: Rc::clone(&midi_input_buffer),
         })),
         synth
