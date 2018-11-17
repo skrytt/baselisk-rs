@@ -113,63 +113,24 @@ fn run() -> Result<(), pa::Error> {
                 let stream_was_active = stream.is_active()?;
 
                 if let Some(arg) = input_args_iter.next() {
-                    // "add sine": Adds a sine oscillator
-                    if *arg == "sine" {
-                        if stream_was_active {
-                            let _ = stream.stop();
-                        }
 
-                        graph.borrow_mut().add_input(dsp_node::DspNode::Oscillator(Box::new(
-                            oscillator::SineOscillator{
-                                params: oscillator::Params::new(0.2),
-                                midi_input_buffer: Rc::clone(&midi_input_buffer),
-                            })),
-                            synth
-                        );
+                    match oscillator::new(*arg, Rc::clone(&midi_input_buffer)) {
+                        Err(reason) => println!("{}", reason),
+                        Ok(osc) => {
+                            if stream_was_active {
+                                let _ = stream.stop();
+                            }
 
-                        if stream_was_active {
-                            let _ = stream.start();
-                        }
-                    }
+                            graph.borrow_mut().add_input(
+                                dsp_node::DspNode::Oscillator(osc),
+                                synth
+                            );
 
-                    // "add saw": Adds a sawtooth oscillator
-                    if *arg == "saw" {
-                        if stream_was_active {
-                            let _ = stream.stop();
-                        }
-
-                        graph.borrow_mut().add_input(dsp_node::DspNode::Oscillator(Box::new(
-                            oscillator::SawtoothOscillator{
-                                params: oscillator::Params::new(0.2),
-                                midi_input_buffer: Rc::clone(&midi_input_buffer),
-                            })),
-                            synth
-                        );
-
-                        if stream_was_active {
-                            let _ = stream.start();
+                            if stream_was_active {
+                                let _ = stream.start();
+                            }
                         }
                     }
-
-                    // "add square": Adds a square oscillator
-                    if *arg == "square" {
-                        if stream_was_active {
-                            let _ = stream.stop();
-                        }
-
-                        graph.borrow_mut().add_input(dsp_node::DspNode::Oscillator(Box::new(
-                            oscillator::SquareOscillator{
-                                params: oscillator::Params::new(0.2),
-                                midi_input_buffer: Rc::clone(&midi_input_buffer),
-                            })),
-                            synth
-                        );
-
-                        if stream_was_active {
-                            let _ = stream.start();
-                        }
-                    }
-
                 }
             }
         }

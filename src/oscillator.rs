@@ -20,11 +20,11 @@ pub struct Params {
 }
 
 impl Params {
-    pub fn new(volume: defs::Volume) -> Params {
+    pub fn new() -> Params {
         Params{
             phase: 0.0,
             frequency: 0.0,
-            volume,
+            volume: 0.2,
             note: None
         }
     }
@@ -70,6 +70,16 @@ pub struct SawtoothOscillator {
     pub midi_input_buffer: Rc<RefCell<midi::InputBuffer>>,
 }
 
+pub fn new<S>(name: &str, midi_input_buffer: Rc<RefCell<midi::InputBuffer>>) -> Result<Box<dyn generator::Generator<S>>, &'static str> {
+    match name {
+        "sine"   => Ok(Box::new(SineOscillator{ params: Params::new(), midi_input_buffer })),
+        "square" => Ok(Box::new(SquareOscillator{ params: Params::new(), midi_input_buffer })),
+        "saw"    => Ok(Box::new(SawtoothOscillator{ params: Params::new(), midi_input_buffer })),
+        _        => Err("Unknown oscillator name"),
+    }
+
+}
+
 /// This is the code that implements the Oscillator trait for the SineOscillator struct
 impl<S> generator::Generator<S> for SineOscillator {
     fn update_state(&mut self) {
@@ -100,10 +110,6 @@ impl<S> generator::Generator<S> for SquareOscillator {
     fn generate(&mut self) -> S
     where S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
     {
-        // TODO: Do something with the midi events
-        let midi_events = self.midi_input_buffer.borrow();
-        let _midi_event_iter = midi_events.iter();
-
         let params = &mut self.params;
         let res = if params.phase < 0.0 {
             params.volume
@@ -130,10 +136,6 @@ impl<S> generator::Generator<S> for SawtoothOscillator {
     fn generate(&mut self) -> S
     where S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
     {
-        // TODO: Do something with the midi events
-        let midi_events = self.midi_input_buffer.borrow();
-        let _midi_event_iter = midi_events.iter();
-
         let params = &mut self.params;
         let res = ((PI - (params.phase)) as f32 * params.volume).to_sample::<S>();
 
