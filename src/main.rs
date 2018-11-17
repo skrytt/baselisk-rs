@@ -26,10 +26,8 @@ fn run() -> Result<(), &'static str> {
     println!("Starting...");
 
     // Use Rc+RefCell to retain usage of variables outside of the closure
-    // TODO: don't hardcode value for MIDI device_id, use user input
-    let midi_input_buffer = Rc::new(RefCell::new(midi::InputBuffer::new(5)));
+    let midi_input_buffer = Rc::new(RefCell::new(midi::InputBuffer::new()));
     let graph = Rc::new(RefCell::new(dsp::Graph::new()));
-
     let synth = graph.borrow_mut().add_node(dsp_node::DspNode::Synth);
 
     graph.borrow_mut().set_master(Some(synth));
@@ -69,6 +67,22 @@ fn run() -> Result<(), &'static str> {
             }
             else if *arg == "resume" {
                 let _ = audio_interface.resume();
+            }
+
+            // Commands to control MIDI input devices
+            else if *arg == "midi" {
+                if let Some(arg) = input_args_iter.next() {
+                    if *arg == "list" {
+                        midi_input_buffer.borrow().print_devices();
+                    }
+                    else if *arg == "input" {
+                        if let Some(arg) = input_args_iter.next() {
+                            let device_id: i32;
+                            scan!(arg.bytes() => "{}", device_id);
+                            midi_input_buffer.borrow_mut().set_port(device_id).unwrap();
+                        }
+                    }
+                }
             }
 
             // Commands to add oscillators

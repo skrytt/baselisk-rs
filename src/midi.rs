@@ -45,29 +45,45 @@ impl MidiEvent {
 /// Buffer will contain midi events received in the last block.
 pub struct InputBuffer {
     events: Vec<MidiEvent>,
-    port: portmidi::InputPort,
-    _context: portmidi::PortMidi,
+    port: Option<portmidi::InputPort>,
+    context: portmidi::PortMidi,
 }
 
 impl InputBuffer {
     /// Create a new buffer for receiving MIDI from one input device.
-    pub fn new(device_id: i32) -> InputBuffer {
+    pub fn new() -> InputBuffer {
 
         println!("Setting up PortMidi input buffer...");
 
         // Code based on "monitor-all" example of portmidi crate
         let context = portmidi::PortMidi::new().unwrap();
 
-        let info = context.device(device_id).unwrap();
-        println!("Listening on MIDI input: {}) {}", info.id(), info.name());
-
-        let port = context.input_port(info, defs::MIDI_BUF_LEN).unwrap();
-
         InputBuffer {
             events: Vec::<MidiEvent>::with_capacity(0),
-            port,
-            _context: context, // "Never used", but must remain in scope,
-                               // otherwise PortMidi is dropped and terminated
+            port: None,
+            context: context,
+        }
+    }
+
+    pub fn print_devices(&self) {
+        for dev in self.context.devices().unwrap() {
+            println!("{}", dev);
+        }
+    }
+
+    pub fn set_port(&mut self, device_id: i32) -> Result<(), String>{
+        let info = match self.context.device(device_id) {
+            Err(e) => return Err(e.to_string()),
+            Ok(t)  => t,
+        };
+        println!("Listening on MIDI input: {}) {}", info.id(), info.name());
+
+        match self.context.input_port(info, defs::MIDI_BUF_LEN) {
+            Err(e) => Err(e.to_string()),
+            Ok(port)  => {
+                self.port = Some(port);
+                Ok(())
+            }
         }
     }
 
@@ -77,17 +93,19 @@ impl InputBuffer {
         // First, clear any old MIDI events.
         self.events.clear();
 
-        // If we have MIDI events to process, get those MIDI events.
-        // PortMidi doesn't have a blocking receive method, so use
-        // poll to check once if there are events.
-        if let Ok(_) = self.port.poll() {
-            // Yes, there are events, let's try to retrieve them.
-            // Then, convert them to our MidiEvent types, filtering out
-            // events that we don't know how to use.
-            if let Ok(Some(events)) = self.port.read_n(defs::MIDI_BUF_LEN) {
-                self.events = events.into_iter()
-                    .filter_map( |event| { MidiEvent::process(event) } )
-                    .collect()
+        if let Some(ref port) = self.port {
+            // If we have MIDI events to process, get those MIDI events.
+            // PortMidi doesn't have a blocking receive method, so use
+            // poll to check once if there are events.
+            if let Ok(_) = port.poll() {
+                // Yes, there are events, let's try to retrieve them.
+                // Then, convert them to our MidiEvent types, filtering out
+                // events that we don't know how to use.
+                if let Ok(Some(events)) = port.read_n(defs::MIDI_BUF_LEN) {
+                    self.events = events.into_iter()
+                        .filter_map( |event| { MidiEvent::process(event) } )
+                        .collect()
+                }
             }
         }
     }
