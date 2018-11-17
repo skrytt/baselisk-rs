@@ -16,7 +16,8 @@ use std::cell::RefCell;
 use std::io::prelude::*;
 use std::io;
 use std::rc::Rc;
-use dsp::{Node, Walker};
+use dsp::Node;
+//use dsp::Walker;
 use dsp::sample::ToFrameSliceMut;
 
 use portaudio as pa;
@@ -25,56 +26,41 @@ fn main() {
     run().unwrap()
 }
 
-fn setup_graph(midi_input_buffer: Rc<RefCell<midi::InputBuffer>>) -> (
-    dsp::Graph<[defs::Output; 2], dsp_node::DspNode<defs::Output>>,
-    dsp::NodeIndex,
-)
-{
-    println!("Setting up graph...");
-
-    let mut graph = dsp::Graph::new();
-    let synth = graph.add_node(dsp_node::DspNode::Synth);
-
-    graph.add_input(dsp_node::DspNode::Oscillator(Box::new(
-        oscillator::SineOscillator{
-            params: oscillator::Params::new(0.2),
-            midi_input_buffer: Rc::clone(&midi_input_buffer),
-        })),
-        synth
-    );
-
-    graph.set_master(Some(synth));
-
-    (graph, synth)
-}
-
 fn run() -> Result<(), pa::Error> {
     println!("Starting...");
 
+    // Use Rc+RefCell to retain usage of variables outside of the closure
     // TODO: don't hardcode value for MIDI device_id, use user input
     let midi_input_buffer = Rc::new(RefCell::new(midi::InputBuffer::new(5)));
+    let graph = Rc::new(RefCell::new(dsp::Graph::new()));
 
-    let (mut graph, synth) = setup_graph(Rc::clone(&midi_input_buffer));
+    let synth = graph.borrow_mut().add_node(dsp_node::DspNode::Synth);
+
+    graph.borrow_mut().set_master(Some(synth));
+
+    // Clone this so we don't lose use of original due to use of move closure
+    let midi_input_buffer_callback = Rc::clone(&midi_input_buffer);
+    let graph_callback = Rc::clone(&graph);
 
     // The callback we'll use to pass to the Stream. It will request audio from our dsp_graph.
     let callback = move |pa::OutputStreamCallbackArgs { buffer, .. }| {
         // Refresh the MIDI input buffer with new MIDI events
-        midi_input_buffer.borrow_mut().update();
+        midi_input_buffer_callback.borrow_mut().update();
 
         let buffer: &mut [[defs::Output; defs::CHANNELS]] = buffer.to_frame_slice_mut().unwrap();
         dsp::slice::equilibrium(buffer);
 
-        graph.audio_requested(buffer, defs::SAMPLE_HZ);
-        let mut inputs = graph.inputs(synth);
-        while let Some(_input_idx) = inputs.next_node(&graph) {
-        }
+        graph_callback.borrow_mut().audio_requested(buffer, defs::SAMPLE_HZ);
+
+        //let mut inputs = graph.borrow_mut().inputs(synth);
+        //while let Some(_input_idx) = inputs.next_node(graph_callback) {}
 
         pa::Continue
     };
 
     // Construct PortAudio and the stream.
     println!("Setting up interface to PortAudio...");
-    let pa = try!(pa::PortAudio::new());
+    let pa = pa::PortAudio::new()?;
 
     match pa.default_host_api() {
         Ok(v) => println!("Default Host API: {:#?}", v),
@@ -92,8 +78,7 @@ fn run() -> Result<(), pa::Error> {
     let mut running: bool = true;
     try!(stream.start());
 
-    // Users may quit by typing 'quit'.
-    // The commands 'pause' and 'resume' can also control stream processing.
+    // Process lines of text input until told to quit or interrupted.
     while let true = try!(stream.is_active()) || running {
         print!("{}> ", defs::PROGNAME);
         io::stdout().flush().ok().expect("Could not flush stdout");
@@ -106,18 +91,86 @@ fn run() -> Result<(), pa::Error> {
             .collect();
         let mut input_args_iter = input_args.iter();
 
-        // For now, just provide a way to quit
         if let Some(arg) = input_args_iter.next() {
+
+            // Users may quit by typing 'quit'.
             if *arg == "quit" {
                 println!("Quitting...");
                 let _ = stream.stop();
                 running = false;
             }
+
+            // The commands 'pause' and 'resume' can also control stream processing.
             else if *arg == "pause" {
                 let _ = stream.stop();
             }
             else if *arg == "resume" {
                 let _ = stream.start();
+            }
+
+            // Commands to add oscillators
+            else if *arg == "add" {
+                let stream_was_active = stream.is_active()?;
+
+                if let Some(arg) = input_args_iter.next() {
+                    // "add sine": Adds a sine oscillator
+                    if *arg == "sine" {
+                        if stream_was_active {
+                            let _ = stream.stop();
+                        }
+
+                        graph.borrow_mut().add_input(dsp_node::DspNode::Oscillator(Box::new(
+                            oscillator::SineOscillator{
+                                params: oscillator::Params::new(0.2),
+                                midi_input_buffer: Rc::clone(&midi_input_buffer),
+                            })),
+                            synth
+                        );
+
+                        if stream_was_active {
+                            let _ = stream.start();
+                        }
+                    }
+
+                    // "add saw": Adds a sawtooth oscillator
+                    if *arg == "saw" {
+                        if stream_was_active {
+                            let _ = stream.stop();
+                        }
+
+                        graph.borrow_mut().add_input(dsp_node::DspNode::Oscillator(Box::new(
+                            oscillator::SawtoothOscillator{
+                                params: oscillator::Params::new(0.2),
+                                midi_input_buffer: Rc::clone(&midi_input_buffer),
+                            })),
+                            synth
+                        );
+
+                        if stream_was_active {
+                            let _ = stream.start();
+                        }
+                    }
+
+                    // "add square": Adds a square oscillator
+                    if *arg == "square" {
+                        if stream_was_active {
+                            let _ = stream.stop();
+                        }
+
+                        graph.borrow_mut().add_input(dsp_node::DspNode::Oscillator(Box::new(
+                            oscillator::SquareOscillator{
+                                params: oscillator::Params::new(0.2),
+                                midi_input_buffer: Rc::clone(&midi_input_buffer),
+                            })),
+                            synth
+                        );
+
+                        if stream_was_active {
+                            let _ = stream.start();
+                        }
+                    }
+
+                }
             }
         }
     }
