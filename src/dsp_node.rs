@@ -1,6 +1,7 @@
 
 extern crate dsp;
 
+use std::fmt;
 use defs;
 use generator;
 
@@ -28,6 +29,15 @@ impl dsp::Node<[defs::Output; defs::CHANNELS]> for DspNode<defs::Output> {
                     dsp::Frame::from_fn(|_| oscillator.generate())
                 });
             }
+        }
+    }
+}
+
+impl fmt::Display for DspNode<defs::Output> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            DspNode::Synth => write!(f, "Synth"),
+            DspNode::Oscillator(ref t) => write!(f, "{}", t.type_name()),
         }
     }
 }

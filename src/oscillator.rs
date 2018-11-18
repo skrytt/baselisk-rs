@@ -82,6 +82,10 @@ pub fn new<S>(name: &str, midi_input_buffer: Rc<RefCell<midi::InputBuffer>>) -> 
 
 /// This is the code that implements the Oscillator trait for the SineOscillator struct
 impl<S> generator::Generator<S> for SineOscillator {
+    fn type_name(&self) -> &'static str {
+        "SineOscillator"
+    }
+
     fn update_state(&mut self) {
         self.params.update_state(Rc::clone(&self.midi_input_buffer))
     }
@@ -103,6 +107,10 @@ impl<S> generator::Generator<S> for SineOscillator {
 
 /// This is the code that implements the Oscillator trait for the SquareOscillator struct
 impl<S> generator::Generator<S> for SquareOscillator {
+    fn type_name(&self) -> &'static str {
+        "SquareOscillator"
+    }
+
     fn update_state(&mut self) {
         self.params.update_state(Rc::clone(&self.midi_input_buffer))
     }
@@ -129,6 +137,10 @@ impl<S> generator::Generator<S> for SquareOscillator {
 
 /// This is the code that implements the Oscillator trait for the SquareOscillator struct
 impl<S> generator::Generator<S> for SawtoothOscillator {
+    fn type_name(&self) -> &'static str {
+        "SawtoothOscillator"
+    }
+
     fn update_state(&mut self) {
         self.params.update_state(Rc::clone(&self.midi_input_buffer))
     }

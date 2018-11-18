@@ -85,11 +85,23 @@ fn run() -> Result<(), &'static str> {
                 }
             }
 
+            else if *arg == "nodes" {
+                if let Some(arg) = input_args_iter.next() {
+                    if *arg == "list" {
+                        let mut graph_borrowed = graph.borrow_mut();
+                        let nodes_iter = graph_borrowed.nodes_mut().enumerate();
+                        for (i, node) in nodes_iter {
+                            println!("{}: {}", i, node);
+                        }
+                    }
+                }
+            }
+
             // Commands to add oscillators
             else if *arg == "add" {
-                let audio_was_active = audio_interface.is_active();
 
                 if let Some(arg) = input_args_iter.next() {
+                    let audio_was_active = audio_interface.is_active();
 
                     match oscillator::new(*arg, Rc::clone(&midi_input_buffer)) {
                         Err(reason) => println!("{}", reason),
