@@ -10,12 +10,9 @@ use defs;
 use midi;
 use processor;
 
-/// SineOscillator is a type that will implement the trait above:
 pub struct Params {
-    pub phase: defs::Phase,
-    pub frequency: defs::Frequency,
-    pub volume: defs::Volume,
-    pub note: Option<u8>,
+    phase: defs::Phase,
+    frequency: defs::Frequency,
 }
 
 impl Params {
@@ -23,33 +20,19 @@ impl Params {
         Params{
             phase: 0.0,
             frequency: 0.0,
-            volume: 0.2,
-            note: None
         }
     }
 
     fn update_state(&mut self, midi_input_buffer: Arc<RefCell<midi::InputBuffer>>) {
-        // Iterate over any midi events and mutate the oscillator params accordingly
+        // Iterate over any midi events and mutate the frequency accordingly
         let midi_events = midi_input_buffer.borrow();
         for midi_event in midi_events.iter() {
             match midi_event {
-                midi::MidiEvent::NoteOff{note} => {
-                    // If this note was already playing, deactivate it
-                    if let Some(active_note) = self.note {
-                        if *note == active_note {
-                            self.frequency = 0.0;
-                            self.phase = 0.0;
-                            self.note = None;
-                            self.volume = 0.0;
-                        }
-                    }
-                },
                 midi::MidiEvent::NoteOn{note, ..} => {
                     // Set the active note and frequency to match this new note
                     self.frequency = midi::note_to_frequency(*note);
-                    self.note = Some(*note);
-                    self.volume = 0.2;
                 },
+                _ => ()
             }
         }
     }
@@ -93,7 +76,7 @@ impl<S> processor::Source<S> for SineOscillator {
     where S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
     {
         let params = &mut self.params;
-        let res = (params.phase.sin() as f32 * params.volume).to_sample::<S>();
+        let res = (params.phase.sin() as f32).to_sample::<S>();
 
         params.phase += 2.0 * PI * params.frequency / defs::SAMPLE_HZ;
         while params.phase >= PI {
@@ -119,9 +102,9 @@ impl<S> processor::Source<S> for SquareOscillator {
     {
         let params = &mut self.params;
         let res = if params.phase < 0.0 {
-            params.volume
+            1.0
         } else {
-            -params.volume
+            -1.0
         };
         let res = res.to_sample::<S>();
 
@@ -148,7 +131,7 @@ impl<S> processor::Source<S> for SawtoothOscillator {
     where S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
     {
         let params = &mut self.params;
-        let res = ((PI - (params.phase)) as f32 * params.volume).to_sample::<S>();
+        let res = ((PI - (params.phase)) as f32).to_sample::<S>();
 
         params.phase += 2.0 * PI * params.frequency / defs::SAMPLE_HZ;
         while params.phase >= PI {

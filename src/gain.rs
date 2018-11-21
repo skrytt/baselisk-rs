@@ -10,17 +10,12 @@ use midi;
 use modulator;
 use processor;
 
-enum StateChange {
-    ToAttack,
-    ToRelease,
-}
-
 /// AdsrGain links together a midi::InputBuffer and an ADSR into an audio processor.
 /// It knows how to adjust gain based on MIDI events.
 struct AdsrGain {
     adsr: modulator::Adsr,
     midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
-    note: Option<u8>,
+    volume: defs::Volume,
 }
 
 impl AdsrGain {
@@ -28,7 +23,7 @@ impl AdsrGain {
         AdsrGain {
             adsr: modulator::Adsr::new(defs::SAMPLE_HZ),
             midi_input_buffer,
-            note: None,
+            volume: 0.2,
         }
     }
 }
@@ -39,41 +34,29 @@ impl<S> processor::Processor<S> for AdsrGain {
     }
 
     fn update_state(&mut self) {
-        // Iterate over any midi events and consider the last midi event only
-        let mut state_change: Option<StateChange> = None;
+        let mut notes_pressed: i32 = 0;
+        let mut notes_released: i32 = 0;
 
         let midi_events = self.midi_input_buffer.borrow();
         for midi_event in midi_events.iter() {
             match midi_event {
-                midi::MidiEvent::NoteOff{note} => {
-                    println!("debug AdsrGain: got midi NoteOff {}", note);
-                    // If this note was already playing, deactivate it
-                    if let Some(active_note) = self.note {
-                        if *note == active_note {
-                            state_change = Some(StateChange::ToRelease);
-                            self.note = None;
-                        }
-                    }
+                midi::MidiEvent::NoteOn{..} => {
+                    notes_pressed += 1;
                 },
-                midi::MidiEvent::NoteOn{note, ..} => {
-                    println!("debug AdsrGain: got midi NoteOn {}", note);
-                    state_change = Some(StateChange::ToAttack);
-                    self.note = Some(*note);
+                midi::MidiEvent::NoteOff{..} => {
+                    notes_released += 1;
                 },
             }
         }
-        if let Some(sc) = state_change {
-            match sc {
-                StateChange::ToAttack => self.adsr.start_attack(),
-                StateChange::ToRelease => self.adsr.start_release(),
-            }
+        if notes_pressed > 0 || notes_released > 0 {
+            self.adsr.update_notes_held_count(notes_pressed, notes_released);
         }
     }
 
     fn process(&mut self, input: S) -> S
     where S: dsp::sample::FloatSample + dsp::FromSample<f32> + fmt::Display,
     {
-        let next = self.adsr.next().unwrap().to_sample::<S>();
+        let next = (self.adsr.next().unwrap() * self.volume).to_sample::<S>();
         input.mul_amp(next)
     }
 }

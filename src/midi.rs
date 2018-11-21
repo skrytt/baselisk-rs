@@ -21,11 +21,11 @@ impl MidiEvent {
 
 
         if status == 0x80 {
-            println!("t={}: Got NoteOff MIDI event: {}", event.timestamp, message);
+            //println!("t={}: Got NoteOff MIDI event: {}", event.timestamp, message);
             Some(MidiEvent::NoteOff{ note: message.data1 })
         }
         else if status == 0x90 {
-            println!("t={}: Got NoteOn MIDI event: {}", event.timestamp, message);
+            //println!("t={}: Got NoteOn MIDI event: {}", event.timestamp, message);
 
             // Many MIDI devices send a Note On with velocity == 0 to indicate
             // a Note Off event. Handle that here.
