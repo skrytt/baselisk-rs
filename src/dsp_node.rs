@@ -2,8 +2,9 @@
 extern crate dsp;
 
 use std::fmt;
+use dsp::Frame;
 use defs;
-use generator;
+use processor;
 
 /// DspNode enumerates types that can feature in our DSP graph.
 pub enum DspNode<S>
@@ -11,22 +12,29 @@ where
     S: dsp::Sample + dsp::FromSample<f32>,
 {
     Synth,
-    Oscillator(Box<dyn generator::Generator<S>>),
+    Source(Box<dyn processor::Source<S>>),
+    Processor(Box<dyn processor::Processor<S>>),
 }
 
-impl dsp::Node<[defs::Output; defs::CHANNELS]> for DspNode<defs::Output> {
+impl dsp::Node<defs::Frame> for DspNode<defs::Output> {
     fn audio_requested(
         &mut self,
-        buffer: &mut [[defs::Output; defs::CHANNELS]],
+        buffer: &mut [defs::Frame],
         _sample_hz: f64
 )
 {
         match *self {
             DspNode::Synth => (),
-            DspNode::Oscillator(ref mut oscillator) => {
+            DspNode::Source(ref mut source) => {
+                source.update_state();
                 dsp::slice::map_in_place(buffer, |_| {
-                    oscillator.update_state();
-                    dsp::Frame::from_fn(|_| oscillator.generate())
+                    dsp::Frame::from_fn(|_| source.generate())
+                });
+            }
+            DspNode::Processor(ref mut processor) => {
+                processor.update_state();
+                dsp::slice::map_in_place(buffer, |input_frame| {
+                    input_frame.map(|s| processor.process(s))
                 });
             }
         }
@@ -37,7 +45,8 @@ impl fmt::Display for DspNode<defs::Output> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             DspNode::Synth => write!(f, "Synth"),
-            DspNode::Oscillator(ref t) => write!(f, "{}", t.type_name()),
+            DspNode::Source(ref t) => write!(f, "{}", t.type_name()),
+            DspNode::Processor(ref t) => write!(f, "{}", t.type_name()),
         }
     }
 }

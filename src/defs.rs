@@ -3,6 +3,7 @@ pub type Phase = f64;
 pub type Frequency = f64;
 pub type Volume = f32;
 pub type Output = f32;
+pub type Frame = [Output; CHANNELS];
 
 pub const CHANNELS: usize = 2;
 pub const FRAMES: u32 = 0;

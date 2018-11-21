@@ -3,13 +3,12 @@ extern crate dsp;
 
 use std::fmt;
 use std::f64::consts::PI;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::cell::RefCell;
 use dsp::Sample;
 use defs;
 use midi;
-
-use generator;
+use processor;
 
 /// SineOscillator is a type that will implement the trait above:
 pub struct Params {
@@ -29,7 +28,7 @@ impl Params {
         }
     }
 
-    fn update_state(&mut self, midi_input_buffer: Rc<RefCell<midi::InputBuffer>>) {
+    fn update_state(&mut self, midi_input_buffer: Arc<RefCell<midi::InputBuffer>>) {
         // Iterate over any midi events and mutate the oscillator params accordingly
         let midi_events = midi_input_buffer.borrow();
         for midi_event in midi_events.iter() {
@@ -59,18 +58,18 @@ impl Params {
 
 pub struct SineOscillator {
     pub params: Params,
-    pub midi_input_buffer: Rc<RefCell<midi::InputBuffer>>,
+    pub midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
 }
 pub struct SquareOscillator   {
     pub params: Params,
-    pub midi_input_buffer: Rc<RefCell<midi::InputBuffer>>,
+    pub midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
 }
 pub struct SawtoothOscillator {
     pub params: Params,
-    pub midi_input_buffer: Rc<RefCell<midi::InputBuffer>>,
+    pub midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
 }
 
-pub fn new<S>(name: &str, midi_input_buffer: Rc<RefCell<midi::InputBuffer>>) -> Result<Box<dyn generator::Generator<S>>, &'static str> {
+pub fn new<S>(name: &str, midi_input_buffer: Arc<RefCell<midi::InputBuffer>>) -> Result<Box<dyn processor::Source<S>>, &'static str> {
     match name {
         "sine"   => Ok(Box::new(SineOscillator{ params: Params::new(), midi_input_buffer })),
         "square" => Ok(Box::new(SquareOscillator{ params: Params::new(), midi_input_buffer })),
@@ -81,13 +80,13 @@ pub fn new<S>(name: &str, midi_input_buffer: Rc<RefCell<midi::InputBuffer>>) -> 
 }
 
 /// This is the code that implements the Oscillator trait for the SineOscillator struct
-impl<S> generator::Generator<S> for SineOscillator {
+impl<S> processor::Source<S> for SineOscillator {
     fn type_name(&self) -> &'static str {
         "SineOscillator"
     }
 
     fn update_state(&mut self) {
-        self.params.update_state(Rc::clone(&self.midi_input_buffer))
+        self.params.update_state(Arc::clone(&self.midi_input_buffer))
     }
 
     fn generate(&mut self) -> S
@@ -106,13 +105,13 @@ impl<S> generator::Generator<S> for SineOscillator {
 }
 
 /// This is the code that implements the Oscillator trait for the SquareOscillator struct
-impl<S> generator::Generator<S> for SquareOscillator {
+impl<S> processor::Source<S> for SquareOscillator {
     fn type_name(&self) -> &'static str {
         "SquareOscillator"
     }
 
     fn update_state(&mut self) {
-        self.params.update_state(Rc::clone(&self.midi_input_buffer))
+        self.params.update_state(Arc::clone(&self.midi_input_buffer))
     }
 
     fn generate(&mut self) -> S
@@ -136,13 +135,13 @@ impl<S> generator::Generator<S> for SquareOscillator {
 }
 
 /// This is the code that implements the Oscillator trait for the SquareOscillator struct
-impl<S> generator::Generator<S> for SawtoothOscillator {
+impl<S> processor::Source<S> for SawtoothOscillator {
     fn type_name(&self) -> &'static str {
         "SawtoothOscillator"
     }
 
     fn update_state(&mut self) {
-        self.params.update_state(Rc::clone(&self.midi_input_buffer))
+        self.params.update_state(Arc::clone(&self.midi_input_buffer))
     }
 
     fn generate(&mut self) -> S
