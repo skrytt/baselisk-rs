@@ -20,7 +20,7 @@ impl Interface
 {
     pub fn new(
         midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
-        graph: Arc<RefCell<dsp::Graph<[f32; 2], dsp_node::DspNode<f32>>>>,
+        graph: Arc<RefCell<dsp::Graph<defs::Frame, dsp_node::DspNode<f32>>>>,
     ) -> Result<Interface, &'static str>
     {
         println!("Setting up interface to PortAudio...");
