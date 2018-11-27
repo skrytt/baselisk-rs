@@ -101,19 +101,54 @@ impl<S> processor::Source<S> for SquareOscillator {
     where S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
     {
         let params = &mut self.params;
-        let res = if params.phase < 0.0 {
+        let step = params.frequency / defs::SAMPLE_HZ;
+
+        // Advance phase
+        // Enforce range 0.0 <= phase < 1.0
+        let mut phase = params.phase + step;
+        while phase >= 1.0 {
+            phase -= 1.0;
+        }
+
+        // Naive sawtooth is:
+        //   phase == 0:   res = 1.0
+        //   phase == 0.5: res = 0.0
+        //   phase == 1.0: res = -1.0
+        let mut res = if phase < 0.5 {
             1.0
         } else {
             -1.0
         };
-        let res = res.to_sample::<S>();
 
-        params.phase += 2.0 * PI * params.frequency / defs::SAMPLE_HZ;
-        while params.phase >= PI {
-            params.phase -= PI * 2.0;
-        }
+        // PolyBLEP smoothing to reduce aliasing by smoothing discontinuities,
+        let polyblep = |phase: f64, step: f64| -> f64 {
+            // Apply PolyBLEP Smoothing for 0 < phase < (freq / sample_rate)
+            //   phase == 0:    x = 0.0
+            //   phase == step: x = 1.0
+            if phase < step {
+                let x = phase / step;
+                return 2.0*x - x*x - 1.0;
+            }
+            // Apply PolyBLEP Smoothing for (1.0 - (freq / sample_rate)) < phase < 1.0:
+            //   phase == (1.0 - step): x = 1.0
+            //   phase == 1.0:          x = 0.0
+            else if phase > (1.0 - step) {
+                let x = (phase - 1.0) / step;
+                return 2.0*x + x*x + 1.0;
+            }
+            else {
+                0.0
+            }
+        };
+        // PolyBLEP for the first (upward) discontinuity
+        res += polyblep(phase, step);
+        // PolyBLEP for the second (downward) discontinuity
+        res -= polyblep((phase + 0.5) % 1.0, step);
 
-        res
+        // Store the phase for next iteration
+        params.phase = phase;
+
+        (res as f32).to_sample::<S>()
     }
 }
 
@@ -131,13 +166,41 @@ impl<S> processor::Source<S> for SawtoothOscillator {
     where S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
     {
         let params = &mut self.params;
-        let res = ((PI - (params.phase)) as f32).to_sample::<S>();
+        let step = params.frequency / defs::SAMPLE_HZ;
 
-        params.phase += 2.0 * PI * params.frequency / defs::SAMPLE_HZ;
-        while params.phase >= PI {
-            params.phase -= PI * 2.0;
+        // Advance phase
+        // Enforce range 0.0 <= phase < 1.0
+        let mut phase = params.phase + step;
+        while phase >= 1.0 {
+            phase -= 1.0;
         }
 
-        res
+        // Naive sawtooth is:
+        //   phase == 0:   res = 1.0
+        //   phase == 0.5: res = 0.0
+        //   phase == 1.0: res = -1.0
+        let mut res = 1.0 - 2.0*phase;
+
+        // PolyBLEP smoothing to reduce aliasing by smoothing discontinuities,
+        // which always occur at phase == 0.0.
+        // Apply PolyBLEP Smoothing for 0 < phase < (freq / sample_rate)
+        //   phase == 0:    x = 0.0
+        //   phase == step: x = 1.0
+        if phase < step {
+            let x = phase / step;
+            res += 2.0*x - x*x - 1.0;
+        }
+        // Apply PolyBLEP Smoothing for (1.0 - (freq / sample_rate)) < phase < 1.0:
+        //   phase == (1.0 - step): x = 1.0
+        //   phase == 1.0:          x = 0.0
+        else if phase > (1.0 - step) {
+            let x = (phase - 1.0) / step;
+            res += 2.0*x + x*x + 1.0;
+        }
+
+        // Store the phase for next iteration
+        params.phase = phase;
+
+        (res as f32).to_sample::<S>()
     }
 }
