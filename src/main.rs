@@ -54,8 +54,6 @@ fn run() -> Result<(), &'static str> {
             .filter( |s| { s.len() > 0 })
             .collect();
 
-        let audio_was_active = audio_interface.is_active();
-
         let mut input_args_iter = input_args.iter();
 
         if let Some(arg) = input_args_iter.next() {
@@ -85,17 +83,11 @@ fn run() -> Result<(), &'static str> {
                     // "midi input {device_id}": set device_id as the midi input device
                     else if *arg == "input" {
                         if let Some(arg) = input_args_iter.next() {
-                            if audio_was_active {
-                                audio_interface.pause().unwrap();
-                            }
-
-                            let device_id: i32;
-                            scan!(arg.bytes() => "{}", device_id);
-                            midi_input_buffer.borrow_mut().set_port(device_id).unwrap();
-
-                            if audio_was_active {
-                                audio_interface.resume().unwrap();
-                            }
+                            audio_interface.exec_while_paused(|| {
+                                let device_id: i32;
+                                scan!(arg.bytes() => "{}", device_id);
+                                midi_input_buffer.borrow_mut().set_port(device_id).unwrap();
+                            })
                         }
                     }
                 }
@@ -106,23 +98,15 @@ fn run() -> Result<(), &'static str> {
                 if let Some(arg) = input_args_iter.next() {
                     // "nodes list" : list the enumerated nodes of the graph
                     if *arg == "list" {
-                        if audio_was_active {
-                            audio_interface.pause().unwrap();
-                        }
-
                         // graph borrow scope, so that we release borrow
                         // before the audio interface claims it
-                        {
+                        audio_interface.exec_while_paused(|| {
                             let mut graph_borrow = graph.borrow_mut();
                             let nodes_iter = graph_borrow.nodes_mut().enumerate();
                             for (i, node) in nodes_iter {
                                 println!("{}: {}", i, node);
                             }
-                        }
-
-                        if audio_was_active {
-                            audio_interface.resume().unwrap();
-                        }
+                        })
                     }
                 }
             }
@@ -131,23 +115,17 @@ fn run() -> Result<(), &'static str> {
             else if *arg == "add" {
 
                 if let Some(arg) = input_args_iter.next() {
-                    match oscillator::new(*arg, Arc::clone(&midi_input_buffer)) {
-                        Err(reason) => println!("{}", reason),
-                        Ok(osc) => {
-                            if audio_was_active {
-                                audio_interface.pause().unwrap();
-                            }
-
-                            graph.borrow_mut().add_input(
-                                dsp_node::DspNode::Source(osc),
-                                synth
-                            );
-
-                            if audio_was_active {
-                                audio_interface.resume().unwrap();
+                    audio_interface.exec_while_paused(|| {
+                        match oscillator::new(*arg, Arc::clone(&midi_input_buffer)) {
+                            Err(reason) => println!("{}", reason),
+                            Ok(osc) => {
+                                graph.borrow_mut().add_input(
+                                    dsp_node::DspNode::Source(osc),
+                                    synth
+                                );
                             }
                         }
-                    }
+                    })
                 }
             }
 
@@ -162,16 +140,12 @@ fn run() -> Result<(), &'static str> {
 
                     // Ok, the node exists, now make a new node to put after it
                     if let Some(arg) = input_args_iter.next() {
-                        match gain::new(*arg, Arc::clone(&midi_input_buffer)) {
-                            Err(reason) => println!("{}", reason),
-                            Ok(p) => {
-                                if audio_was_active {
-                                    audio_interface.pause().unwrap();
-                                }
-
-                                // graph borrow scope, so that we release borrow
-                                // before the audio interface claims it
-                                {
+                        audio_interface.exec_while_paused(|| {
+                            match gain::new(*arg, Arc::clone(&midi_input_buffer)) {
+                                Err(reason) => println!("{}", reason),
+                                Ok(p) => {
+                                    // graph borrow scope, so that we release borrow
+                                    // before the audio interface claims it
                                     let mut graph_borrow = graph.borrow_mut();
 
                                     let synth_index = graph_borrow.master_index().unwrap();
@@ -189,14 +163,9 @@ fn run() -> Result<(), &'static str> {
 
                                     // 3. Connect p to graph
                                     graph_borrow.add_connection(p_index, synth_index).unwrap();
-
-                                }
-
-                                if audio_was_active {
-                                    audio_interface.resume().unwrap();
                                 }
                             }
-                        }
+                        })
                     }
                 }
             }

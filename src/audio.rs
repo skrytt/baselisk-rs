@@ -40,7 +40,7 @@ impl Interface
             // Refresh the MIDI input buffer with new MIDI events
             midi_input_buffer.borrow_mut().update();
 
-            let buffer: &mut [[defs::Output; defs::CHANNELS]] = buffer.to_frame_slice_mut().unwrap();
+            let buffer: &mut [defs::Frame] = buffer.to_frame_slice_mut().unwrap();
             dsp::slice::equilibrium(buffer);
 
             graph.borrow_mut().audio_requested(buffer, defs::SAMPLE_HZ);
@@ -64,6 +64,21 @@ impl Interface
         match self.stream.abort() {
             Err(e) => return Err(format!("Failed to start stream: {}", e)),
             Ok(_) => Ok(()),
+        }
+    }
+
+    pub fn exec_while_paused<F>(&mut self, f: F)
+        where F: Fn()
+    {
+        let was_active = self.is_active();
+        if was_active {
+            self.pause().unwrap();
+        }
+
+        f();
+
+        if was_active {
+            self.resume().unwrap();
         }
     }
 
