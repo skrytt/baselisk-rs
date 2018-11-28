@@ -5,7 +5,6 @@ extern crate dsp;
 #[macro_use]
 extern crate text_io;
 
-
 mod audio;
 mod defs;
 mod dsp_node;
@@ -16,8 +15,8 @@ mod oscillator;
 mod processor;
 
 use std::cell::RefCell;
-use std::io::prelude::*;
 use std::io;
+use std::io::prelude::*;
 use std::sync::Arc;
 
 fn main() {
@@ -35,10 +34,8 @@ fn run() -> Result<(), &'static str> {
     graph.borrow_mut().set_master(Some(synth));
 
     // Construct PortAudio and the stream.
-    let mut audio_interface = audio::Interface::new(
-        Arc::clone(&midi_input_buffer),
-        Arc::clone(&graph),
-    )?;
+    let mut audio_interface =
+        audio::Interface::new(Arc::clone(&midi_input_buffer), Arc::clone(&graph))?;
 
     audio_interface.resume().unwrap();
 
@@ -49,29 +46,22 @@ fn run() -> Result<(), &'static str> {
 
         let input_line: String = read!("{}\n");
         let input_line: String = input_line.to_lowercase();
-        let input_args: Vec<&str> = input_line
-            .split(' ')
-            .filter( |s| { s.len() > 0 })
-            .collect();
+        let input_args: Vec<&str> = input_line.split(' ').filter(|s| s.len() > 0).collect();
 
         let mut input_args_iter = input_args.iter();
 
         if let Some(arg) = input_args_iter.next() {
-
             // Users may quit by typing 'quit'.
             if *arg == "quit" {
                 println!("Quitting...");
                 let _ = audio_interface.finish();
             }
-
             // The commands 'pause' and 'resume' can also control stream processing.
             else if *arg == "pause" {
                 let _ = audio_interface.pause();
-            }
-            else if *arg == "resume" {
+            } else if *arg == "resume" {
                 let _ = audio_interface.resume();
             }
-
             // Commands to control MIDI input devices
             else if *arg == "midi" {
                 if let Some(arg) = input_args_iter.next() {
@@ -79,7 +69,6 @@ fn run() -> Result<(), &'static str> {
                     if *arg == "list" {
                         midi_input_buffer.borrow().print_devices();
                     }
-
                     // "midi input {device_id}": set device_id as the midi input device
                     else if *arg == "input" {
                         if let Some(arg) = input_args_iter.next() {
@@ -92,7 +81,6 @@ fn run() -> Result<(), &'static str> {
                     }
                 }
             }
-
             // Commands to provide information about nodes
             else if *arg == "nodes" {
                 if let Some(arg) = input_args_iter.next() {
@@ -110,25 +98,21 @@ fn run() -> Result<(), &'static str> {
                     }
                 }
             }
-
             // Commands to add oscillators
             else if *arg == "add" {
-
                 if let Some(arg) = input_args_iter.next() {
                     audio_interface.exec_while_paused(|| {
                         match oscillator::new(*arg, Arc::clone(&midi_input_buffer)) {
                             Err(reason) => println!("{}", reason),
                             Ok(osc) => {
-                                graph.borrow_mut().add_input(
-                                    dsp_node::DspNode::Source(osc),
-                                    synth
-                                );
+                                graph
+                                    .borrow_mut()
+                                    .add_input(dsp_node::DspNode::Source(osc), synth);
                             }
                         }
                     })
                 }
             }
-
             // Commands to insert filters after other nodes
             else if *arg == "extend" {
                 if let Some(arg) = input_args_iter.next() {
@@ -152,14 +136,12 @@ fn run() -> Result<(), &'static str> {
 
                                     // node_before is the node we'll be adding to.
                                     // 1. Remove the connection between node_before and graph
-                                    graph_borrow.remove_connection(
-                                        node_before_index, synth_index);
+                                    graph_borrow.remove_connection(node_before_index, synth_index);
 
                                     // 2. Connect node_before to p
                                     let p_node = dsp_node::DspNode::Processor(p);
-                                    let (_, p_index) = graph_borrow.add_output(
-                                        node_before_index,
-                                        p_node);
+                                    let (_, p_index) =
+                                        graph_borrow.add_output(node_before_index, p_node);
 
                                     // 3. Connect p to graph
                                     graph_borrow.add_connection(p_index, synth_index).unwrap();
@@ -174,4 +156,3 @@ fn run() -> Result<(), &'static str> {
 
     Ok(())
 }
-

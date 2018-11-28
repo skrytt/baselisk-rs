@@ -1,4 +1,3 @@
-
 extern crate portmidi;
 
 use std::slice::Iter;
@@ -7,8 +6,8 @@ use defs;
 
 /// Enum describes types of midi event. Not all types are implemented.
 pub enum MidiEvent {
-    NoteOff{ note: u8 },
-    NoteOn{ note: u8, velocity: u8 },
+    NoteOff { note: u8 },
+    NoteOn { note: u8, velocity: u8 },
 }
 
 impl MidiEvent {
@@ -19,24 +18,28 @@ impl MidiEvent {
         let message = event.message;
         let status = message.status;
 
-
         if status == 0x80 {
-            //println!("t={}: Got NoteOff MIDI event: {}", event.timestamp, message);
-            Some(MidiEvent::NoteOff{ note: message.data1 })
-        }
-        else if status == 0x90 {
-            //println!("t={}: Got NoteOn MIDI event: {}", event.timestamp, message);
-
-            // Many MIDI devices send a Note On with velocity == 0 to indicate
+            Some(MidiEvent::NoteOff {
+                note: message.data1,
+            })
+        } else if status == 0x90 {
+            // Often MIDI devices send a Note On with velocity == 0 to indicate
             // a Note Off event. Handle that here.
             let velocity = message.data2;
             match velocity {
-                0 => Some(MidiEvent::NoteOff{ note: message.data1 }),
-                _ => Some(MidiEvent::NoteOn{ note: message.data1, velocity: message.data2 })
+                0 => Some(MidiEvent::NoteOff {
+                    note: message.data1,
+                }),
+                _ => Some(MidiEvent::NoteOn {
+                    note: message.data1,
+                    velocity: message.data2,
+                }),
             }
-        }
-        else {
-            println!("t={}: Dropping unknown MIDI event: {}", event.timestamp, message);
+        } else {
+            println!(
+                "t={}: Dropping unknown MIDI event: {}",
+                event.timestamp, message
+            );
             None
         }
     }
@@ -52,7 +55,6 @@ pub struct InputBuffer {
 impl InputBuffer {
     /// Create a new buffer for receiving MIDI from one input device.
     pub fn new() -> InputBuffer {
-
         println!("Setting up PortMidi input buffer...");
 
         // Code based on "monitor-all" example of portmidi crate
@@ -71,16 +73,16 @@ impl InputBuffer {
         }
     }
 
-    pub fn set_port(&mut self, device_id: i32) -> Result<(), String>{
+    pub fn set_port(&mut self, device_id: i32) -> Result<(), String> {
         let info = match self.context.device(device_id) {
             Err(e) => return Err(e.to_string()),
-            Ok(t)  => t,
+            Ok(t) => t,
         };
         println!("Listening on MIDI input: {}) {}", info.id(), info.name());
 
         match self.context.input_port(info, defs::MIDI_BUF_LEN) {
             Err(e) => Err(e.to_string()),
-            Ok(port)  => {
+            Ok(port) => {
                 self.port = Some(port);
                 Ok(())
             }
@@ -89,7 +91,6 @@ impl InputBuffer {
 
     /// Fill the buffer with MIDI events since the last buffer update.
     pub fn update(&mut self) {
-
         // First, clear any old MIDI events.
         self.events.clear();
 
@@ -102,8 +103,9 @@ impl InputBuffer {
                 // Then, convert them to our MidiEvent types, filtering out
                 // events that we don't know how to use.
                 if let Ok(Some(events)) = port.read_n(defs::MIDI_BUF_LEN) {
-                    self.events = events.into_iter()
-                        .filter_map( |event| { MidiEvent::process(event) } )
+                    self.events = events
+                        .into_iter()
+                        .filter_map(|event| MidiEvent::process(event))
                         .collect()
                 }
             }
@@ -119,4 +121,3 @@ impl InputBuffer {
 pub fn note_to_frequency(note: u8) -> defs::Frequency {
     440.0 as defs::Frequency * ((note as defs::Frequency - 69.0) / 12.0).exp2()
 }
-

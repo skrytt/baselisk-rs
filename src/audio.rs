@@ -1,28 +1,25 @@
-
 extern crate portaudio;
 
-use std::cell::RefCell;
-use std::sync::Arc;
 use dsp;
 use dsp::sample::ToFrameSliceMut;
 use dsp::Node;
+use std::cell::RefCell;
+use std::sync::Arc;
 
-use midi;
 use defs;
 use dsp_node;
+use midi;
 
 pub struct Interface {
     stream: portaudio::Stream<portaudio::NonBlocking, portaudio::Output<f32>>,
     running: bool,
 }
 
-impl Interface
-{
+impl Interface {
     pub fn new(
         midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
         graph: Arc<RefCell<dsp::Graph<defs::Frame, dsp_node::DspNode<f32>>>>,
-    ) -> Result<Interface, &'static str>
-    {
+    ) -> Result<Interface, &'static str> {
         println!("Setting up interface to PortAudio...");
         let pa = portaudio::PortAudio::new().unwrap();
 
@@ -36,7 +33,6 @@ impl Interface
 
         // The callback we'll use to pass to the Stream. It will request audio from our dsp_graph.
         let callback = move |portaudio::OutputStreamCallbackArgs { buffer, .. }| {
-
             // Refresh the MIDI input buffer with new MIDI events
             midi_input_buffer.borrow_mut().update();
 
@@ -51,7 +47,10 @@ impl Interface
         println!("Opening PortAudio stream...");
         let stream = pa.open_non_blocking_stream(settings, callback).unwrap();
 
-        Ok(Interface{stream, running: true})
+        Ok(Interface {
+            stream,
+            running: true,
+        })
     }
 
     pub fn resume(&mut self) -> Result<(), String> {
@@ -68,7 +67,8 @@ impl Interface
     }
 
     pub fn exec_while_paused<F>(&mut self, f: F)
-        where F: Fn()
+    where
+        F: Fn(),
     {
         let was_active = self.is_active();
         if was_active {

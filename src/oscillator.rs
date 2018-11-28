@@ -1,14 +1,13 @@
-
 extern crate dsp;
 
-use std::fmt;
-use std::f64::consts::PI;
-use std::sync::Arc;
-use std::cell::RefCell;
-use dsp::Sample;
 use defs;
+use dsp::Sample;
 use midi;
 use processor;
+use std::cell::RefCell;
+use std::f64::consts::PI;
+use std::fmt;
+use std::sync::Arc;
 
 pub struct Params {
     phase: defs::Phase,
@@ -17,7 +16,7 @@ pub struct Params {
 
 impl Params {
     pub fn new() -> Params {
-        Params{
+        Params {
             phase: 0.0,
             frequency: 0.0,
         }
@@ -28,22 +27,21 @@ impl Params {
         let midi_events = midi_input_buffer.borrow();
         for midi_event in midi_events.iter() {
             match midi_event {
-                midi::MidiEvent::NoteOn{note, ..} => {
+                midi::MidiEvent::NoteOn { note, .. } => {
                     // Set the active note and frequency to match this new note
                     self.frequency = midi::note_to_frequency(*note);
-                },
-                _ => ()
+                }
+                _ => (),
             }
         }
     }
-
 }
 
 pub struct SineOscillator {
     pub params: Params,
     pub midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
 }
-pub struct SquareOscillator   {
+pub struct SquareOscillator {
     pub params: Params,
     pub midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
 }
@@ -52,14 +50,25 @@ pub struct SawtoothOscillator {
     pub midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
 }
 
-pub fn new<S>(name: &str, midi_input_buffer: Arc<RefCell<midi::InputBuffer>>) -> Result<Box<dyn processor::Source<S>>, &'static str> {
+pub fn new<S>(
+    name: &str,
+    midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
+) -> Result<Box<dyn processor::Source<S>>, &'static str> {
     match name {
-        "sine"   => Ok(Box::new(SineOscillator{ params: Params::new(), midi_input_buffer })),
-        "square" => Ok(Box::new(SquareOscillator{ params: Params::new(), midi_input_buffer })),
-        "saw"    => Ok(Box::new(SawtoothOscillator{ params: Params::new(), midi_input_buffer })),
-        _        => Err("Unknown oscillator name"),
+        "sine" => Ok(Box::new(SineOscillator {
+            params: Params::new(),
+            midi_input_buffer,
+        })),
+        "square" => Ok(Box::new(SquareOscillator {
+            params: Params::new(),
+            midi_input_buffer,
+        })),
+        "saw" => Ok(Box::new(SawtoothOscillator {
+            params: Params::new(),
+            midi_input_buffer,
+        })),
+        _ => Err("Unknown oscillator name"),
     }
-
 }
 
 /// This is the code that implements the Oscillator trait for the SineOscillator struct
@@ -69,11 +78,13 @@ impl<S> processor::Source<S> for SineOscillator {
     }
 
     fn update_state(&mut self) {
-        self.params.update_state(Arc::clone(&self.midi_input_buffer))
+        self.params
+            .update_state(Arc::clone(&self.midi_input_buffer))
     }
 
     fn generate(&mut self) -> S
-    where S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
+    where
+        S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
     {
         let params = &mut self.params;
         let res = (params.phase.sin() as f32).to_sample::<S>();
@@ -94,11 +105,13 @@ impl<S> processor::Source<S> for SquareOscillator {
     }
 
     fn update_state(&mut self) {
-        self.params.update_state(Arc::clone(&self.midi_input_buffer))
+        self.params
+            .update_state(Arc::clone(&self.midi_input_buffer))
     }
 
     fn generate(&mut self) -> S
-    where S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
+    where
+        S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
     {
         let params = &mut self.params;
         let step = params.frequency / defs::SAMPLE_HZ;
@@ -114,11 +127,7 @@ impl<S> processor::Source<S> for SquareOscillator {
         //   phase == 0:   res = 1.0
         //   phase == 0.5: res = 0.0
         //   phase == 1.0: res = -1.0
-        let mut res = if phase < 0.5 {
-            1.0
-        } else {
-            -1.0
-        };
+        let mut res = if phase < 0.5 { 1.0 } else { -1.0 };
 
         // PolyBLEP smoothing to reduce aliasing by smoothing discontinuities,
         let polyblep = |phase: f64, step: f64| -> f64 {
@@ -127,16 +136,15 @@ impl<S> processor::Source<S> for SquareOscillator {
             //   phase == step: x = 1.0
             if phase < step {
                 let x = phase / step;
-                return 2.0*x - x*x - 1.0;
+                return 2.0 * x - x * x - 1.0;
             }
             // Apply PolyBLEP Smoothing for (1.0 - (freq / sample_rate)) < phase < 1.0:
             //   phase == (1.0 - step): x = 1.0
             //   phase == 1.0:          x = 0.0
             else if phase > (1.0 - step) {
                 let x = (phase - 1.0) / step;
-                return 2.0*x + x*x + 1.0;
-            }
-            else {
+                return 2.0 * x + x * x + 1.0;
+            } else {
                 0.0
             }
         };
@@ -159,11 +167,13 @@ impl<S> processor::Source<S> for SawtoothOscillator {
     }
 
     fn update_state(&mut self) {
-        self.params.update_state(Arc::clone(&self.midi_input_buffer))
+        self.params
+            .update_state(Arc::clone(&self.midi_input_buffer))
     }
 
     fn generate(&mut self) -> S
-    where S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
+    where
+        S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
     {
         let params = &mut self.params;
         let step = params.frequency / defs::SAMPLE_HZ;
@@ -179,7 +189,7 @@ impl<S> processor::Source<S> for SawtoothOscillator {
         //   phase == 0:   res = 1.0
         //   phase == 0.5: res = 0.0
         //   phase == 1.0: res = -1.0
-        let mut res = 1.0 - 2.0*phase;
+        let mut res = 1.0 - 2.0 * phase;
 
         // PolyBLEP smoothing to reduce aliasing by smoothing discontinuities,
         // which always occur at phase == 0.0.
@@ -188,14 +198,14 @@ impl<S> processor::Source<S> for SawtoothOscillator {
         //   phase == step: x = 1.0
         if phase < step {
             let x = phase / step;
-            res += 2.0*x - x*x - 1.0;
+            res += 2.0 * x - x * x - 1.0;
         }
         // Apply PolyBLEP Smoothing for (1.0 - (freq / sample_rate)) < phase < 1.0:
         //   phase == (1.0 - step): x = 1.0
         //   phase == 1.0:          x = 0.0
         else if phase > (1.0 - step) {
             let x = (phase - 1.0) / step;
-            res += 2.0*x + x*x + 1.0;
+            res += 2.0 * x + x * x + 1.0;
         }
 
         // Store the phase for next iteration

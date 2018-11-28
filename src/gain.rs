@@ -1,14 +1,13 @@
-
 extern crate dsp;
 
-use std::cell::RefCell;
-use std::fmt;
-use std::sync::Arc;
-use dsp::Sample;
 use defs;
+use dsp::Sample;
 use midi;
 use modulator;
 use processor;
+use std::cell::RefCell;
+use std::fmt;
+use std::sync::Arc;
 
 /// AdsrGain links together a midi::InputBuffer and an ADSR into an audio processor.
 /// It knows how to adjust gain based on MIDI events.
@@ -40,30 +39,35 @@ impl<S> processor::Processor<S> for AdsrGain {
         let midi_events = self.midi_input_buffer.borrow();
         for midi_event in midi_events.iter() {
             match midi_event {
-                midi::MidiEvent::NoteOn{..} => {
+                midi::MidiEvent::NoteOn { .. } => {
                     notes_pressed += 1;
-                },
-                midi::MidiEvent::NoteOff{..} => {
+                }
+                midi::MidiEvent::NoteOff { .. } => {
                     notes_released += 1;
-                },
+                }
             }
         }
         if notes_pressed > 0 || notes_released > 0 {
-            self.adsr.update_notes_held_count(notes_pressed, notes_released);
+            self.adsr
+                .update_notes_held_count(notes_pressed, notes_released);
         }
     }
 
     fn process(&mut self, input: S) -> S
-    where S: dsp::sample::FloatSample + dsp::FromSample<f32> + fmt::Display,
+    where
+        S: dsp::sample::FloatSample + dsp::FromSample<f32> + fmt::Display,
     {
         let next = (self.adsr.next().unwrap() * self.volume).to_sample::<S>();
         input.mul_amp(next)
     }
 }
 
-pub fn new<S>(name: &str, midi_input_buffer: Arc<RefCell<midi::InputBuffer>>) -> Result<Box<dyn processor::Processor<S>>, &'static str> {
+pub fn new<S>(
+    name: &str,
+    midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
+) -> Result<Box<dyn processor::Processor<S>>, &'static str> {
     match name {
         "adsrgain" => Ok(Box::new(AdsrGain::new(midi_input_buffer))),
-        _          => Err("Unknown gain filter name"),
+        _ => Err("Unknown gain filter name"),
     }
 }

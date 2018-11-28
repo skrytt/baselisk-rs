@@ -1,4 +1,3 @@
-
 pub type Phase = f64;
 pub type Frequency = f64;
 pub type Volume = f32;
