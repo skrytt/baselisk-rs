@@ -4,7 +4,7 @@ use std::fmt;
 
 /// Any audio processor that only outputs audio must implement the Source trait
 pub trait Source<S> {
-    fn type_name(&self) -> &'static str;
+    fn name(&self) -> &str;
 
     fn update_state(&mut self);
 
