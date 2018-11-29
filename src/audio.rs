@@ -66,22 +66,6 @@ impl Interface {
         }
     }
 
-    pub fn exec_while_paused<F>(&mut self, f: F)
-    where
-        F: Fn(),
-    {
-        let was_active = self.is_active();
-        if was_active {
-            self.pause().unwrap();
-        }
-
-        f();
-
-        if was_active {
-            self.resume().unwrap();
-        }
-    }
-
     pub fn finish(&mut self) {
         self.running = false;
         self.pause().unwrap();

@@ -45,15 +45,15 @@ pub struct Oscillator<S> {
 }
 
 pub fn new<S>(
-    name: String,
+    name: &str,
     midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
-) -> Result<Box<dyn processor::Source<S>>, &'static str> 
+) -> Result<Box<dyn processor::Source<S>>, &'static str>
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
 {
-    let generator_func = match name.as_str() {
+    let generator_func = match name {
         "sine" => sine_generator,
-        "saw"  => sawtooth_generator,
+        "saw" => sawtooth_generator,
         "square" => square_generator,
         _ => return Err("Unknown oscillator name"),
     };
@@ -61,7 +61,7 @@ where
         name: String::from(name),
         params: Params::new(),
         midi_input_buffer,
-        generator_func
+        generator_func,
     }))
 }
 

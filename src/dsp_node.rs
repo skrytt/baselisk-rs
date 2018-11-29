@@ -10,7 +10,7 @@ pub enum DspNode<S>
 where
     S: dsp::Sample + dsp::FromSample<f32>,
 {
-    Synth,
+    Master,
     Source(Box<dyn processor::Source<S>>),
     Processor(Box<dyn processor::Processor<S>>),
 }
@@ -18,7 +18,7 @@ where
 impl dsp::Node<defs::Frame> for DspNode<defs::Output> {
     fn audio_requested(&mut self, buffer: &mut [defs::Frame], _sample_hz: f64) {
         match *self {
-            DspNode::Synth => (),
+            DspNode::Master => (),
             DspNode::Source(ref mut source) => {
                 source.update_state();
                 dsp::slice::map_in_place(buffer, |_| dsp::Frame::from_fn(|_| source.generate()));
@@ -36,7 +36,7 @@ impl dsp::Node<defs::Frame> for DspNode<defs::Output> {
 impl fmt::Display for DspNode<defs::Output> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            DspNode::Synth => write!(f, "Synth"),
+            DspNode::Master => write!(f, "master"),
             DspNode::Source(ref t) => write!(f, "{}", t.name()),
             DspNode::Processor(ref t) => write!(f, "{}", t.type_name()),
         }
