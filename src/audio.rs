@@ -11,6 +11,7 @@ use dsp_node;
 use midi;
 
 pub struct Interface {
+    pa: portaudio::PortAudio,
     stream: portaudio::Stream<portaudio::NonBlocking, portaudio::Output<f32>>,
     running: bool,
 }
@@ -22,8 +23,6 @@ impl Interface {
     ) -> Result<Interface, &'static str> {
         println!("Setting up interface to PortAudio...");
         let pa = portaudio::PortAudio::new().unwrap();
-
-        println!("{}", pa.default_host_api().unwrap());
 
         let settings = pa.default_output_stream_settings::<defs::Output>(
             defs::CHANNELS as i32,
@@ -48,9 +47,20 @@ impl Interface {
         let stream = pa.open_non_blocking_stream(settings, callback).unwrap();
 
         Ok(Interface {
+            pa,
             stream,
             running: true,
         })
+    }
+
+    pub fn list_devices(&mut self) {
+        let devices = self.pa.devices().unwrap();
+        for device in devices {
+            if let Ok(device) = device {
+                let (idx, info) = device;
+                println!("{}: {}", i32::from(idx), info.name);
+            }
+        }
     }
 
     pub fn resume(&mut self) -> Result<(), String> {
