@@ -55,8 +55,6 @@ pub struct InputBuffer {
 impl InputBuffer {
     /// Create a new buffer for receiving MIDI from one input device.
     pub fn new() -> InputBuffer {
-        println!("Setting up PortMidi input buffer...");
-
         // Code based on "monitor-all" example of portmidi crate
         let context = portmidi::PortMidi::new().unwrap();
 

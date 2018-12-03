@@ -1,4 +1,4 @@
-use application;
+use audio;
 use defs;
 use dsp;
 use dsp_node;
@@ -8,7 +8,7 @@ use std::io;
 use std::io::prelude::*;
 use std::sync::Arc;
 
-pub fn read_and_parse(ctx: &mut application::Context) {
+pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
     print!("{}> ", defs::PROGNAME);
     io::stdout().flush().ok().expect("Could not flush stdout");
 
@@ -22,28 +22,31 @@ pub fn read_and_parse(ctx: &mut application::Context) {
         // Users may quit by typing 'quit'.
         if *arg == "quit" {
             println!("Quitting...");
-            let _ = ctx.audio_interface.finish();
+            audio_interface.finish();
+            return true; // Exit the main thread loop and terminate the program
         }
         // The commands 'pause' and 'resume' can also control stream processing.
         else if *arg == "pause" {
-            let _ = ctx.audio_interface.pause();
+            let _ = audio_interface.pause();
         } else if *arg == "resume" {
-            let _ = ctx.audio_interface.resume();
+            let _ = audio_interface.resume();
         }
         // Commands to control MIDI input devices
         else if *arg == "midi" {
             if let Some(arg) = input_args_iter.next() {
                 // "midi list": list the enumerated midi devices
                 if *arg == "list" {
-                    ctx.midi_input_buffer.borrow().print_devices();
+                    audio_interface.exec_while_paused(|context| {
+                        context.midi_input_buffer.borrow().print_devices();
+                    })
                 }
                 // "midi input {device_id}": set device_id as the midi input device
                 else if *arg == "input" {
                     if let Some(arg) = input_args_iter.next() {
-                        ctx.exec_while_paused(|ctx| {
+                        audio_interface.exec_while_paused(|context| {
                             let device_id: i32;
                             scan!(arg.bytes() => "{}", device_id);
-                            ctx.midi_input_buffer
+                            context.midi_input_buffer
                                 .borrow_mut()
                                 .set_port(device_id)
                                 .unwrap();
@@ -54,10 +57,17 @@ pub fn read_and_parse(ctx: &mut application::Context) {
         }
         else if *arg == "portaudio" {
             if let Some(arg) = input_args_iter.next() {
+                // "portaudio list": list portaudio devices
                 if *arg == "list" {
-                    ctx.exec_while_paused(|ctx| {
-                        ctx.audio_interface.list_devices();
-                    })
+                    audio_interface.list_devices();
+                }
+                // "portaudio open {device_index}": open a portaudio device
+                else if *arg == "open" {
+                    if let Some(arg) = input_args_iter.next() {
+                        let device_index: u32;
+                        scan!(arg.bytes() => "{}", device_index);
+                        audio_interface.open(device_index).unwrap();
+                    }
                 }
             }
         }
@@ -69,8 +79,8 @@ pub fn read_and_parse(ctx: &mut application::Context) {
                 if *arg == "list" {
                     // graph borrow scope, so that we release borrow
                     // before the audio interface claims it
-                    ctx.exec_while_paused(|ctx| {
-                        let mut graph_borrow = ctx.graph.borrow_mut();
+                    audio_interface.exec_while_paused(|context| {
+                        let mut graph_borrow = context.graph.borrow_mut();
                         let nodes_iter = graph_borrow.nodes_mut().enumerate();
                         for (i, node) in nodes_iter {
                             println!("{}: {}", i, node);
@@ -82,13 +92,13 @@ pub fn read_and_parse(ctx: &mut application::Context) {
         // Commands to add oscillators
         else if *arg == "add" {
             if let Some(arg) = input_args_iter.next() {
-                ctx.exec_while_paused(|ctx| {
-                    match oscillator::new(*arg, Arc::clone(&ctx.midi_input_buffer)) {
+                audio_interface.exec_while_paused(|context| {
+                    match oscillator::new(*arg, Arc::clone(&context.midi_input_buffer)) {
                         Err(reason) => println!("{}", reason),
                         Ok(osc) => {
-                            ctx.graph
+                            context.graph
                                 .borrow_mut()
-                                .add_input(dsp_node::DspNode::Source(osc), ctx.master_node);
+                                .add_input(dsp_node::DspNode::Source(osc), context.master_node);
                         }
                     }
                 })
@@ -105,13 +115,13 @@ pub fn read_and_parse(ctx: &mut application::Context) {
 
                 // Ok, the node exists, now make a new node to put after it
                 if let Some(arg) = input_args_iter.next() {
-                    ctx.exec_while_paused(|ctx| {
-                        match gain::new(*arg, Arc::clone(&ctx.midi_input_buffer)) {
+                    audio_interface.exec_while_paused(|context| {
+                        match gain::new(*arg, Arc::clone(&context.midi_input_buffer)) {
                             Err(reason) => println!("{}", reason),
                             Ok(p) => {
                                 // graph borrow scope, so that we release borrow
                                 // before the audio interface claims it
-                                let mut graph_borrow = ctx.graph.borrow_mut();
+                                let mut graph_borrow = context.graph.borrow_mut();
 
                                 let synth_index = graph_borrow.master_index().unwrap();
 
@@ -133,4 +143,6 @@ pub fn read_and_parse(ctx: &mut application::Context) {
             }
         }
     }
+
+    false // keep running
 }
