@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["skrytt"]
 
 [dependencies]
+ansi_term = "0.11"
 dsp-chain = "0.13.1"
 portaudio = "0.7.0"
 portmidi = "0.2.4"

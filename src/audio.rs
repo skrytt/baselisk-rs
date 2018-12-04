@@ -1,3 +1,4 @@
+extern crate ansi_term;
 extern crate portaudio;
 
 use std::sync::{Arc, RwLock};
@@ -38,12 +39,21 @@ impl Interface{
         for device in devices {
             if let Ok(device) = device {
                 let (idx, info) = device;
-                print!("{}) {} : {} out, {} Hz",
+                print!("{}) {}: ",
                          i32::from(idx),
                          info.name,
-                         info.max_output_channels,
-                         info.default_sample_rate,
                 );
+
+                if info.max_output_channels > 0 {
+                    print!("{}, ", ansi_term::Colour::Blue.paint(
+                            format!("{} outputs",
+                                info.max_output_channels.to_string())));
+                } else {
+                    print!("0 outputs, ");
+                }
+
+                print!("{} Hz", info.default_sample_rate);
+
                 if idx == default_output_device_index {
                     print!(" [default output]");
                 };
