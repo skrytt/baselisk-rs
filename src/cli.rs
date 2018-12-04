@@ -25,13 +25,31 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
             audio_interface.finish();
             return true; // Exit the main thread loop and terminate the program
         }
-        // The commands 'pause' and 'resume' can also control stream processing.
-        else if *arg == "pause" {
-            let _ = audio_interface.pause();
-        } else if *arg == "resume" {
-            let _ = audio_interface.resume();
+        // Commands to control PortAudio features
+        else if *arg == "audio" {
+            if let Some(arg) = input_args_iter.next() {
+                // "portaudio list": list portaudio devices
+                if *arg == "devices" {
+                    audio_interface.list_devices();
+                }
+                // "portaudio open {device_index}": open a portaudio device
+                else if *arg == "open" {
+                    if let Some(arg) = input_args_iter.next() {
+                        let device_index: u32;
+                        scan!(arg.bytes() => "{}", device_index);
+                        audio_interface.open(device_index).unwrap();
+                    }
+                }
+                // "audio pause" and "audio resume" can control playback of an opened stream.
+                else if *arg == "pause" {
+                    let _ = audio_interface.pause();
+                } else if *arg == "resume" {
+                    let _ = audio_interface.resume();
+                }
+            }
         }
-        // Commands to control MIDI input devices
+
+        // Commands to control PortMidi input devices
         else if *arg == "midi" {
             if let Some(arg) = input_args_iter.next() {
                 // "midi list": list the enumerated midi devices
@@ -55,23 +73,6 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                 }
             }
         }
-        else if *arg == "portaudio" {
-            if let Some(arg) = input_args_iter.next() {
-                // "portaudio list": list portaudio devices
-                if *arg == "list" {
-                    audio_interface.list_devices();
-                }
-                // "portaudio open {device_index}": open a portaudio device
-                else if *arg == "open" {
-                    if let Some(arg) = input_args_iter.next() {
-                        let device_index: u32;
-                        scan!(arg.bytes() => "{}", device_index);
-                        audio_interface.open(device_index).unwrap();
-                    }
-                }
-            }
-        }
-
         // Commands to provide information about nodes
         else if *arg == "nodes" {
             if let Some(arg) = input_args_iter.next() {
