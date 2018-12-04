@@ -1,53 +1,14 @@
+
 extern crate portmidi;
 
 use std::slice::Iter;
 
 use defs;
-
-/// Enum describes types of midi event. Not all types are implemented.
-pub enum MidiEvent {
-    NoteOff { note: u8 },
-    NoteOn { note: u8, velocity: u8 },
-}
-
-impl MidiEvent {
-    /// Process a portmidi::MidiEvent into our format of midi event.
-    /// If the event is recognised, return Some(MidiEventProcessed).
-    /// Otherwise, return None.
-    fn process(event: portmidi::MidiEvent) -> Option<MidiEvent> {
-        let message = event.message;
-        let status = message.status;
-
-        if status == 0x80 {
-            Some(MidiEvent::NoteOff {
-                note: message.data1,
-            })
-        } else if status == 0x90 {
-            // Often MIDI devices send a Note On with velocity == 0 to indicate
-            // a Note Off event. Handle that here.
-            let velocity = message.data2;
-            match velocity {
-                0 => Some(MidiEvent::NoteOff {
-                    note: message.data1,
-                }),
-                _ => Some(MidiEvent::NoteOn {
-                    note: message.data1,
-                    velocity: message.data2,
-                }),
-            }
-        } else {
-            println!(
-                "t={}: Dropping unknown MIDI event: {}",
-                event.timestamp, message
-            );
-            None
-        }
-    }
-}
+use event::types;
 
 /// Buffer will contain midi events received in the last block.
 pub struct InputBuffer {
-    events: Vec<MidiEvent>,
+    events: Vec<types::Event>,
     port: Option<portmidi::InputPort>,
     context: portmidi::PortMidi,
 }
@@ -59,7 +20,7 @@ impl InputBuffer {
         let context = portmidi::PortMidi::new().unwrap();
 
         InputBuffer {
-            events: Vec::<MidiEvent>::with_capacity(0),
+            events: Vec::<types::Event>::with_capacity(0),
             port: None,
             context: context,
         }
@@ -103,7 +64,9 @@ impl InputBuffer {
                 if let Ok(Some(events)) = port.read_n(defs::MIDI_BUF_LEN) {
                     self.events = events
                         .into_iter()
-                        .filter_map(|event| MidiEvent::process(event))
+                        .filter_map(|raw_midi_event| {
+                            types::MidiEvent::parse(raw_midi_event)
+                        })
                         .collect()
                 }
             }
@@ -111,7 +74,7 @@ impl InputBuffer {
     }
 
     /// Get an iterator over the MIDI events in the buffer.
-    pub fn iter(&self) -> Iter<MidiEvent> {
+    pub fn iter(&self) -> Iter<types::Event> {
         self.events.iter()
     }
 }

@@ -10,25 +10,24 @@ mod audio;
 mod cli;
 mod defs;
 mod dsp_node;
+mod event;
 mod gain;
-mod midi;
 mod modulator;
 mod oscillator;
 mod processor;
 
-use std::cell::RefCell;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 fn run() -> Result<(), &'static str> {
-    // Use Arc+RefCell to retain usage of variables outside of the closure
-    let midi_input_buffer = Arc::new(RefCell::new(midi::InputBuffer::new()));
+    // Use Arc+RwLock to retain usage of variables outside of the closure
+    let event_buffer = Arc::new(RwLock::new(event::Buffer::new()));
 
-    let graph = Arc::new(RefCell::new(dsp::Graph::new()));
-    let master_node = graph.borrow_mut().add_node(dsp_node::DspNode::Master);
-    graph.borrow_mut().set_master(Some(master_node));
+    let graph = Arc::new(RwLock::new(dsp::Graph::new()));
+    let master_node = graph.write().unwrap().add_node(dsp_node::DspNode::Master);
+    graph.write().unwrap().set_master(Some(master_node));
 
-    let context = Arc::new(RefCell::new(application::Context {
-        midi_input_buffer,
+    let context = Arc::new(RwLock::new(application::Context {
+        event_buffer,
         graph,
         master_node,
     }));

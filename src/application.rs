@@ -1,15 +1,14 @@
 use defs;
 use dsp;
 use dsp_node;
-use midi;
-use std::cell::RefCell;
-use std::sync::Arc;
+use event;
+use std::sync::{Arc, RwLock};
 
-pub type MidiInputBuffer = Arc<RefCell<midi::InputBuffer>>;
-pub type Graph = Arc<RefCell<dsp::Graph<defs::Frame, dsp_node::DspNode<f32>>>>;
+pub type EventBuffer = Arc<RwLock<event::Buffer>>;
+pub type Graph = Arc<RwLock<dsp::Graph<defs::Frame, dsp_node::DspNode<f32>>>>;
 
 pub struct Context {
-    pub midi_input_buffer: MidiInputBuffer,
+    pub event_buffer: EventBuffer,
     pub graph: Graph,
     pub master_node: dsp::NodeIndex,
 }

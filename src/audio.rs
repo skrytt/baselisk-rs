@@ -1,7 +1,6 @@
 extern crate portaudio;
 
-use std::cell::RefCell;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use dsp;
 use dsp::sample::ToFrameSliceMut;
 use dsp::Node;
@@ -13,14 +12,14 @@ type Stream = portaudio::Stream<portaudio::NonBlocking, portaudio::Output<defs::
 
 pub struct Interface
 {
-    context: Arc<RefCell<application::Context>>,
+    context: Arc<RwLock<application::Context>>,
     pa: portaudio::PortAudio,
     stream: Option<Stream>,
     running: bool,
 }
 
 impl Interface{
-    pub fn new(context: Arc<RefCell<application::Context>>
+    pub fn new(context: Arc<RwLock<application::Context>>
     ) -> Result<Interface, &'static str> {
         let pa = portaudio::PortAudio::new().unwrap();
 
@@ -75,13 +74,23 @@ impl Interface{
 
         let callback = move |portaudio::OutputStreamCallbackArgs { buffer, .. }| {
             // Refresh the MIDI intput buffer with new MIDI events
-            let context_borrow = context_clone.borrow_mut();
-            context_borrow.midi_input_buffer.borrow_mut().update();
+            let context_lock = context_clone.try_write()
+                .expect("Context was locked when audio callback was called");
+
+            // Obtain a mutable lock on the event buffer so we can update events
+            {
+                let mut events = context_lock.event_buffer.try_write()
+                    .expect("Event buffer was locked when audio callback was called");
+
+                events.update();
+            } // Free here so that .audio_requested may read the new events
 
             let buffer: &mut [defs::Frame] = buffer.to_frame_slice_mut().unwrap();
             dsp::slice::equilibrium(buffer);
 
-            context_borrow.graph.borrow_mut().audio_requested(buffer, defs::SAMPLE_HZ);
+            context_lock.graph.try_write()
+                .expect("Graph was locked when audio callback was called")
+                .audio_requested(buffer, defs::SAMPLE_HZ);
 
             portaudio::Continue
         };
@@ -142,7 +151,7 @@ impl Interface{
         }
 
         // Give a temporary mutable borrow of this Context to the closure
-        f(&mut self.context.borrow_mut());
+        f(&mut self.context.try_write().expect("Context still locked even after audio paused"));
 
         if was_active {
             self.resume().unwrap();

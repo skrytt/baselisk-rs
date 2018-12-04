@@ -2,12 +2,11 @@ extern crate dsp;
 
 use defs;
 use dsp::Sample;
-use midi;
+use event;
 use processor;
-use std::cell::RefCell;
 use std::f64::consts::PI;
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 pub struct Params {
     phase: defs::Phase,
@@ -22,16 +21,19 @@ impl Params {
         }
     }
 
-    fn update_state(&mut self, midi_input_buffer: Arc<RefCell<midi::InputBuffer>>) {
+    fn update_state(&mut self, event_buffer: &Arc<RwLock<event::Buffer>>) {
         // Iterate over any midi events and mutate the frequency accordingly
-        let midi_events = midi_input_buffer.borrow();
-        for midi_event in midi_events.iter() {
-            match midi_event {
-                midi::MidiEvent::NoteOn { note, .. } => {
-                    // Set the active note and frequency to match this new note
-                    self.frequency = midi::note_to_frequency(*note);
+        let events = event_buffer.try_read()
+            .expect("Event buffer unexpectedly locked");
+        for event in events.iter() {
+            if let event::Event::Midi(midi_event) = event {
+                match midi_event {
+                    event::MidiEvent::NoteOn { note, .. } => {
+                        // Set the active note and frequency to match this new note
+                        self.frequency = event::midi::note_to_frequency(*note);
+                    }
+                    _ => (),
                 }
-                _ => (),
             }
         }
     }
@@ -40,13 +42,13 @@ impl Params {
 pub struct Oscillator<S> {
     name: String,
     params: Params,
-    midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
+    event_buffer: Arc<RwLock<event::Buffer>>,
     generator_func: fn(&mut Params) -> S,
 }
 
 pub fn new<S>(
     name: &str,
-    midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
+    event_buffer: Arc<RwLock<event::Buffer>>,
 ) -> Result<Box<dyn processor::Source<S>>, &'static str>
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
@@ -60,7 +62,7 @@ where
     Ok(Box::new(Oscillator {
         name: String::from(name),
         params: Params::new(),
-        midi_input_buffer,
+        event_buffer,
         generator_func,
     }))
 }
@@ -73,7 +75,7 @@ impl<S> processor::Source<S> for Oscillator<S> {
 
     fn update_state(&mut self) {
         self.params
-            .update_state(Arc::clone(&self.midi_input_buffer))
+            .update_state(&self.event_buffer)
     }
 
     fn generate(&mut self) -> S {

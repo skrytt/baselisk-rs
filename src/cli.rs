@@ -55,7 +55,9 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                 // "midi list": list the enumerated midi devices
                 if *arg == "list" {
                     audio_interface.exec_while_paused(|context| {
-                        context.midi_input_buffer.borrow().print_devices();
+                        let event_buffer = context.event_buffer.try_write()
+                            .expect("Event buffer unexpectedly locked");
+                        event_buffer.midi.print_devices();
                     })
                 }
                 // "midi input {device_id}": set device_id as the midi input device
@@ -64,10 +66,9 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                         audio_interface.exec_while_paused(|context| {
                             let device_id: i32;
                             scan!(arg.bytes() => "{}", device_id);
-                            context.midi_input_buffer
-                                .borrow_mut()
-                                .set_port(device_id)
-                                .unwrap();
+                            let mut event_buffer = context.event_buffer.try_write()
+                                .expect("Event buffer unexpectedly locked");
+                            event_buffer.midi.set_port(device_id).unwrap();
                         })
                     }
                 }
@@ -81,8 +82,9 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                     // graph borrow scope, so that we release borrow
                     // before the audio interface claims it
                     audio_interface.exec_while_paused(|context| {
-                        let mut graph_borrow = context.graph.borrow_mut();
-                        let nodes_iter = graph_borrow.nodes_mut().enumerate();
+                        let mut graph_lock = context.graph.try_write()
+                            .expect("Graph unexpectedly locked");
+                        let nodes_iter = graph_lock.nodes_mut().enumerate();
                         for (i, node) in nodes_iter {
                             println!("{}: {}", i, node);
                         }
@@ -94,11 +96,11 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
         else if *arg == "add" {
             if let Some(arg) = input_args_iter.next() {
                 audio_interface.exec_while_paused(|context| {
-                    match oscillator::new(*arg, Arc::clone(&context.midi_input_buffer)) {
+                    match oscillator::new(*arg, Arc::clone(&context.event_buffer)) {
                         Err(reason) => println!("{}", reason),
                         Ok(osc) => {
-                            context.graph
-                                .borrow_mut()
+                            context.graph.try_write()
+                                .expect("Graph unexpectedly locked")
                                 .add_input(dsp_node::DspNode::Source(osc), context.master_node);
                         }
                     }
@@ -117,26 +119,27 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                 // Ok, the node exists, now make a new node to put after it
                 if let Some(arg) = input_args_iter.next() {
                     audio_interface.exec_while_paused(|context| {
-                        match gain::new(*arg, Arc::clone(&context.midi_input_buffer)) {
+                        match gain::new(*arg, Arc::clone(&context.event_buffer)) {
                             Err(reason) => println!("{}", reason),
                             Ok(p) => {
                                 // graph borrow scope, so that we release borrow
                                 // before the audio interface claims it
-                                let mut graph_borrow = context.graph.borrow_mut();
+                                let mut graph_lock = context.graph.try_write()
+                                    .expect("Graph unexpectedly locked");
 
-                                let synth_index = graph_borrow.master_index().unwrap();
+                                let synth_index = graph_lock.master_index().unwrap();
 
                                 // node_before is the node we'll be adding to.
                                 // 1. Remove the connection between node_before and graph
-                                graph_borrow.remove_connection(node_before_index, synth_index);
+                                graph_lock.remove_connection(node_before_index, synth_index);
 
                                 // 2. Connect node_before to p
                                 let p_node = dsp_node::DspNode::Processor(p);
                                 let (_, p_index) =
-                                    graph_borrow.add_output(node_before_index, p_node);
+                                    graph_lock.add_output(node_before_index, p_node);
 
                                 // 3. Connect p to graph
-                                graph_borrow.add_connection(p_index, synth_index).unwrap();
+                                graph_lock.add_connection(p_index, synth_index).unwrap();
                             }
                         }
                     })

@@ -2,26 +2,25 @@ extern crate dsp;
 
 use defs;
 use dsp::Sample;
-use midi;
+use event;
 use modulator;
 use processor;
-use std::cell::RefCell;
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 /// AdsrGain links together a midi::InputBuffer and an ADSR into an audio processor.
 /// It knows how to adjust gain based on MIDI events.
 struct AdsrGain {
     adsr: modulator::Adsr,
-    midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
+    event_buffer: Arc<RwLock<event::Buffer>>,
     volume: defs::Volume,
 }
 
 impl AdsrGain {
-    fn new(midi_input_buffer: Arc<RefCell<midi::InputBuffer>>) -> AdsrGain {
+    fn new(event_buffer: Arc<RwLock<event::Buffer>>) -> AdsrGain {
         AdsrGain {
             adsr: modulator::Adsr::new(defs::SAMPLE_HZ),
-            midi_input_buffer,
+            event_buffer,
             volume: 0.2,
         }
     }
@@ -36,14 +35,17 @@ impl<S> processor::Processor<S> for AdsrGain {
         let mut notes_pressed: i32 = 0;
         let mut notes_released: i32 = 0;
 
-        let midi_events = self.midi_input_buffer.borrow();
-        for midi_event in midi_events.iter() {
-            match midi_event {
-                midi::MidiEvent::NoteOn { .. } => {
-                    notes_pressed += 1;
-                }
-                midi::MidiEvent::NoteOff { .. } => {
-                    notes_released += 1;
+        let events = self.event_buffer.try_read()
+            .expect("Event buffer unexpectedly locked");
+        for event in events.iter() {
+            if let event::Event::Midi(midi_event) = event {
+                match midi_event {
+                    event::MidiEvent::NoteOn { .. } => {
+                        notes_pressed += 1;
+                    }
+                    event::MidiEvent::NoteOff { .. } => {
+                        notes_released += 1;
+                    }
                 }
             }
         }
@@ -64,10 +66,10 @@ impl<S> processor::Processor<S> for AdsrGain {
 
 pub fn new<S>(
     name: &str,
-    midi_input_buffer: Arc<RefCell<midi::InputBuffer>>,
+    event_buffer: Arc<RwLock<event::Buffer>>,
 ) -> Result<Box<dyn processor::Processor<S>>, &'static str> {
     match name {
-        "adsrgain" => Ok(Box::new(AdsrGain::new(midi_input_buffer))),
+        "adsrgain" => Ok(Box::new(AdsrGain::new(event_buffer))),
         _ => Err("Unknown gain filter name"),
     }
 }
