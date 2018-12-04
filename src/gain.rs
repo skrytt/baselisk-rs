@@ -19,7 +19,7 @@ struct AdsrGain {
 impl AdsrGain {
     fn new(event_buffer: Arc<RwLock<event::Buffer>>) -> AdsrGain {
         AdsrGain {
-            adsr: modulator::Adsr::new(defs::SAMPLE_HZ),
+            adsr: modulator::Adsr::new(),
             event_buffer,
             volume: 0.2,
         }
@@ -31,22 +31,27 @@ impl<S> processor::Processor<S> for AdsrGain {
         "AdsrGain"
     }
 
-    fn update_state(&mut self) {
+    fn update_state(&mut self, sample_rate: f64) {
+        self.adsr.set_sample_rate(sample_rate);
+
         let mut notes_pressed: i32 = 0;
         let mut notes_released: i32 = 0;
 
         let events = self.event_buffer.try_read()
             .expect("Event buffer unexpectedly locked");
         for event in events.iter() {
-            if let event::Event::Midi(midi_event) = event {
-                match midi_event {
-                    event::MidiEvent::NoteOn { .. } => {
-                        notes_pressed += 1;
+            match event {
+                event::Event::Midi(midi_event) => {
+                    match midi_event {
+                        event::MidiEvent::NoteOn { .. } => {
+                            notes_pressed += 1;
+                        }
+                        event::MidiEvent::NoteOff { .. } => {
+                            notes_released += 1;
+                        }
                     }
-                    event::MidiEvent::NoteOff { .. } => {
-                        notes_released += 1;
-                    }
-                }
+                },
+                _ => ()
             }
         }
         if notes_pressed > 0 || notes_released > 0 {

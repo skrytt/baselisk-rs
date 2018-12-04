@@ -76,7 +76,7 @@ impl Interface{
 
         let settings = portaudio::stream::OutputSettings::new(
             params,
-            defs::SAMPLE_HZ,
+            device_info.default_sample_rate,
             defs::FRAMES,
         );
 
@@ -100,7 +100,7 @@ impl Interface{
 
             context_lock.graph.try_write()
                 .expect("Graph was locked when audio callback was called")
-                .audio_requested(buffer, defs::SAMPLE_HZ);
+                .audio_requested(buffer, settings.sample_rate);
 
             portaudio::Continue
         };

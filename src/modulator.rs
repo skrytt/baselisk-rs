@@ -25,7 +25,7 @@ pub struct Adsr {
 }
 
 impl Adsr {
-    pub fn new(sample_rate: f64) -> Adsr {
+    pub fn new() -> Adsr {
         Adsr {
             params: AdsrParams {
                 attack_duration: 0.02,
@@ -37,9 +37,13 @@ impl Adsr {
             notes_held_count: 0,
             gain_at_stage_start: 0.0,
             relative_gain_at_stage_end: 0.0,
-            sample_duration: 1.0 / sample_rate as f32,
+            sample_duration: 1.0, // Needs to be set by update_sample_rate
             phase_time: 0.0,
         }
+    }
+
+    pub fn set_sample_rate(&mut self, sample_rate: f64) {
+        self.sample_duration = 1.0 / sample_rate as f32;
     }
 
     pub fn update_notes_held_count(&mut self, notes_pressed: i32, notes_released: i32) {
@@ -50,10 +54,6 @@ impl Adsr {
         if self.notes_held_count <= 0 {
             self.notes_held_count = 0;
         }
-        println!(
-            "AdsrGain: Updated notes held count to: {}",
-            self.notes_held_count
-        );
 
         // Smooth algorithm
         //if old_notes_held_count == 0 && self.notes_held_count > 0 {

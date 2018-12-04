@@ -16,15 +16,15 @@ where
 }
 
 impl dsp::Node<defs::Frame> for DspNode<defs::Output> {
-    fn audio_requested(&mut self, buffer: &mut [defs::Frame], _sample_hz: f64) {
+    fn audio_requested(&mut self, buffer: &mut [defs::Frame], sample_rate: f64) {
         match *self {
             DspNode::Master => (),
             DspNode::Source(ref mut source) => {
-                source.update_state();
+                source.update_state(sample_rate);
                 dsp::slice::map_in_place(buffer, |_| dsp::Frame::from_fn(|_| source.generate()));
             }
             DspNode::Processor(ref mut processor) => {
-                processor.update_state();
+                processor.update_state(sample_rate);
                 dsp::slice::map_in_place(buffer, |input_frame| {
                     input_frame.map(|s| processor.process(s))
                 });

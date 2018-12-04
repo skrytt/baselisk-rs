@@ -1,6 +1,5 @@
 extern crate dsp;
 
-use defs;
 use dsp::Sample;
 use event;
 use processor;
@@ -9,8 +8,9 @@ use std::fmt;
 use std::sync::{Arc, RwLock};
 
 pub struct Params {
-    phase: defs::Phase,
-    frequency: defs::Frequency,
+    phase: f64,
+    frequency: f64,
+    sample_rate: f64,
 }
 
 impl Params {
@@ -18,11 +18,13 @@ impl Params {
         Params {
             phase: 0.0,
             frequency: 0.0,
+            sample_rate: 0.0,
         }
     }
 
-    fn update_state(&mut self, event_buffer: &Arc<RwLock<event::Buffer>>) {
+    fn update_state(&mut self, event_buffer: &Arc<RwLock<event::Buffer>>, sample_rate: f64) {
         // Iterate over any midi events and mutate the frequency accordingly
+        self.sample_rate = sample_rate;
         let events = event_buffer.try_read()
             .expect("Event buffer unexpectedly locked");
         for event in events.iter() {
@@ -73,9 +75,9 @@ impl<S> processor::Source<S> for Oscillator<S> {
         self.name.as_str()
     }
 
-    fn update_state(&mut self) {
+    fn update_state(&mut self, sample_rate: f64) {
         self.params
-            .update_state(&self.event_buffer)
+            .update_state(&self.event_buffer, sample_rate)
     }
 
     fn generate(&mut self) -> S {
@@ -89,7 +91,7 @@ where
 {
     let res = (params.phase.sin() as f32).to_sample::<S>();
 
-    params.phase += 2.0 * PI * params.frequency / defs::SAMPLE_HZ;
+    params.phase += 2.0 * PI * params.frequency / params.sample_rate;
     while params.phase >= PI {
         params.phase -= PI * 2.0;
     }
@@ -101,7 +103,7 @@ fn square_generator<S>(params: &mut Params) -> S
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
 {
-    let step = params.frequency / defs::SAMPLE_HZ;
+    let step = params.frequency / params.sample_rate;
 
     // Advance phase
     // Enforce range 0.0 <= phase < 1.0
@@ -150,7 +152,7 @@ fn sawtooth_generator<S>(params: &mut Params) -> S
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
 {
-    let step = params.frequency / defs::SAMPLE_HZ;
+    let step = params.frequency / params.sample_rate;
 
     // Advance phase
     // Enforce range 0.0 <= phase < 1.0

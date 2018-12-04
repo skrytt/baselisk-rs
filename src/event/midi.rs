@@ -79,6 +79,6 @@ impl InputBuffer {
     }
 }
 
-pub fn note_to_frequency(note: u8) -> defs::Frequency {
-    440.0 as defs::Frequency * ((note as defs::Frequency - 69.0) / 12.0).exp2()
+pub fn note_to_frequency(note: u8) -> f64 {
+    440.0 * ((note as f64 - 69.0) / 12.0).exp2()
 }

@@ -6,7 +6,7 @@ use std::fmt;
 pub trait Source<S> {
     fn name(&self) -> &str;
 
-    fn update_state(&mut self);
+    fn update_state(&mut self, sample_rate: f64);
 
     fn generate(&mut self) -> S
     where
@@ -17,7 +17,7 @@ pub trait Source<S> {
 pub trait Processor<S> {
     fn type_name(&self) -> &'static str;
 
-    fn update_state(&mut self);
+    fn update_state(&mut self, sample_rate: f64);
 
     fn process(&mut self, input: S) -> S
     where
