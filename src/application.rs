@@ -5,7 +5,7 @@ use event;
 use std::sync::{Arc, RwLock};
 
 pub type EventBuffer = Arc<RwLock<event::Buffer>>;
-pub type Graph = Arc<RwLock<dsp::Graph<defs::Frame, dsp_node::DspNode<f32>>>>;
+pub type Graph = dsp::Graph<defs::Frame, dsp_node::DspNode<f32>>;
 
 pub struct Context {
     pub event_buffer: EventBuffer,

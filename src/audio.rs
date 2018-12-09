@@ -84,7 +84,7 @@ impl Interface{
 
         let callback = move |portaudio::OutputStreamCallbackArgs { buffer, .. }| {
             // Refresh the MIDI intput buffer with new MIDI events
-            let context_lock = context_clone.try_write()
+            let mut context_lock = context_clone.try_write()
                 .expect("Context was locked when audio callback was called");
 
             // Obtain a mutable lock on the event buffer so we can update events
@@ -98,9 +98,7 @@ impl Interface{
             let buffer: &mut [defs::Frame] = buffer.to_frame_slice_mut().unwrap();
             dsp::slice::equilibrium(buffer);
 
-            context_lock.graph.try_write()
-                .expect("Graph was locked when audio callback was called")
-                .audio_requested(buffer, settings.sample_rate);
+            context_lock.graph.audio_requested(buffer, settings.sample_rate);
 
             portaudio::Continue
         };

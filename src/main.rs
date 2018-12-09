@@ -23,9 +23,9 @@ fn run() -> Result<(), &'static str> {
     // Use Arc+RwLock to retain usage of variables outside of the closure
     let event_buffer = Arc::new(RwLock::new(event::Buffer::new()));
 
-    let graph = Arc::new(RwLock::new(dsp::Graph::new()));
-    let master_node = graph.write().unwrap().add_node(dsp_node::DspNode::Master);
-    graph.write().unwrap().set_master(Some(master_node));
+    let mut graph = dsp::Graph::new();
+    let master_node = graph.add_node(dsp_node::DspNode::Master);
+    graph.set_master(Some(master_node));
 
     let context = Arc::new(RwLock::new(application::Context {
         event_buffer,

@@ -82,9 +82,7 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                     // graph borrow scope, so that we release borrow
                     // before the audio interface claims it
                     audio_interface.exec_while_paused(|context| {
-                        let mut graph_lock = context.graph.try_write()
-                            .expect("Graph unexpectedly locked");
-                        let nodes_iter = graph_lock.nodes_mut().enumerate();
+                        let nodes_iter = context.graph.nodes_mut().enumerate();
                         for (i, node) in nodes_iter {
                             println!("{}: {}", i, node);
                         }
@@ -99,8 +97,7 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                     match oscillator::new(*arg, Arc::clone(&context.event_buffer)) {
                         Err(reason) => println!("{}", reason),
                         Ok(osc) => {
-                            context.graph.try_write()
-                                .expect("Graph unexpectedly locked")
+                            context.graph
                                 .add_input(dsp_node::DspNode::Source(osc), context.master_node);
                         }
                     }
@@ -122,24 +119,19 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                         match gain::new(*arg, Arc::clone(&context.event_buffer)) {
                             Err(reason) => println!("{}", reason),
                             Ok(p) => {
-                                // graph borrow scope, so that we release borrow
-                                // before the audio interface claims it
-                                let mut graph_lock = context.graph.try_write()
-                                    .expect("Graph unexpectedly locked");
-
-                                let synth_index = graph_lock.master_index().unwrap();
+                                let synth_index = context.graph.master_index().unwrap();
 
                                 // node_before is the node we'll be adding to.
                                 // 1. Remove the connection between node_before and graph
-                                graph_lock.remove_connection(node_before_index, synth_index);
+                                context.graph.remove_connection(node_before_index, synth_index);
 
                                 // 2. Connect node_before to p
                                 let p_node = dsp_node::DspNode::Processor(p);
                                 let (_, p_index) =
-                                    graph_lock.add_output(node_before_index, p_node);
+                                    context.graph.add_output(node_before_index, p_node);
 
                                 // 3. Connect p to graph
-                                graph_lock.add_connection(p_index, synth_index).unwrap();
+                                context.graph.add_connection(p_index, synth_index).unwrap();
                             }
                         }
                     })
