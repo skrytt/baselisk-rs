@@ -51,7 +51,7 @@ pub struct Oscillator<S> {
 pub fn new<S>(
     name: &str,
     event_buffer: Arc<RwLock<event::Buffer>>,
-) -> Result<Box<dyn processor::Source<S>>, &'static str>
+) -> Result<Box<dyn processor::Processor<S>>, &'static str>
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
 {
@@ -70,7 +70,7 @@ where
 }
 
 /// This is the code that implements the Oscillator trait for the SineOscillator struct
-impl<S> processor::Source<S> for Oscillator<S> {
+impl<S> processor::Processor<S> for Oscillator<S> {
     fn name(&self) -> &str {
         self.name.as_str()
     }
@@ -80,7 +80,7 @@ impl<S> processor::Source<S> for Oscillator<S> {
             .update_state(&self.event_buffer, sample_rate)
     }
 
-    fn generate(&mut self) -> S {
+    fn process(&mut self, _input: S) -> S {
         (self.generator_func)(&mut self.params)
     }
 }

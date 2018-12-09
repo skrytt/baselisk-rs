@@ -98,7 +98,7 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                         Err(reason) => println!("{}", reason),
                         Ok(osc) => {
                             context.graph
-                                .add_input(dsp_node::DspNode::Source(osc), context.master_node);
+                                .add_input(dsp_node::DspNode::Processor(osc), context.master_node);
                         }
                     }
                 })

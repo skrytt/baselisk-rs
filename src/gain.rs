@@ -27,7 +27,7 @@ impl AdsrGain {
 }
 
 impl<S> processor::Processor<S> for AdsrGain {
-    fn type_name(&self) -> &'static str {
+    fn name(&self) -> &'static str {
         "AdsrGain"
     }
 
