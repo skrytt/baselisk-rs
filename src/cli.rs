@@ -128,38 +128,32 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
             }
         }
 
-        // Commands to insert filters after other nodes
+        // Command to insert filters after the selected node
         else if *arg == "extend" {
+            // Ok, the node exists, now make a new node to put after it
             if let Some(arg) = input_args_iter.next() {
-                // Get the node in question by accepting a node index
-                let node_index: usize;
-                scan!(arg.bytes() => "{}", node_index);
+                audio_interface.exec_with_context_mut(|context| {
+                    match gain::new(*arg, Arc::clone(&context.event_buffer)) {
+                        Err(reason) => println!("{}", reason),
+                        Ok(p) => {
+                            let node_before_index = context.selected_node;
 
-                let node_before_index = dsp::NodeIndex::new(node_index);
+                            let synth_index = context.graph.master_index().unwrap();
 
-                // Ok, the node exists, now make a new node to put after it
-                if let Some(arg) = input_args_iter.next() {
-                    audio_interface.exec_with_context_mut(|context| {
-                        match gain::new(*arg, Arc::clone(&context.event_buffer)) {
-                            Err(reason) => println!("{}", reason),
-                            Ok(p) => {
-                                let synth_index = context.graph.master_index().unwrap();
+                            // node_before is the node we'll be adding to.
+                            // 1. Remove the connection between node_before and graph
+                            context.graph.remove_connection(node_before_index, synth_index);
 
-                                // node_before is the node we'll be adding to.
-                                // 1. Remove the connection between node_before and graph
-                                context.graph.remove_connection(node_before_index, synth_index);
+                            // 2. Connect node_before to p
+                            let p_node = dsp_node::DspNode::Processor(p);
+                            let (_, p_index) =
+                                context.graph.add_output(node_before_index, p_node);
 
-                                // 2. Connect node_before to p
-                                let p_node = dsp_node::DspNode::Processor(p);
-                                let (_, p_index) =
-                                    context.graph.add_output(node_before_index, p_node);
-
-                                // 3. Connect p to graph
-                                context.graph.add_connection(p_index, synth_index).unwrap();
-                            }
+                            // 3. Connect p to graph
+                            context.graph.add_connection(p_index, synth_index).unwrap();
                         }
-                    })
-                }
+                    }
+                })
             }
         }
     }
