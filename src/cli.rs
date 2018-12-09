@@ -101,8 +101,9 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                     match oscillator::new(*arg, Arc::clone(&context.event_buffer)) {
                         Err(reason) => println!("{}", reason),
                         Ok(osc) => {
-                            context.graph
+                            let (_, node_index) = context.graph
                                 .add_input(dsp_node::DspNode::Processor(osc), context.master_node);
+                            context.selected_node = node_index;
                         }
                     }
                 })
@@ -116,7 +117,13 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                 scan!(arg.bytes() => "{}", node_index);
 
                 audio_interface.exec_with_context_mut(|context| {
-                    context.selected_node = dsp::NodeIndex::new(node_index);
+                    let node_index = dsp::NodeIndex::new(node_index);
+                    match context.graph.node(node_index) {
+                        None    => println!("Invalid node index"),
+                        Some(_) => {
+                            context.selected_node = node_index;
+                        }
+                    }
                 })
             }
         }
