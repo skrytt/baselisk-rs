@@ -149,7 +149,7 @@ impl Interface{
     /// Run a closure while the audio stream is paused, passing
     /// a mutable reference to this Context as an argument.
     /// Afterwards, restore the original state of the audio stream.
-    pub fn exec_while_paused<F>(&mut self, f: F)
+    pub fn exec_with_context_mut<F>(&mut self, f: F)
     where
         F: Fn(&mut application::Context),
     {

@@ -54,7 +54,7 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
             if let Some(arg) = input_args_iter.next() {
                 // "midi list": list the enumerated midi devices
                 if *arg == "list" {
-                    audio_interface.exec_while_paused(|context| {
+                    audio_interface.exec_with_context_mut(|context| {
                         let event_buffer = context.event_buffer.try_write()
                             .expect("Event buffer unexpectedly locked");
                         event_buffer.midi.print_devices();
@@ -63,7 +63,7 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                 // "midi input {device_id}": set device_id as the midi input device
                 else if *arg == "input" {
                     if let Some(arg) = input_args_iter.next() {
-                        audio_interface.exec_while_paused(|context| {
+                        audio_interface.exec_with_context_mut(|context| {
                             let device_id: i32;
                             scan!(arg.bytes() => "{}", device_id);
                             let mut event_buffer = context.event_buffer.try_write()
@@ -81,10 +81,14 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                 if *arg == "list" {
                     // graph borrow scope, so that we release borrow
                     // before the audio interface claims it
-                    audio_interface.exec_while_paused(|context| {
+                    audio_interface.exec_with_context_mut(|context| {
                         let nodes_iter = context.graph.nodes_mut().enumerate();
                         for (i, node) in nodes_iter {
-                            println!("{}: {}", i, node);
+                            print!("{}: {}", i, node);
+                            if dsp::NodeIndex::new(i) == context.selected_node {
+                                print!(" [selected]");
+                            }
+                            println!();
                         }
                     })
                 }
@@ -93,7 +97,7 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
         // Commands to add oscillators
         else if *arg == "add" {
             if let Some(arg) = input_args_iter.next() {
-                audio_interface.exec_while_paused(|context| {
+                audio_interface.exec_with_context_mut(|context| {
                     match oscillator::new(*arg, Arc::clone(&context.event_buffer)) {
                         Err(reason) => println!("{}", reason),
                         Ok(osc) => {
@@ -104,6 +108,19 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                 })
             }
         }
+        // Command to select a node, which will be used as the subject for some other commands.
+        else if *arg == "select" {
+            if let Some(arg) = input_args_iter.next() {
+                // Get the node in question by accepting a node index
+                let node_index: usize;
+                scan!(arg.bytes() => "{}", node_index);
+
+                audio_interface.exec_with_context_mut(|context| {
+                    context.selected_node = dsp::NodeIndex::new(node_index);
+                })
+            }
+        }
+
         // Commands to insert filters after other nodes
         else if *arg == "extend" {
             if let Some(arg) = input_args_iter.next() {
@@ -115,7 +132,7 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
 
                 // Ok, the node exists, now make a new node to put after it
                 if let Some(arg) = input_args_iter.next() {
-                    audio_interface.exec_while_paused(|context| {
+                    audio_interface.exec_with_context_mut(|context| {
                         match gain::new(*arg, Arc::clone(&context.event_buffer)) {
                             Err(reason) => println!("{}", reason),
                             Ok(p) => {

@@ -31,6 +31,7 @@ fn run() -> Result<(), &'static str> {
         event_buffer,
         graph,
         master_node,
+        selected_node: master_node,
     }));
 
     let mut audio_interface = audio::Interface::new(context).unwrap();

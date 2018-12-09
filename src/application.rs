@@ -11,4 +11,5 @@ pub struct Context {
     pub event_buffer: EventBuffer,
     pub graph: Graph,
     pub master_node: dsp::NodeIndex,
+    pub selected_node: dsp::NodeIndex,
 }
