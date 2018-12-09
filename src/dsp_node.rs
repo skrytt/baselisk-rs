@@ -32,7 +32,7 @@ impl fmt::Display for DspNode<defs::Output> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             DspNode::Master => write!(f, "master"),
-            DspNode::Processor(ref t) => write!(f, "{}", t.name()),
+            DspNode::Processor(ref t) => write!(f, "{} {}", t.name(), t.details()),
         }
     }
 }

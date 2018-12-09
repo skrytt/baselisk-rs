@@ -71,8 +71,12 @@ where
 
 /// This is the code that implements the Oscillator trait for the SineOscillator struct
 impl<S> processor::Processor<S> for Oscillator<S> {
-    fn name(&self) -> &str {
-        self.name.as_str()
+    fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    fn details(&self) -> String {
+        String::from("")
     }
 
     fn update_state(&mut self, sample_rate: f64) {

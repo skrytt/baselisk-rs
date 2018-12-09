@@ -27,8 +27,12 @@ impl AdsrGain {
 }
 
 impl<S> processor::Processor<S> for AdsrGain {
-    fn name(&self) -> &'static str {
-        "AdsrGain"
+    fn name(&self) -> String {
+        String::from("AdsrGain")
+    }
+
+    fn details(&self) -> String {
+        self.adsr.details()
     }
 
     fn update_state(&mut self, sample_rate: f64) {

@@ -42,6 +42,15 @@ impl Adsr {
         }
     }
 
+    pub fn details(&self) -> String {
+        format!("A={}s, D={}s, S={}s, R={}s",
+            self.params.attack_duration,
+            self.params.decay_duration,
+            self.params.sustain_level,
+            self.params.release_duration,
+        )
+    }
+
     pub fn set_sample_rate(&mut self, sample_rate: f64) {
         self.sample_duration = 1.0 / sample_rate as f32;
     }
