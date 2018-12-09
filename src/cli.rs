@@ -127,8 +127,8 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                 })
             }
         }
-
         // Command to insert filters after the selected node
+        // "extend <node_type>"
         else if *arg == "extend" {
             // Ok, the node exists, now make a new node to put after it
             if let Some(arg) = input_args_iter.next() {
@@ -151,6 +151,8 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
 
                             // 3. Connect p to graph
                             context.graph.add_connection(p_index, synth_index).unwrap();
+
+                            context.selected_node = p_index;
                         }
                     }
                 })
