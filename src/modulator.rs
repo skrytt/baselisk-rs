@@ -1,3 +1,4 @@
+
 /// States that ADSR can be in
 enum AdsrStages {
     Off,         // No note is held and any release phase has ended
@@ -14,14 +15,62 @@ struct AdsrParams {
     release_duration: f32,
 }
 
-pub struct Adsr {
-    params: AdsrParams,
+impl AdsrParams {
+    pub fn set(&mut self, param_name: String, param_val: String) -> Result<(), String> {
+        let param_val = param_val.parse::<f32>()
+            .or_else(|_| return Err(String::from("param_val can't be parsed as a float")))
+            .unwrap();
+
+        match param_name.as_str() {
+            "attack" => {
+                if param_val >= 0.0 {
+                    self.attack_duration = param_val;
+                    return Ok(())
+                } else {
+                    return Err(String::from("attack param must be >= 0.0"));
+                }
+            },
+            "decay" => {
+                if param_val >= 0.0 {
+                    self.decay_duration = param_val;
+                    return Ok(())
+                } else {
+                    return Err(String::from("decay param must be >= 0.0"));
+                }
+            },
+            "sustain" => {
+                if param_val >= 0.0 && param_val <= 1.0 {
+                    self.sustain_level = param_val;
+                    return Ok(())
+                } else {
+                    return Err(String::from("sustain param must be >= 0.0 and <= 1.0"));
+                }
+            },
+            "release" => {
+                if param_val >= 0.0 {
+                    self.release_duration = param_val;
+                    return Ok(())
+                } else {
+                    return Err(String::from("release param must be >= 0.0"));
+                }
+            },
+            _ => return Err(String::from("unknown param_name"))
+        }
+    }
+}
+
+struct AdsrState {
     stage: AdsrStages,
     notes_held_count: i32,
     gain_at_stage_start: f32,
     relative_gain_at_stage_end: f32,
     sample_duration: f32,
     phase_time: f32,
+}
+
+pub struct Adsr {
+    params: AdsrParams,
+    state: AdsrState,
 }
 
 impl Adsr {
@@ -33,13 +82,19 @@ impl Adsr {
                 sustain_level: 0.0,
                 release_duration: 0.707,
             },
-            stage: AdsrStages::Off,
-            notes_held_count: 0,
-            gain_at_stage_start: 0.0,
-            relative_gain_at_stage_end: 0.0,
-            sample_duration: 1.0, // Needs to be set by update_sample_rate
-            phase_time: 0.0,
+            state: AdsrState {
+                stage: AdsrStages::Off,
+                notes_held_count: 0,
+                gain_at_stage_start: 0.0,
+                relative_gain_at_stage_end: 0.0,
+                sample_duration: 1.0, // Needs to be set by update_sample_rate
+                phase_time: 0.0,
+            }
         }
+    }
+
+    pub fn set_param(&mut self, param_name: String, param_val: String) -> Result<(), String> {
+        self.params.set(param_name, param_val)
     }
 
     pub fn details(&self) -> String {
@@ -52,16 +107,16 @@ impl Adsr {
     }
 
     pub fn set_sample_rate(&mut self, sample_rate: f64) {
-        self.sample_duration = 1.0 / sample_rate as f32;
+        self.state.sample_duration = 1.0 / sample_rate as f32;
     }
 
     pub fn update_notes_held_count(&mut self, notes_pressed: i32, notes_released: i32) {
-        let old_notes_held_count = self.notes_held_count;
-        self.notes_held_count += notes_pressed - notes_released;
+        let old_notes_held_count = self.state.notes_held_count;
+        self.state.notes_held_count += notes_pressed - notes_released;
 
         // Shouldn't happen but could do if MIDI events are missed
-        if self.notes_held_count <= 0 {
-            self.notes_held_count = 0;
+        if self.state.notes_held_count <= 0 {
+            self.state.notes_held_count = 0;
         }
 
         // Smooth algorithm
@@ -81,52 +136,52 @@ impl Adsr {
         //}
 
         // Percussive algorithm
-        if notes_pressed > 0 && self.notes_held_count > 0 {
+        if notes_pressed > 0 && self.state.notes_held_count > 0 {
             // Transition to attack stage
-            match self.stage {
+            match self.state.stage {
                 // Otherwise, avoid discontinuities
                 _ => {
-                    self.gain_at_stage_start = self.get_gain();
-                    self.relative_gain_at_stage_end = 1.0 - self.gain_at_stage_start;
-                    self.phase_time = 0.0;
+                    self.state.gain_at_stage_start = self.get_gain();
+                    self.state.relative_gain_at_stage_end = 1.0 - self.state.gain_at_stage_start;
+                    self.state.phase_time = 0.0;
                 }
             }
-            self.stage = AdsrStages::HeldAttack;
-        } else if old_notes_held_count > 0 && self.notes_held_count == 0 {
+            self.state.stage = AdsrStages::HeldAttack;
+        } else if old_notes_held_count > 0 && self.state.notes_held_count == 0 {
             // Transition to release stage
-            match self.stage {
+            match self.state.stage {
                 // This case shouldn't generally happen and is ignored
                 AdsrStages::Off => (),
                 // Avoid discontinuities
                 _ => {
-                    self.gain_at_stage_start = self.get_gain();
-                    self.relative_gain_at_stage_end = -self.gain_at_stage_start;
-                    self.phase_time = 0.0;
+                    self.state.gain_at_stage_start = self.get_gain();
+                    self.state.relative_gain_at_stage_end = -self.state.gain_at_stage_start;
+                    self.state.phase_time = 0.0;
                 }
             }
-            self.stage = AdsrStages::Released;
+            self.state.stage = AdsrStages::Released;
         }
     }
 
     fn get_gain(&self) -> f32 {
         loop {
-            match self.stage {
+            match self.state.stage {
                 AdsrStages::Off => return 0.0,
                 AdsrStages::HeldAttack => {
-                    return self.gain_at_stage_start
-                        + self.relative_gain_at_stage_end
-                            * (self.phase_time / self.params.attack_duration)
+                    return self.state.gain_at_stage_start
+                        + self.state.relative_gain_at_stage_end
+                            * (self.state.phase_time / self.params.attack_duration)
                 }
                 AdsrStages::HeldDecay => {
-                    return self.gain_at_stage_start
-                        + self.relative_gain_at_stage_end
-                            * (self.phase_time / self.params.decay_duration)
+                    return self.state.gain_at_stage_start
+                        + self.state.relative_gain_at_stage_end
+                            * (self.state.phase_time / self.params.decay_duration)
                 }
                 AdsrStages::HeldSustain => return self.params.sustain_level,
                 AdsrStages::Released => {
-                    return self.gain_at_stage_start
-                        + self.relative_gain_at_stage_end
-                            * (self.phase_time / self.params.release_duration)
+                    return self.state.gain_at_stage_start
+                        + self.state.relative_gain_at_stage_end
+                            * (self.state.phase_time / self.params.release_duration)
                 }
             }
         }
@@ -137,27 +192,27 @@ impl Iterator for Adsr {
     type Item = f32;
 
     fn next(&mut self) -> Option<f32> {
-        self.phase_time += self.sample_duration;
+        self.state.phase_time += self.state.sample_duration;
         // Handle phase advancing
-        match self.stage {
+        match self.state.stage {
             AdsrStages::HeldAttack => {
-                if self.phase_time >= self.params.attack_duration {
-                    self.stage = AdsrStages::HeldDecay;
-                    self.gain_at_stage_start = 1.0;
-                    self.relative_gain_at_stage_end =
-                        self.params.sustain_level - self.gain_at_stage_start;
-                    self.phase_time -= self.params.attack_duration;
+                if self.state.phase_time >= self.params.attack_duration {
+                    self.state.stage = AdsrStages::HeldDecay;
+                    self.state.gain_at_stage_start = 1.0;
+                    self.state.relative_gain_at_stage_end =
+                        self.params.sustain_level - self.state.gain_at_stage_start;
+                    self.state.phase_time -= self.params.attack_duration;
                 }
             }
             AdsrStages::HeldDecay => {
-                if self.phase_time >= self.params.decay_duration {
-                    self.stage = AdsrStages::HeldSustain;
+                if self.state.phase_time >= self.params.decay_duration {
+                    self.state.stage = AdsrStages::HeldSustain;
                 }
             }
             AdsrStages::HeldSustain => return Some(self.params.sustain_level),
             AdsrStages::Released => {
-                if self.phase_time >= self.params.release_duration {
-                    self.stage = AdsrStages::Off;
+                if self.state.phase_time >= self.params.release_duration {
+                    self.state.stage = AdsrStages::Off;
                 }
             }
             _ => (),

@@ -162,8 +162,18 @@ pub fn read_and_parse(
                 })
             }
         }
-        else if *arg == "testevent" {
-            sender.send(event::Event::Patch(event::PatchEvent::TestEvent)).unwrap();
+        // For the selected node, set a parameter.
+        else if *arg == "paramset" {
+            if let Some(param_name) = input_args_iter.next() {
+                if let Some(param_val) = input_args_iter.next() {
+                    let param_name = String::from(*param_name);
+                    let param_val = String::from(*param_val);
+                    sender.send(event::Event::Patch(event::PatchEvent::SetParam{
+                        param_name,
+                        param_val,
+                    })).unwrap();
+                }
+            }
         }
     }
 

@@ -14,6 +14,21 @@ where
     Processor(Box<dyn processor::Processor<S>>),
 }
 
+impl<S> DspNode<S>
+where
+    S: dsp::Sample + dsp::FromSample<f32>,
+{
+    pub fn set_param(&mut self, param_name: String, param_val: String) {
+        match *self {
+            DspNode::Master => (),
+            DspNode::Processor(ref mut processor) => {
+                processor.set_param(param_name, param_val).unwrap();
+            }
+        }
+
+    }
+}
+
 impl dsp::Node<defs::Frame> for DspNode<defs::Output> {
     fn audio_requested(&mut self, buffer: &mut [defs::Frame], sample_rate: f64) {
         match *self {

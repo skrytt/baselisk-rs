@@ -8,7 +8,8 @@ pub enum Event {
 }
 
 pub enum PatchEvent {
-    TestEvent,
+    _SelectNode{idx: i32},
+    SetParam{param_name: String, param_val: String},
     _Other,
 }
 
