@@ -17,11 +17,14 @@ mod modulator;
 mod oscillator;
 mod processor;
 
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, mpsc};
 
 fn run() -> Result<(), &'static str> {
-    // Use Arc+RwLock to retain usage of variables outside of the closure
-    let event_buffer = Arc::new(RwLock::new(event::Buffer::new()));
+    // Create a channel for transferring messages from main thread to audio thread.
+    let (sender, receiver) = mpsc::channel();
+
+    let event_buffer = Arc::new(RwLock::new(
+            event::Buffer::new(receiver)));
 
     let mut graph = dsp::Graph::new();
     let master_node = graph.add_node(dsp_node::DspNode::Master);
@@ -39,7 +42,7 @@ fn run() -> Result<(), &'static str> {
     // Process lines of text input until told to quit or interrupted.
     let mut finished = false;
     while !finished {
-        finished = cli::read_and_parse(&mut audio_interface);
+        finished = cli::read_and_parse(&mut audio_interface, &sender);
     }
 
     audio_interface.finish();

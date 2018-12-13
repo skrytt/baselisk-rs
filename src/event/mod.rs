@@ -8,15 +8,18 @@ pub use event::types::{
 };
 
 use std::slice::Iter;
+use std::sync::mpsc;
 
 pub struct Buffer {
     pub midi: midi::InputBuffer,
+    _receiver: mpsc::Receiver<Event>,
 }
 
 impl Buffer {
-    pub fn new() -> Buffer {
+    pub fn new(_receiver: mpsc::Receiver<Event>) -> Buffer {
         Buffer {
             midi: midi::InputBuffer::new(),
+            _receiver
         }
     }
 

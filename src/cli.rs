@@ -2,13 +2,17 @@ use audio;
 use defs;
 use dsp;
 use dsp_node;
+use event;
 use gain;
 use oscillator;
 use std::io;
 use std::io::prelude::*;
-use std::sync::Arc;
+use std::sync::{Arc, mpsc};
 
-pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
+pub fn read_and_parse(
+    audio_interface: &mut audio::Interface,
+    _sender: &mpsc::Sender<event::Event>,
+) -> bool {
     print!("{}> ", defs::PROGNAME);
     io::stdout().flush().ok().expect("Could not flush stdout");
 
@@ -55,7 +59,7 @@ pub fn read_and_parse(audio_interface: &mut audio::Interface) -> bool {
                 // "midi list": list the enumerated midi devices
                 if *arg == "list" {
                     audio_interface.exec_with_context_mut(|context| {
-                        let event_buffer = context.event_buffer.try_write()
+                        let event_buffer = context.event_buffer.try_read()
                             .expect("Event buffer unexpectedly locked");
                         event_buffer.midi.print_devices();
                     })
