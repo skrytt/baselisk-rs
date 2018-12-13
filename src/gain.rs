@@ -43,7 +43,7 @@ impl<S> processor::Processor<S> for AdsrGain {
 
         let events = self.event_buffer.try_read()
             .expect("Event buffer unexpectedly locked");
-        for event in events.iter() {
+        for event in events.iter_midi() {
             match event {
                 event::Event::Midi(midi_event) => {
                     match midi_event {

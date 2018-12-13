@@ -1,18 +1,20 @@
 extern crate ansi_term;
 extern crate portaudio;
 
-use std::sync::{Arc, RwLock};
+use application;
+use defs;
 use dsp;
 use dsp::sample::ToFrameSliceMut;
 use dsp::Node;
+use event;
+use std::sync::{Arc, RwLock};
 
-use application;
-use defs;
 
 type Stream = portaudio::Stream<portaudio::NonBlocking, portaudio::Output<defs::Output>>;
 
 pub struct Interface
 {
+    event_buffer: Arc<RwLock<event::Buffer>>,
     context: Arc<RwLock<application::Context>>,
     pa: portaudio::PortAudio,
     stream: Option<Stream>,
@@ -20,12 +22,15 @@ pub struct Interface
 }
 
 impl Interface{
-    pub fn new(context: Arc<RwLock<application::Context>>
+    pub fn new(
+        event_buffer: Arc<RwLock<event::Buffer>>,
+        context: Arc<RwLock<application::Context>>
     ) -> Result<Interface, &'static str> {
         let pa = portaudio::PortAudio::new().unwrap();
 
         Ok(Interface {
-            context: context,
+            event_buffer,
+            context,
             pa: pa,
             stream: None,
             running: true,
@@ -80,19 +85,21 @@ impl Interface{
             defs::FRAMES,
         );
 
+        let event_buffer_clone = Arc::clone(&self.event_buffer);
         let context_clone = Arc::clone(&self.context);
 
         let callback = move |portaudio::OutputStreamCallbackArgs { buffer, .. }| {
-            // Refresh the MIDI intput buffer with new MIDI events
+            // Refresh the MIDI input buffer with new MIDI events
             let mut context_lock = context_clone.try_write()
                 .expect("Context was locked when audio callback was called");
 
             // Obtain a mutable lock on the event buffer so we can update events
             {
-                let mut events = context_lock.event_buffer.try_write()
+                let mut events = event_buffer_clone.try_write()
                     .expect("Event buffer was locked when audio callback was called");
 
-                events.update();
+                events.update_patch(&mut context_lock);
+                events.update_midi_buffer();
             } // Free here so that .audio_requested may read the new events
 
             let buffer: &mut [defs::Frame] = buffer.to_frame_slice_mut().unwrap();
@@ -151,7 +158,7 @@ impl Interface{
     /// Afterwards, restore the original state of the audio stream.
     pub fn exec_with_context_mut<F>(&mut self, f: F)
     where
-        F: Fn(&mut application::Context),
+        F: Fn(&mut application::Context, &Arc<RwLock<event::Buffer>>),
     {
         let was_active = self.is_active();
         if was_active {
@@ -159,7 +166,10 @@ impl Interface{
         }
 
         // Give a temporary mutable borrow of this Context to the closure
-        f(&mut self.context.try_write().expect("Context still locked even after audio paused"));
+        f(
+            &mut self.context.try_write().expect("Context still locked even after audio paused"),
+            &self.event_buffer,
+        );
 
         if was_active {
             self.resume().unwrap();

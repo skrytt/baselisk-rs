@@ -31,13 +31,12 @@ fn run() -> Result<(), &'static str> {
     graph.set_master(Some(master_node));
 
     let context = Arc::new(RwLock::new(application::Context {
-        event_buffer,
         graph,
         master_node,
         selected_node: master_node,
     }));
 
-    let mut audio_interface = audio::Interface::new(context).unwrap();
+    let mut audio_interface = audio::Interface::new(event_buffer, context).unwrap();
 
     // Process lines of text input until told to quit or interrupted.
     let mut finished = false;

@@ -4,6 +4,11 @@ extern crate portmidi;
 /// Generic event type enum that can be used for notifications
 pub enum Event {
     Midi(MidiEvent),
+    Patch(PatchEvent),
+}
+
+pub enum PatchEvent {
+    TestEvent,
     _Other,
 }
 

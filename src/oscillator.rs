@@ -27,7 +27,7 @@ impl Params {
         self.sample_rate = sample_rate;
         let events = event_buffer.try_read()
             .expect("Event buffer unexpectedly locked");
-        for event in events.iter() {
+        for event in events.iter_midi() {
             if let event::Event::Midi(midi_event) = event {
                 match midi_event {
                     event::MidiEvent::NoteOn { note, .. } => {

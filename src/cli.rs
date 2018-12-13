@@ -11,7 +11,7 @@ use std::sync::{Arc, mpsc};
 
 pub fn read_and_parse(
     audio_interface: &mut audio::Interface,
-    _sender: &mpsc::Sender<event::Event>,
+    sender: &mpsc::Sender<event::Event>,
 ) -> bool {
     print!("{}> ", defs::PROGNAME);
     io::stdout().flush().ok().expect("Could not flush stdout");
@@ -58,8 +58,8 @@ pub fn read_and_parse(
             if let Some(arg) = input_args_iter.next() {
                 // "midi list": list the enumerated midi devices
                 if *arg == "list" {
-                    audio_interface.exec_with_context_mut(|context| {
-                        let event_buffer = context.event_buffer.try_read()
+                    audio_interface.exec_with_context_mut(|_context, event_buffer| {
+                        let event_buffer = event_buffer.try_read()
                             .expect("Event buffer unexpectedly locked");
                         event_buffer.midi.print_devices();
                     })
@@ -67,10 +67,10 @@ pub fn read_and_parse(
                 // "midi input {device_id}": set device_id as the midi input device
                 else if *arg == "input" {
                     if let Some(arg) = input_args_iter.next() {
-                        audio_interface.exec_with_context_mut(|context| {
+                        audio_interface.exec_with_context_mut(|_context, event_buffer| {
                             let device_id: i32;
                             scan!(arg.bytes() => "{}", device_id);
-                            let mut event_buffer = context.event_buffer.try_write()
+                            let mut event_buffer = event_buffer.try_write()
                                 .expect("Event buffer unexpectedly locked");
                             event_buffer.midi.set_port(device_id).unwrap();
                         })
@@ -85,7 +85,7 @@ pub fn read_and_parse(
                 if *arg == "list" {
                     // graph borrow scope, so that we release borrow
                     // before the audio interface claims it
-                    audio_interface.exec_with_context_mut(|context| {
+                    audio_interface.exec_with_context_mut(|context, _event_buffer| {
                         let nodes_iter = context.graph.nodes_mut().enumerate();
                         for (i, node) in nodes_iter {
                             print!("{}: {}", i, node);
@@ -101,8 +101,8 @@ pub fn read_and_parse(
         // Commands to add oscillators
         else if *arg == "add" {
             if let Some(arg) = input_args_iter.next() {
-                audio_interface.exec_with_context_mut(|context| {
-                    match oscillator::new(*arg, Arc::clone(&context.event_buffer)) {
+                audio_interface.exec_with_context_mut(|context, event_buffer| {
+                    match oscillator::new(*arg, Arc::clone(event_buffer)) {
                         Err(reason) => println!("{}", reason),
                         Ok(osc) => {
                             let (_, node_index) = context.graph
@@ -120,7 +120,7 @@ pub fn read_and_parse(
                 let node_index: usize;
                 scan!(arg.bytes() => "{}", node_index);
 
-                audio_interface.exec_with_context_mut(|context| {
+                audio_interface.exec_with_context_mut(|context, _event_buffer| {
                     let node_index = dsp::NodeIndex::new(node_index);
                     match context.graph.node(node_index) {
                         None    => println!("Invalid node index"),
@@ -136,8 +136,8 @@ pub fn read_and_parse(
         else if *arg == "extend" {
             // Ok, the node exists, now make a new node to put after it
             if let Some(arg) = input_args_iter.next() {
-                audio_interface.exec_with_context_mut(|context| {
-                    match gain::new(*arg, Arc::clone(&context.event_buffer)) {
+                audio_interface.exec_with_context_mut(|context, event_buffer| {
+                    match gain::new(*arg, Arc::clone(event_buffer)) {
                         Err(reason) => println!("{}", reason),
                         Ok(p) => {
                             let node_before_index = context.selected_node;
@@ -161,6 +161,9 @@ pub fn read_and_parse(
                     }
                 })
             }
+        }
+        else if *arg == "testevent" {
+            sender.send(event::Event::Patch(event::PatchEvent::TestEvent)).unwrap();
         }
     }
 
