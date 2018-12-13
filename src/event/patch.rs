@@ -17,7 +17,7 @@ impl InputBuffer {
     }
 
     /// React to the events by applying the instructions
-    pub fn process_events(&mut self, context: &application::Context){
+    pub fn process_events(&mut self, context: &mut application::Context){
         for event in self.receiver.try_iter() {
             if let types::Event::Patch(event) = event {
                 match event {

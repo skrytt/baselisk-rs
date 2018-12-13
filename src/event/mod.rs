@@ -29,7 +29,7 @@ impl Buffer {
     /// Get events sent over the thread channel.
     /// This is intended to be called once per audio buffer,
     /// and consumes the events it yields.
-    pub fn update_patch(&self, context: &mut application::Context) {
+    pub fn update_patch(&mut self, context: &mut application::Context) {
         self.patch.process_events(context);
     }
 
