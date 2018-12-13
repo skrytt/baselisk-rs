@@ -32,7 +32,6 @@ fn run() -> Result<(), &'static str> {
 
     let context = Arc::new(RwLock::new(application::Context {
         graph,
-        master_node,
         selected_node: master_node,
     }));
 

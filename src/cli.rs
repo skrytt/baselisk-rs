@@ -105,8 +105,10 @@ pub fn read_and_parse(
                     match oscillator::new(*arg, Arc::clone(event_buffer)) {
                         Err(reason) => println!("{}", reason),
                         Ok(osc) => {
-                            let (_, node_index) = context.graph
-                                .add_input(dsp_node::DspNode::Processor(osc), context.master_node);
+                            let master_index = context.graph.master_index().unwrap();
+                            let (_, node_index) = context.graph.add_input(
+                                dsp_node::DspNode::Processor(osc),
+                                master_index);
                             context.selected_node = node_index;
                         }
                     }
