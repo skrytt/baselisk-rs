@@ -12,9 +12,7 @@ mod cli;
 mod defs;
 mod dsp_node;
 mod event;
-mod gain;
 mod modulator;
-mod oscillator;
 mod processor;
 
 use std::sync::{Arc, RwLock, mpsc};

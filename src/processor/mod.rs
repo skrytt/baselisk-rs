@@ -1,3 +1,8 @@
+
+pub mod gain;
+pub mod oscillator;
+pub mod processor;
+
 extern crate dsp;
 
 use std::fmt;
