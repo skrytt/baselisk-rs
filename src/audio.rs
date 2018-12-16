@@ -89,7 +89,6 @@ impl Interface{
         let context_clone = Arc::clone(&self.context);
 
         let callback = move |portaudio::OutputStreamCallbackArgs { buffer, .. }| {
-            // Refresh the MIDI input buffer with new MIDI events
             let mut context_lock = context_clone.try_write()
                 .expect("Context was locked when audio callback was called");
 
