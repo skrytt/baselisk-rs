@@ -1,13 +1,12 @@
 
 pub mod gain;
 pub mod oscillator;
-pub mod processor;
 
 extern crate dsp;
 
 use std::fmt;
 
-pub trait Processor<S> {
+pub trait ProcessorView {
     fn name(&self) -> String;
 
     fn details(&self) -> String;
@@ -17,7 +16,9 @@ pub trait Processor<S> {
         // Default implementation
         Err(String::from("This processor has no settable parameters"))
     }
+}
 
+pub trait Processor<S>: ProcessorView {
     fn update_state(&mut self, sample_rate: f64);
 
     fn process(&mut self, input: S) -> S

@@ -69,8 +69,7 @@ where
     }))
 }
 
-/// This is the code that implements the Oscillator trait for the SineOscillator struct
-impl<S> processor::Processor<S> for Oscillator<S> {
+impl<S> processor::ProcessorView for Oscillator<S> {
     fn name(&self) -> String {
         self.name.clone()
     }
@@ -78,7 +77,9 @@ impl<S> processor::Processor<S> for Oscillator<S> {
     fn details(&self) -> String {
         String::from("")
     }
+}
 
+impl<S> processor::Processor<S> for Oscillator<S> {
     fn update_state(&mut self, sample_rate: f64) {
         self.params
             .update_state(&self.event_buffer, sample_rate)

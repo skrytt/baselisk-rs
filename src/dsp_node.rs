@@ -18,12 +18,10 @@ impl<S> DspNode<S>
 where
     S: dsp::Sample + dsp::FromSample<f32>,
 {
-    pub fn set_param(&mut self, param_name: String, param_val: String) {
+    pub fn set_param(&mut self, param_name: String, param_val: String) -> Result<(), String> {
         match *self {
-            DspNode::Master => (),
-            DspNode::Processor(ref mut processor) => {
-                processor.set_param(param_name, param_val).unwrap();
-            }
+            DspNode::Master => Err(String::from("Master node has no parameters")),
+            DspNode::Processor(ref mut processor) => processor.set_param(param_name, param_val),
         }
 
     }

@@ -15,20 +15,12 @@ pub struct InputBuffer {
 
 impl InputBuffer {
     /// Create a new buffer for receiving MIDI from one input device.
-    pub fn new() -> InputBuffer {
+    pub fn new(portmidi: portmidi::PortMidi) -> InputBuffer {
         // Code based on "monitor-all" example of portmidi crate
-        let context = portmidi::PortMidi::new().unwrap();
-
         InputBuffer {
             events: Vec::<types::Event>::with_capacity(0),
             port: None,
-            context: context,
-        }
-    }
-
-    pub fn print_devices(&self) {
-        for dev in self.context.devices().unwrap() {
-            println!("{}", dev);
+            context: portmidi,
         }
     }
 

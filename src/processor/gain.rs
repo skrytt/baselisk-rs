@@ -26,7 +26,7 @@ impl AdsrGain {
     }
 }
 
-impl<S> processor::Processor<S> for AdsrGain {
+impl processor::ProcessorView for AdsrGain {
     fn name(&self) -> String {
         String::from("AdsrGain")
     }
@@ -38,7 +38,9 @@ impl<S> processor::Processor<S> for AdsrGain {
     fn set_param(&mut self, param_name: String, param_val: String) -> Result<(), String> {
         self.adsr.set_param(param_name, param_val)
     }
+}
 
+impl<S> processor::Processor<S> for AdsrGain {
     fn update_state(&mut self, sample_rate: f64) {
         self.adsr.set_sample_rate(sample_rate);
 

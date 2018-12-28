@@ -7,10 +7,13 @@ pub enum Event {
     Patch(PatchEvent),
 }
 
+/// TODO: rename PatchEvent to ModelEvent?
+/// These events represent things the audio thread will do for us while it is running,
+/// to avoid unsafe data access.
 pub enum PatchEvent {
-    _SelectNode{idx: i32},
-    SetParam{param_name: String, param_val: String},
-    _Other,
+    MidiDeviceSet{device_id: i32},
+    NodeSelect{node_index: usize},
+    SelectedNodeSetParam{param_name: String, param_val: String},
 }
 
 /// Midi events are one type of event

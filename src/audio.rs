@@ -1,5 +1,5 @@
-extern crate ansi_term;
 extern crate portaudio;
+extern crate portmidi;
 
 use application;
 use defs;
@@ -9,66 +9,34 @@ use dsp::Node;
 use event;
 use std::sync::{Arc, RwLock};
 
-
-type Stream = portaudio::Stream<portaudio::NonBlocking, portaudio::Output<defs::Output>>;
+pub type Stream = portaudio::Stream<portaudio::NonBlocking, portaudio::Output<defs::Output>>;
 
 pub struct Interface
 {
-    event_buffer: Arc<RwLock<event::Buffer>>,
-    context: Arc<RwLock<application::Context>>,
+    audio_thread_context: Arc<RwLock<application::AudioThreadContext>>,
     pa: portaudio::PortAudio,
     stream: Option<Stream>,
-    running: bool,
 }
 
 impl Interface{
     pub fn new(
-        event_buffer: Arc<RwLock<event::Buffer>>,
-        context: Arc<RwLock<application::Context>>
+        portaudio: portaudio::PortAudio,
+        audio_thread_context: Arc<RwLock<application::AudioThreadContext>>,
     ) -> Result<Interface, &'static str> {
-        let pa = portaudio::PortAudio::new().unwrap();
-
         Ok(Interface {
-            event_buffer,
-            context,
-            pa: pa,
+            audio_thread_context,
+            pa: portaudio,
             stream: None,
-            running: true,
         })
     }
 
-    pub fn list_devices(&mut self) {
-        let default_output_device_index = self.pa.default_output_device().unwrap();
-
-        let devices = self.pa.devices().unwrap();
-        for device in devices {
-            if let Ok(device) = device {
-                let (idx, info) = device;
-                print!("{}) {}: ",
-                         i32::from(idx),
-                         info.name,
-                );
-
-                if info.max_output_channels > 0 {
-                    print!("{}, ", ansi_term::Colour::Blue.paint(
-                            format!("{} outputs",
-                                info.max_output_channels.to_string())));
-                } else {
-                    print!("0 outputs, ");
-                }
-
-                print!("{} Hz", info.default_sample_rate);
-
-                if idx == default_output_device_index {
-                    print!(" [default output]");
-                };
-                println!();
-            }
-        }
-    }
-
+    /// Open an audio stream.
     pub fn open(&mut self, device_index: u32) -> Result<(), String>
     {
+        if let Some(_) = self.stream {
+            return Err(String::from("Stream is already open"));
+        }
+
         let device_index = portaudio::DeviceIndex(device_index);
         let device_info = self.pa.device_info(device_index).unwrap();
 
@@ -85,93 +53,120 @@ impl Interface{
             defs::FRAMES,
         );
 
-        let event_buffer_clone = Arc::clone(&self.event_buffer);
-        let context_clone = Arc::clone(&self.context);
+        // Clone some references for the audio callback
+        let audio_thread_context_clone = Arc::clone(&self.audio_thread_context);
 
+        // We don't use the Result for event handling, but the main thread does.
+        #[allow(unused_must_use)]
         let callback = move |portaudio::OutputStreamCallbackArgs { buffer, .. }| {
-            let mut context_lock = context_clone.try_write()
+            let mut audio_thread_context = audio_thread_context_clone.try_write()
                 .expect("Context was locked when audio callback was called");
 
-            // Obtain a mutable lock on the event buffer so we can update events
-            {
-                let mut events = event_buffer_clone.try_write()
-                    .expect("Event buffer was locked when audio callback was called");
+            // Handle patch events but don't block if none are available.
+            // Where view updates are required, send events back
+            // to the main thread to indicate success or failure.
+            while let Ok(event) = audio_thread_context.comms.rx.try_recv() {
+                if let event::Event::Patch(event) = event {
+                    let result = match event {
+                        event::PatchEvent::MidiDeviceSet{device_id} => {
+                            let mut events = audio_thread_context.events.try_write()
+                                .expect("Event buffer unexpectedly locked");
+                            events.midi.set_port(device_id)
+                        },
 
-                events.update_patch(&mut context_lock);
-                events.update_midi_buffer();
-            } // Free here so that .audio_requested may read the new events
+                        event::PatchEvent::NodeSelect{node_index} => {
+                            println!("Got event NodeSelect {}", node_index);
+                            let node_index = dsp::NodeIndex::new(node_index);
+                            match audio_thread_context.graph.node(node_index) {
+                                None    => Err(String::from("No node with specified index")),
+                                Some(_) => {
+                                    audio_thread_context.selected_node = node_index;
+                                    Ok(())
+                                }
+                            }
+                        },
+                        event::PatchEvent::SelectedNodeSetParam{param_name, param_val} => {
+                            println!("Got event SelectedNodeSetParam {} {}", param_name, param_val);
+                            let selected_node = audio_thread_context.selected_node;
+                            match audio_thread_context.graph.node_mut(selected_node) {
+                                None => Err(String::from("A non-existent node is selected")),
+                                Some(node) => node.set_param(param_name, param_val),
+                            }
+                        },
+                    };
+                    audio_thread_context.comms.tx.send(result);
+                }
+            }
+
+            audio_thread_context.events.try_write().unwrap().update_midi();
 
             let buffer: &mut [defs::Frame] = buffer.to_frame_slice_mut().unwrap();
             dsp::slice::equilibrium(buffer);
 
-            context_lock.graph.audio_requested(buffer, settings.sample_rate);
+            audio_thread_context.graph.audio_requested(buffer, settings.sample_rate);
 
             portaudio::Continue
         };
 
-        self.stream = Some(self.pa.open_non_blocking_stream(settings, callback).unwrap());
+        let stream = self.pa.open_non_blocking_stream(
+                settings, callback).unwrap();
+
+        self.stream = Some(stream);
 
         Ok(())
     }
 
-    pub fn resume(&mut self) -> Result<(), String> {
-        let ref mut stream = match &mut self.stream {
-            None         => return Err(format!("There is no stream to resume")),
-            Some(stream) => stream
-        };
-        match stream.start() {
-            Err(e) => Err(format!("Failed to resume stream: {}", e)),
-            Ok(_) => Ok(()),
-        }
-    }
-    pub fn pause(&mut self) -> Result<(), String> {
-        let ref mut stream = match &mut self.stream {
-            None         => return Err(format!("There is no stream to pause")),
-            Some(stream) => stream
-        };
-        match stream.abort() {
-            Err(e) => return Err(format!("Failed to pause stream: {}", e)),
-            Ok(_) => Ok(()),
+    pub fn start(&mut self) -> Result<(), String> {
+        match &mut self.stream {
+            None => return Err(String::from("There is no stream open")),
+            Some(stream) => {
+                stream.start().unwrap();
+                println!("Stream started");
+                Ok(())
+            }
         }
     }
 
-    pub fn finish(&mut self) {
-        self.running = false;
-        if self.is_active() {
-            self.pause().unwrap();
+    pub fn finish(&mut self) -> Result<(), String> {
+        if let Some(stream) = &mut self.stream {
+            if stream.is_active().unwrap() {
+                stream.stop().unwrap();
+            }
         }
-    }
-
-    /// Whether the stream is active (i.e. callbacks being made)
-    pub fn is_active(&self) -> bool {
-        let ref stream = match &self.stream {
-            None         => return false,
-            Some(stream) => stream
-        };
-        let result = stream.is_active().unwrap();
-        result
+        self.stream = None;
+        println!("Stream finished");
+        Ok(())
     }
 
     /// Run a closure while the audio stream is paused, passing
     /// a mutable reference to this Context as an argument.
     /// Afterwards, restore the original state of the audio stream.
-    pub fn exec_with_context_mut<F>(&mut self, f: F)
+    pub fn exec_while_paused<F>(&mut self, mut f: F)
     where
-        F: Fn(&mut application::Context, &Arc<RwLock<event::Buffer>>),
+        F: FnMut(&mut application::AudioThreadContext),
     {
-        let was_active = self.is_active();
+        let was_active = match &mut self.stream {
+            None         => false,
+            Some(stream) => stream.is_active().unwrap(),
+        };
+
         if was_active {
-            self.pause().unwrap();
+            if let Some(stream) = &mut self.stream {
+                stream.stop().unwrap();
+            }
         }
 
         // Give a temporary mutable borrow of this Context to the closure
         f(
-            &mut self.context.try_write().expect("Context still locked even after audio paused"),
-            &self.event_buffer,
+            &mut self.audio_thread_context.try_write().unwrap(),
         );
 
+        // If we're stopping, self.stream will be None.
+        // Otherwise, resume the stream
         if was_active {
-            self.resume().unwrap();
+            if let Some(stream) = &mut self.stream {
+                stream.start().unwrap();
+            }
         }
     }
 }
