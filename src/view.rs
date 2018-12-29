@@ -6,6 +6,7 @@ extern crate portmidi;
 use application;
 use dsp_node;
 use std::fmt;
+use processor;
 
 /// This View struct represents the interface through which the view of the model
 /// may be queried.
@@ -116,8 +117,16 @@ impl fmt::Display for MidiView {
 }
 
 pub struct NodesView {
-    pub nodes: Vec<String>,
+    pub nodes: Vec<Box<dyn processor::ProcessorView>>,
     pub selected: usize,
+}
+
+// Master node is a special case, this represents what the user will see for this node
+pub struct MasterNodeView;
+impl processor::ProcessorView for MasterNodeView {
+    fn name(&self) -> String {
+        String::from("master")
+    }
 }
 
 impl NodesView {
@@ -138,10 +147,10 @@ impl NodesView {
             self.nodes.push(
                 match node {
                     dsp_node::DspNode::Master => {
-                        String::from("master")
+                        Box::new(MasterNodeView{})
                     },
                     dsp_node::DspNode::Processor(processor) => {
-                        format!("{} {}", processor.name(), processor.details())
+                        processor.get_view()
                     },
                 }
             )
@@ -157,8 +166,8 @@ impl NodesView {
 
 impl fmt::Display for NodesView {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for (i, node_view) in self.nodes.iter().enumerate() {
-            write!(f, "{}", node_view)?;
+        for (i, node) in self.nodes.iter().enumerate() {
+            write!(f, "{}) {} {}", i, node.name(), node.details())?;
             if i == self.selected {
                 write!(f, "{}", " [selected]")?;
             }

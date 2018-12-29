@@ -3,7 +3,6 @@ extern crate dsp;
 use defs;
 use dsp::Frame;
 use processor;
-use std::fmt;
 
 /// DspNode enumerates types that can feature in our DSP graph.
 pub enum DspNode<S>
@@ -37,15 +36,6 @@ impl dsp::Node<defs::Frame> for DspNode<defs::Output> {
                     input_frame.map(|s| processor.process(s))
                 });
             }
-        }
-    }
-}
-
-impl fmt::Display for DspNode<defs::Output> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            DspNode::Master => write!(f, "master"),
-            DspNode::Processor(ref t) => write!(f, "{} {}", t.name(), t.details()),
         }
     }
 }

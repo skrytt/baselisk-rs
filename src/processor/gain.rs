@@ -11,7 +11,7 @@ use std::sync::{Arc, RwLock};
 pub fn new<S>(
     name: &str,
     event_buffer: Arc<RwLock<event::Buffer>>,
-) -> Result<(Box<dyn processor::Processor<S>>, Box<dyn processor::ProcessorView>), &'static str>
+) -> Result<Box<dyn processor::Processor<S>>, &'static str>
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
 {
@@ -19,13 +19,11 @@ where
         "adsrgain" => {
             let name = String::from(name);
             let params = processor::modulator::AdsrParams::new();
-            Ok((
-                Box::new(AdsrGain::new(name.clone(), event_buffer, params.clone())),
-                Box::new(processor::modulator::AdsrView {
-                    name,
-                    params,
-                }),
-            ))},
+            Ok(Box::new(AdsrGain::new(
+                name.clone(),
+                event_buffer,
+                params.clone()
+            )))},
         _ => Err("Unknown gain filter name"),
     }
 }
@@ -106,6 +104,13 @@ where
     {
         let next = (self.adsr.next().unwrap() * self.volume).to_sample::<S>();
         input.mul_amp(next)
+    }
+
+    fn get_view(&self) -> Box<dyn processor::ProcessorView> {
+        Box::new(processor::modulator::AdsrView {
+            name: self.name.clone(),
+            params: self.adsr.params.clone(),
+        })
     }
 }
 

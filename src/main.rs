@@ -51,6 +51,9 @@ fn run() -> Result<(), &'static str> {
         events,
     }));
 
+    // Update the view, so that it shows the master node
+    view.nodes.update_from_context(&mut audio_thread_context.try_write().unwrap());
+
     // Initialize the audio interface
     let mut audio_interface = audio::Interface::new(
         portaudio,

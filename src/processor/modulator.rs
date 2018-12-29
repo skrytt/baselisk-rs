@@ -84,7 +84,7 @@ impl processor::ProcessorView for AdsrView {
     }
 
     fn details(&self) -> String {
-        format!("attack={}, decay={}, sustain={}, release={}",
+        format!("attack={:.3}s, decay={:.3}s, sustain={:.3}, release={:.3}s",
                 self.params.attack_duration,
                 self.params.decay_duration,
                 self.params.sustain_level,
@@ -109,7 +109,7 @@ struct AdsrState {
 
 /// An ADSR struct with all the bits plugged together:
 pub struct Adsr {
-    params: AdsrParams,
+    pub params: AdsrParams,
     state: AdsrState,
 }
 

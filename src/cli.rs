@@ -84,7 +84,7 @@ pub fn read_and_parse(
                 audio.exec_while_paused(|audio_thread_context| {
                     match processor::new_source(arg, Arc::clone(&audio_thread_context.events)) {
                         Err(reason) => println!("{}", reason),
-                        Ok((osc, _view)) => {
+                        Ok(osc) => {
                             let master_index = audio_thread_context.graph.master_index().unwrap();
                             let (_, node_index) = audio_thread_context.graph.add_input(
                                 dsp_node::DspNode::Processor(osc),
@@ -126,7 +126,7 @@ pub fn read_and_parse(
                 audio.exec_while_paused(|audio_thread_context| {
                     match processor::new_processor(arg, Arc::clone(&audio_thread_context.events)) {
                         Err(reason) => println!("{}", reason),
-                        Ok((p, _view)) => {
+                        Ok(p) => {
                             let node_before_index = audio_thread_context.selected_node;
 
                             let synth_index = audio_thread_context.graph.master_index().unwrap();

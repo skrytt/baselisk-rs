@@ -64,7 +64,7 @@ pub struct Oscillator<S> {
 pub fn new<S>(
     name: &str,
     event_buffer: Arc<RwLock<event::Buffer>>,
-) -> Result<(Box<dyn processor::Processor<S>>, Box<dyn processor::ProcessorView>), &'static str>
+) -> Result<Box<dyn processor::Processor<S>>, &'static str>
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
 {
@@ -75,17 +75,12 @@ where
         _ => return Err("Unknown oscillator name"),
     };
     let state = State::new();
-    Ok((
-        Box::new(Oscillator {
-            name: String::from(name),
-            state: state.clone(),
-            event_buffer,
-            generator_func,
-        }),
-        Box::new(OscillatorView {
-            name: String::from(name),
-        }),
-    ))
+    Ok(Box::new(Oscillator {
+        name: String::from(name),
+        state: state.clone(),
+        event_buffer,
+        generator_func,
+    }))
 }
 impl<S> processor::ProcessorView for Oscillator<S> {
     fn name(&self) -> String {
@@ -105,6 +100,12 @@ impl<S> processor::Processor<S> for Oscillator<S> {
 
     fn process(&mut self, _input: S) -> S {
         (self.generator_func)(&mut self.state)
+    }
+
+    fn get_view(&self) -> Box<dyn processor::ProcessorView> {
+        Box::new(OscillatorView {
+            name: self.name.clone(),
+        })
     }
 }
 
