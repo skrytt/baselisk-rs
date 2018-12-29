@@ -7,15 +7,17 @@ use std::f64::consts::PI;
 use std::fmt;
 use std::sync::{Arc, RwLock};
 
-pub struct Params {
+#[derive(Clone)]
+
+pub struct State {
     phase: f64,
     frequency: f64,
     sample_rate: f64,
 }
 
-impl Params {
-    pub fn new() -> Params {
-        Params {
+impl State {
+    pub fn new() -> State {
+        State {
             phase: 0.0,
             frequency: 0.0,
             sample_rate: 0.0,
@@ -41,17 +43,28 @@ impl Params {
     }
 }
 
-pub struct Oscillator<S> {
+pub struct OscillatorView {
     name: String,
-    params: Params,
-    event_buffer: Arc<RwLock<event::Buffer>>,
-    generator_func: fn(&mut Params) -> S,
 }
 
+impl processor::ProcessorView for OscillatorView {
+    fn name(&self) -> String {
+        self.name.clone()
+    }
+}
+
+pub struct Oscillator<S> {
+    name: String,
+    state: State,
+    event_buffer: Arc<RwLock<event::Buffer>>,
+    generator_func: fn(&mut State) -> S,
+}
+
+/// Function to construct new oscillators
 pub fn new<S>(
     name: &str,
     event_buffer: Arc<RwLock<event::Buffer>>,
-) -> Result<Box<dyn processor::Processor<S>>, &'static str>
+) -> Result<(Box<dyn processor::Processor<S>>, Box<dyn processor::ProcessorView>), &'static str>
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
 {
@@ -61,12 +74,18 @@ where
         "square" => square_generator,
         _ => return Err("Unknown oscillator name"),
     };
-    Ok(Box::new(Oscillator {
-        name: String::from(name),
-        params: Params::new(),
-        event_buffer,
-        generator_func,
-    }))
+    let state = State::new();
+    Ok((
+        Box::new(Oscillator {
+            name: String::from(name),
+            state: state.clone(),
+            event_buffer,
+            generator_func,
+        }),
+        Box::new(OscillatorView {
+            name: String::from(name),
+        }),
+    ))
 }
 impl<S> processor::ProcessorView for Oscillator<S> {
     fn name(&self) -> String {
@@ -80,38 +99,38 @@ impl<S> processor::ProcessorView for Oscillator<S> {
 
 impl<S> processor::Processor<S> for Oscillator<S> {
     fn update_state(&mut self, sample_rate: f64) {
-        self.params
+        self.state
             .update_state(&self.event_buffer, sample_rate)
     }
 
     fn process(&mut self, _input: S) -> S {
-        (self.generator_func)(&mut self.params)
+        (self.generator_func)(&mut self.state)
     }
 }
 
-fn sine_generator<S>(params: &mut Params) -> S
+fn sine_generator<S>(state: &mut State) -> S
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
 {
-    let res = (params.phase.sin() as f32).to_sample::<S>();
+    let res = (state.phase.sin() as f32).to_sample::<S>();
 
-    params.phase += 2.0 * PI * params.frequency / params.sample_rate;
-    while params.phase >= PI {
-        params.phase -= PI * 2.0;
+    state.phase += 2.0 * PI * state.frequency / state.sample_rate;
+    while state.phase >= PI {
+        state.phase -= PI * 2.0;
     }
 
     res
 }
 
-fn square_generator<S>(params: &mut Params) -> S
+fn square_generator<S>(state: &mut State) -> S
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
 {
-    let step = params.frequency / params.sample_rate;
+    let step = state.frequency / state.sample_rate;
 
     // Advance phase
     // Enforce range 0.0 <= phase < 1.0
-    let mut phase = params.phase + step;
+    let mut phase = state.phase + step;
     while phase >= 1.0 {
         phase -= 1.0;
     }
@@ -147,20 +166,20 @@ where
     res -= polyblep((phase + 0.5) % 1.0, step);
 
     // Store the phase for next iteration
-    params.phase = phase;
+    state.phase = phase;
 
     (res as f32).to_sample::<S>()
 }
 
-fn sawtooth_generator<S>(params: &mut Params) -> S
+fn sawtooth_generator<S>(state: &mut State) -> S
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
 {
-    let step = params.frequency / params.sample_rate;
+    let step = state.frequency / state.sample_rate;
 
     // Advance phase
     // Enforce range 0.0 <= phase < 1.0
-    let mut phase = params.phase + step;
+    let mut phase = state.phase + step;
     while phase >= 1.0 {
         phase -= 1.0;
     }
@@ -189,7 +208,7 @@ where
     }
 
     // Store the phase for next iteration
-    params.phase = phase;
+    state.phase = phase;
 
     (res as f32).to_sample::<S>()
 }

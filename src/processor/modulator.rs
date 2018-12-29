@@ -1,4 +1,6 @@
 
+use processor;
+
 /// States that ADSR can be in
 enum AdsrStages {
     Off,         // No note is held and any release phase has ended
@@ -8,7 +10,9 @@ enum AdsrStages {
     Released,    // Release
 }
 
-struct AdsrParams {
+/// Struct to hold user configurable parameters for an ADSR processor
+#[derive(Clone)]
+pub struct AdsrParams {
     attack_duration: f32,
     decay_duration: f32,
     sustain_level: f32,
@@ -16,6 +20,15 @@ struct AdsrParams {
 }
 
 impl AdsrParams {
+    pub fn new() -> AdsrParams {
+        AdsrParams {
+            attack_duration: 0.02,
+            decay_duration: 0.707,
+            sustain_level: 0.0,
+            release_duration: 0.707,
+        }
+    }
+
     pub fn set(&mut self, param_name: String, param_val: String) -> Result<(), String> {
         let param_val = param_val.parse::<f32>()
             .or_else(|_| return Err(String::from("param_val can't be parsed as a float")))
@@ -59,6 +72,32 @@ impl AdsrParams {
     }
 }
 
+/// Struct to hold a view of an ADSR processor
+pub struct AdsrView {
+    pub name: String,
+    pub params: AdsrParams,
+}
+
+impl processor::ProcessorView for AdsrView {
+    fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    fn details(&self) -> String {
+        format!("attack={}, decay={}, sustain={}, release={}",
+                self.params.attack_duration,
+                self.params.decay_duration,
+                self.params.sustain_level,
+                self.params.release_duration,
+        )
+    }
+
+    fn set_param(&mut self, param_name: String, param_val: String) -> Result<(), String> {
+        self.params.set(param_name, param_val)
+    }
+}
+
+/// Struct to hold the current state of an ADSR processor
 struct AdsrState {
     stage: AdsrStages,
     notes_held_count: i32,
@@ -68,20 +107,16 @@ struct AdsrState {
     phase_time: f32,
 }
 
+/// An ADSR struct with all the bits plugged together:
 pub struct Adsr {
     params: AdsrParams,
     state: AdsrState,
 }
 
 impl Adsr {
-    pub fn new() -> Adsr {
+    pub fn new(params: AdsrParams) -> Adsr {
         Adsr {
-            params: AdsrParams {
-                attack_duration: 0.02,
-                decay_duration: 0.707,
-                sustain_level: 0.0,
-                release_duration: 0.707,
-            },
+            params,
             state: AdsrState {
                 stage: AdsrStages::Off,
                 notes_held_count: 0,

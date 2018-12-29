@@ -15,7 +15,6 @@ mod comms;
 mod defs;
 mod dsp_node;
 mod event;
-mod modulator;
 mod processor;
 mod view;
 

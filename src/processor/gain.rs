@@ -3,23 +3,50 @@ extern crate dsp;
 use defs;
 use dsp::Sample;
 use event;
-use modulator;
 use processor;
 use std::fmt;
 use std::sync::{Arc, RwLock};
 
+/// Function to construct new gain processors
+pub fn new<S>(
+    name: &str,
+    event_buffer: Arc<RwLock<event::Buffer>>,
+) -> Result<(Box<dyn processor::Processor<S>>, Box<dyn processor::ProcessorView>), &'static str>
+where
+    S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
+{
+    match name {
+        "adsrgain" => {
+            let name = String::from(name);
+            let params = processor::modulator::AdsrParams::new();
+            Ok((
+                Box::new(AdsrGain::new(name.clone(), event_buffer, params.clone())),
+                Box::new(processor::modulator::AdsrView {
+                    name,
+                    params,
+                }),
+            ))},
+        _ => Err("Unknown gain filter name"),
+    }
+}
+
 /// AdsrGain links together a midi::InputBuffer and an ADSR into an audio processor.
 /// It knows how to adjust gain based on MIDI events.
 struct AdsrGain {
-    adsr: modulator::Adsr,
+    name: String,
+    adsr: processor::modulator::Adsr,
     event_buffer: Arc<RwLock<event::Buffer>>,
     volume: defs::Volume,
 }
 
 impl AdsrGain {
-    fn new(event_buffer: Arc<RwLock<event::Buffer>>) -> AdsrGain {
+    fn new(name: String,
+           event_buffer: Arc<RwLock<event::Buffer>>,
+           params: processor::modulator::AdsrParams)
+        -> AdsrGain {
         AdsrGain {
-            adsr: modulator::Adsr::new(),
+            name,
+            adsr: processor::modulator::Adsr::new(params),
             event_buffer,
             volume: 0.2,
         }
@@ -28,7 +55,7 @@ impl AdsrGain {
 
 impl processor::ProcessorView for AdsrGain {
     fn name(&self) -> String {
-        String::from("AdsrGain")
+        self.name.clone()
     }
 
     fn details(&self) -> String {
@@ -40,16 +67,10 @@ impl processor::ProcessorView for AdsrGain {
     }
 }
 
-pub fn new<S>(
-    name: &str,
-    event_buffer: Arc<RwLock<event::Buffer>>,
-) -> Result<Box<dyn processor::Processor<S>>, &'static str> {
-    match name {
-        "adsrgain" => Ok(Box::new(AdsrGain::new(event_buffer))),
-        _ => Err("Unknown gain filter name"),
-    }
-}
-impl<S> processor::Processor<S> for AdsrGain {
+impl<S> processor::Processor<S> for AdsrGain
+where
+    S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
+{
     fn update_state(&mut self, sample_rate: f64) {
         self.adsr.set_sample_rate(sample_rate);
 

@@ -1,5 +1,6 @@
 
 pub mod gain;
+pub mod modulator;
 pub mod oscillator;
 
 extern crate dsp;
@@ -11,7 +12,10 @@ use event;
 pub trait ProcessorView {
     fn name(&self) -> String;
 
-    fn details(&self) -> String;
+    fn details(&self) -> String {
+        // Default implementation
+        String::from("(no parameters)")
+    }
 
     #[allow(unused_variables)]
     fn set_param(&mut self, param_name: String, param_val: String) -> Result<(), String>{
@@ -28,10 +32,13 @@ pub trait Processor<S>: ProcessorView {
         S: dsp::sample::FloatSample + dsp::FromSample<f32> + fmt::Display;
 }
 
+/// Create a new source from a given name.
+/// The Ok result contains a tuple of two Boxes: the first contains
+/// the source itself; the second contains a parameter object for the view.
 pub fn new_source<S>(
     name: &str,
     event_buffer: Arc<RwLock<event::Buffer>>,
-) -> Result<Box<dyn Processor<S>>, &'static str>
+) -> Result<(Box<dyn Processor<S>>, Box<dyn ProcessorView>), &'static str>
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
 {
@@ -44,7 +51,10 @@ where
 pub fn new_processor<S>(
     name: &str,
     event_buffer: Arc<RwLock<event::Buffer>>,
-) -> Result<Box<dyn Processor<S>>, &'static str> {
+) -> Result<(Box<dyn Processor<S>>, Box<dyn ProcessorView>), &'static str>
+where
+    S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
+{
     match name {
         "adsrgain" => gain::new(name, event_buffer),
         _ => Err("Unknown processor name"),
