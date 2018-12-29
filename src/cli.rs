@@ -83,7 +83,7 @@ pub fn read_and_parse(
             if let Some(arg) = input_args_iter.next() {
                 audio.exec_while_paused(|audio_thread_context| {
                     match processor::new_source(arg, Arc::clone(&audio_thread_context.events)) {
-                        Err(reason) => println!("{}", reason),
+                        Err(reason) => println!("ERROR: {}", reason),
                         Ok(osc) => {
                             let master_index = audio_thread_context.graph.master_index().unwrap();
                             let (_, node_index) = audio_thread_context.graph.add_input(
@@ -125,7 +125,7 @@ pub fn read_and_parse(
             if let Some(arg) = input_args_iter.next() {
                 audio.exec_while_paused(|audio_thread_context| {
                     match processor::new_processor(arg, Arc::clone(&audio_thread_context.events)) {
-                        Err(reason) => println!("{}", reason),
+                        Err(reason) => println!("ERROR: {}", reason),
                         Ok(p) => {
                             let node_before_index = audio_thread_context.selected_node;
 
@@ -161,17 +161,15 @@ pub fn read_and_parse(
                     let param_name = String::from(*param_name);
                     let param_val = String::from(*param_val);
                     comms.tx.send(event::Event::Patch(event::PatchEvent::SelectedNodeSetParam{
-                        param_name,
-                        param_val,
+                        param_name: param_name.clone(),
+                        param_val: param_val.clone(),
                     })).unwrap();
                     let result = comms.rx.recv().unwrap();
                     match result {
                         Err(reason) => println!("{}", reason),
                         Ok(_) => {
-                            //TODO: implement update_param
-                            //view.nodes.update_param(param_name, param_val);
-                            //println!("OK");
-                            println!("OK, but view not updated");
+                            view.nodes.set_param(param_name, param_val).unwrap();
+                            println!("OK");
                         }
                     }
                 }

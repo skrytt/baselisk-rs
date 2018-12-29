@@ -162,6 +162,13 @@ impl NodesView {
     pub fn set_selected(&mut self, selected: usize) {
         self.selected = selected
     }
+
+    pub fn set_param(&mut self, param_name: String, param_val: String) -> Result<(), String> {
+        match self.nodes.get_mut(self.selected) {
+            Some(selected_node) => selected_node.set_param(param_name, param_val),
+            None => panic!(), // If the model update succeeded, the corresponding view update should too
+        }
+    }
 }
 
 impl fmt::Display for NodesView {
