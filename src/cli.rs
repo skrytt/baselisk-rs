@@ -53,7 +53,6 @@ pub fn read_and_parse(
                     if let Some(arg) = input_args_iter.next() {
                         let device_id: i32;
                         scan!(arg.bytes() => "{}", device_id);
-                        //midi.set_port(device_id).unwrap();
                         comms
                             .tx
                             .send(event::Event::Patch(event::PatchEvent::MidiDeviceSet {
@@ -62,9 +61,8 @@ pub fn read_and_parse(
                             .unwrap();
                         let result = comms.rx.recv().unwrap();
                         if let Ok(_) = result {
-                            //TODO: add some way of viewing which MIDI input device is in use
-                            //println!("OK");
-                            println!("OK, but view not updated");
+                            view.midi.select_device(device_id as usize);
+                            println!("OK");
                         }
                     }
                 }

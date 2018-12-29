@@ -80,24 +80,38 @@ impl fmt::Display for AudioView {
     }
 }
 pub struct MidiView {
-    devices_text: String,
+    devices_texts: Vec<String>,
+    selected: Option<usize>,
 }
 
 impl MidiView {
     fn new(midi: &portmidi::PortMidi) -> MidiView {
-        let mut devices = Vec::new();
+        let mut result = MidiView {
+            devices_texts: Vec::new(),
+            selected: None,
+        };
         for dev in midi.devices().unwrap() {
-            devices.push(format!("{}", dev));
-        }
-        MidiView {
-            devices_text: devices.join("\n"),
-        }
+            result.devices_texts.push(format!("{}", dev));
+        };
+        result
+    }
+
+    pub fn select_device(&mut self, device: usize) {
+        self.selected = Some(device);
     }
 }
 
 impl fmt::Display for MidiView {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "{}", self.devices_text).unwrap();
+        for (i, device_text) in self.devices_texts.iter().enumerate() {
+            write!(f, "{}", device_text).unwrap();
+            if let Some(selected) = self.selected {
+                if i == selected {
+                    write!(f, " [selected]")?;
+                }
+            }
+            writeln!(f)?;
+        }
         Ok(())
     }
 }
