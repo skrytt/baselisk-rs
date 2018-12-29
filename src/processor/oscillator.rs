@@ -68,7 +68,6 @@ where
         generator_func,
     }))
 }
-
 impl<S> processor::ProcessorView for Oscillator<S> {
     fn name(&self) -> String {
         self.name.clone()

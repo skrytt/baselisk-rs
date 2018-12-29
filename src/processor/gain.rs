@@ -40,6 +40,15 @@ impl processor::ProcessorView for AdsrGain {
     }
 }
 
+pub fn new<S>(
+    name: &str,
+    event_buffer: Arc<RwLock<event::Buffer>>,
+) -> Result<Box<dyn processor::Processor<S>>, &'static str> {
+    match name {
+        "adsrgain" => Ok(Box::new(AdsrGain::new(event_buffer))),
+        _ => Err("Unknown gain filter name"),
+    }
+}
 impl<S> processor::Processor<S> for AdsrGain {
     fn update_state(&mut self, sample_rate: f64) {
         self.adsr.set_sample_rate(sample_rate);
@@ -79,12 +88,3 @@ impl<S> processor::Processor<S> for AdsrGain {
     }
 }
 
-pub fn new<S>(
-    name: &str,
-    event_buffer: Arc<RwLock<event::Buffer>>,
-) -> Result<Box<dyn processor::Processor<S>>, &'static str> {
-    match name {
-        "adsrgain" => Ok(Box::new(AdsrGain::new(event_buffer))),
-        _ => Err("Unknown gain filter name"),
-    }
-}
