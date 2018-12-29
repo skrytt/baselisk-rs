@@ -1,14 +1,13 @@
-
 pub mod gain;
 pub mod modulator;
 pub mod oscillator;
 
 extern crate dsp;
 
-use std::fmt;
-use std::sync::{Arc, RwLock};
 use event;
 use processor;
+use std::fmt;
+use std::sync::{Arc, RwLock};
 
 pub trait ProcessorView {
     fn name(&self) -> String;
@@ -19,7 +18,7 @@ pub trait ProcessorView {
     }
 
     #[allow(unused_variables)]
-    fn set_param(&mut self, param_name: String, param_val: String) -> Result<(), String>{
+    fn set_param(&mut self, param_name: String, param_val: String) -> Result<(), String> {
         // Default implementation
         Err(String::from("This processor has no settable parameters"))
     }

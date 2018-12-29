@@ -1,4 +1,3 @@
-
 use processor;
 
 /// States that ADSR can be in
@@ -30,7 +29,8 @@ impl AdsrParams {
     }
 
     pub fn set(&mut self, param_name: String, param_val: String) -> Result<(), String> {
-        let param_val = param_val.parse::<f32>()
+        let param_val = param_val
+            .parse::<f32>()
             .or_else(|_| return Err(String::from("param_val can't be parsed as a float")))
             .unwrap();
 
@@ -38,36 +38,36 @@ impl AdsrParams {
             "attack" => {
                 if param_val >= 0.0 {
                     self.attack_duration = param_val;
-                    return Ok(())
+                    return Ok(());
                 } else {
                     return Err(String::from("attack param must be >= 0.0"));
                 }
-            },
+            }
             "decay" => {
                 if param_val >= 0.0 {
                     self.decay_duration = param_val;
-                    return Ok(())
+                    return Ok(());
                 } else {
                     return Err(String::from("decay param must be >= 0.0"));
                 }
-            },
+            }
             "sustain" => {
                 if param_val >= 0.0 && param_val <= 1.0 {
                     self.sustain_level = param_val;
-                    return Ok(())
+                    return Ok(());
                 } else {
                     return Err(String::from("sustain param must be >= 0.0 and <= 1.0"));
                 }
-            },
+            }
             "release" => {
                 if param_val >= 0.0 {
                     self.release_duration = param_val;
-                    return Ok(())
+                    return Ok(());
                 } else {
                     return Err(String::from("release param must be >= 0.0"));
                 }
-            },
-            _ => return Err(String::from("unknown param_name"))
+            }
+            _ => return Err(String::from("unknown param_name")),
         }
     }
 }
@@ -84,11 +84,12 @@ impl processor::ProcessorView for AdsrView {
     }
 
     fn details(&self) -> String {
-        format!("attack={:.3}s, decay={:.3}s, sustain={:.3}, release={:.3}s",
-                self.params.attack_duration,
-                self.params.decay_duration,
-                self.params.sustain_level,
-                self.params.release_duration,
+        format!(
+            "attack={:.3}s, decay={:.3}s, sustain={:.3}, release={:.3}s",
+            self.params.attack_duration,
+            self.params.decay_duration,
+            self.params.sustain_level,
+            self.params.release_duration,
         )
     }
 
@@ -124,7 +125,7 @@ impl Adsr {
                 relative_gain_at_stage_end: 0.0,
                 sample_duration: 1.0, // Needs to be set by update_sample_rate
                 phase_time: 0.0,
-            }
+            },
         }
     }
 
@@ -133,7 +134,8 @@ impl Adsr {
     }
 
     pub fn details(&self) -> String {
-        format!("A={}s, D={}s, S={}s, R={}s",
+        format!(
+            "A={}s, D={}s, S={}s, R={}s",
             self.params.attack_duration,
             self.params.decay_duration,
             self.params.sustain_level,

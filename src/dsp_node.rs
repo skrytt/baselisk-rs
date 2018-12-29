@@ -22,7 +22,6 @@ where
             DspNode::Master => Err(String::from("Master node has no parameters")),
             DspNode::Processor(ref mut processor) => processor.set_param(param_name, param_val),
         }
-
     }
 }
 

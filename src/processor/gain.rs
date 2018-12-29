@@ -22,8 +22,9 @@ where
             Ok(Box::new(AdsrGain::new(
                 name.clone(),
                 event_buffer,
-                params.clone()
-            )))},
+                params.clone(),
+            )))
+        }
         _ => Err("Unknown gain filter name"),
     }
 }
@@ -38,10 +39,11 @@ struct AdsrGain {
 }
 
 impl AdsrGain {
-    fn new(name: String,
-           event_buffer: Arc<RwLock<event::Buffer>>,
-           params: processor::modulator::AdsrParams)
-        -> AdsrGain {
+    fn new(
+        name: String,
+        event_buffer: Arc<RwLock<event::Buffer>>,
+        params: processor::modulator::AdsrParams,
+    ) -> AdsrGain {
         AdsrGain {
             name,
             adsr: processor::modulator::Adsr::new(params),
@@ -75,21 +77,20 @@ where
         let mut notes_pressed: i32 = 0;
         let mut notes_released: i32 = 0;
 
-        let events = self.event_buffer.try_read()
+        let events = self.event_buffer
+            .try_read()
             .expect("Event buffer unexpectedly locked");
         for event in events.iter_midi() {
             match event {
-                event::Event::Midi(midi_event) => {
-                    match midi_event {
-                        event::MidiEvent::NoteOn { .. } => {
-                            notes_pressed += 1;
-                        }
-                        event::MidiEvent::NoteOff { .. } => {
-                            notes_released += 1;
-                        }
+                event::Event::Midi(midi_event) => match midi_event {
+                    event::MidiEvent::NoteOn { .. } => {
+                        notes_pressed += 1;
+                    }
+                    event::MidiEvent::NoteOff { .. } => {
+                        notes_released += 1;
                     }
                 },
-                _ => ()
+                _ => (),
             }
         }
         if notes_pressed > 0 || notes_released > 0 {
@@ -113,4 +114,3 @@ where
         })
     }
 }
-

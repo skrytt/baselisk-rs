@@ -3,12 +3,11 @@ use comms;
 use defs;
 use dsp_node;
 use event;
+use processor;
 use std::io;
 use std::io::prelude::*;
-use view;
-use processor;
 use std::sync::Arc;
-
+use view;
 
 pub fn read_and_parse(
     audio: &mut audio::Interface,
@@ -41,7 +40,6 @@ pub fn read_and_parse(
                 }
             }
         }
-
         // Commands to control PortMidi input devices
         else if *arg == "midi" {
             if let Some(arg) = input_args_iter.next() {
@@ -56,8 +54,12 @@ pub fn read_and_parse(
                         let device_id: i32;
                         scan!(arg.bytes() => "{}", device_id);
                         //midi.set_port(device_id).unwrap();
-                        comms.tx.send(event::Event::Patch(
-                                event::PatchEvent::MidiDeviceSet{device_id})).unwrap();
+                        comms
+                            .tx
+                            .send(event::Event::Patch(event::PatchEvent::MidiDeviceSet {
+                                device_id,
+                            }))
+                            .unwrap();
                         let result = comms.rx.recv().unwrap();
                         if let Ok(_) = result {
                             //TODO: add some way of viewing which MIDI input device is in use
@@ -86,9 +88,9 @@ pub fn read_and_parse(
                         Err(reason) => println!("ERROR: {}", reason),
                         Ok(osc) => {
                             let master_index = audio_thread_context.graph.master_index().unwrap();
-                            let (_, node_index) = audio_thread_context.graph.add_input(
-                                dsp_node::DspNode::Processor(osc),
-                                master_index);
+                            let (_, node_index) = audio_thread_context
+                                .graph
+                                .add_input(dsp_node::DspNode::Processor(osc), master_index);
                             audio_thread_context.selected_node = node_index;
 
                             // Update the view now
@@ -106,8 +108,12 @@ pub fn read_and_parse(
                 // Get the node in question by accepting a node index
                 let node_index: usize;
                 scan!(arg.bytes() => "{}", node_index);
-                comms.tx.send(event::Event::Patch(
-                        event::PatchEvent::NodeSelect{node_index})).unwrap();
+                comms
+                    .tx
+                    .send(event::Event::Patch(event::PatchEvent::NodeSelect {
+                        node_index,
+                    }))
+                    .unwrap();
                 let result = comms.rx.recv().unwrap();
                 match result {
                     Err(reason) => println!("{}", reason),
@@ -133,15 +139,21 @@ pub fn read_and_parse(
 
                             // node_before is the node we'll be adding to.
                             // 1. Remove the connection between node_before and graph
-                            audio_thread_context.graph.remove_connection(node_before_index, synth_index);
+                            audio_thread_context
+                                .graph
+                                .remove_connection(node_before_index, synth_index);
 
                             // 2. Connect node_before to p
                             let p_node = dsp_node::DspNode::Processor(p);
-                            let (_, p_index) =
-                                audio_thread_context.graph.add_output(node_before_index, p_node);
+                            let (_, p_index) = audio_thread_context
+                                .graph
+                                .add_output(node_before_index, p_node);
 
                             // 3. Connect p to graph
-                            audio_thread_context.graph.add_connection(p_index, synth_index).unwrap();
+                            audio_thread_context
+                                .graph
+                                .add_connection(p_index, synth_index)
+                                .unwrap();
 
                             audio_thread_context.selected_node = p_index;
 
@@ -160,10 +172,15 @@ pub fn read_and_parse(
                 if let Some(param_val) = input_args_iter.next() {
                     let param_name = String::from(*param_name);
                     let param_val = String::from(*param_val);
-                    comms.tx.send(event::Event::Patch(event::PatchEvent::SelectedNodeSetParam{
-                        param_name: param_name.clone(),
-                        param_val: param_val.clone(),
-                    })).unwrap();
+                    comms
+                        .tx
+                        .send(event::Event::Patch(
+                            event::PatchEvent::SelectedNodeSetParam {
+                                param_name: param_name.clone(),
+                                param_val: param_val.clone(),
+                            },
+                        ))
+                        .unwrap();
                     let result = comms.rx.recv().unwrap();
                     match result {
                         Err(reason) => println!("{}", reason),

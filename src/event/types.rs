@@ -1,4 +1,3 @@
-
 extern crate portmidi;
 
 /// Generic event type enum that can be used for notifications
@@ -11,9 +10,16 @@ pub enum Event {
 /// These events represent things the audio thread will do for us while it is running,
 /// to avoid unsafe data access.
 pub enum PatchEvent {
-    MidiDeviceSet{device_id: i32},
-    NodeSelect{node_index: usize},
-    SelectedNodeSetParam{param_name: String, param_val: String},
+    MidiDeviceSet {
+        device_id: i32,
+    },
+    NodeSelect {
+        node_index: usize,
+    },
+    SelectedNodeSetParam {
+        param_name: String,
+        param_val: String,
+    },
 }
 
 /// Midi events are one type of event

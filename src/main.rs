@@ -18,8 +18,8 @@ mod event;
 mod processor;
 mod view;
 
-use std::io::prelude::*;
 use std::io;
+use std::io::prelude::*;
 use std::sync::{Arc, RwLock};
 
 fn run() -> Result<(), &'static str> {
@@ -52,13 +52,11 @@ fn run() -> Result<(), &'static str> {
     }));
 
     // Update the view, so that it shows the master node
-    view.nodes.update_from_context(&mut audio_thread_context.try_write().unwrap());
+    view.nodes
+        .update_from_context(&mut audio_thread_context.try_write().unwrap());
 
     // Initialize the audio interface
-    let mut audio_interface = audio::Interface::new(
-        portaudio,
-        audio_thread_context
-    ).unwrap();
+    let mut audio_interface = audio::Interface::new(portaudio, audio_thread_context).unwrap();
 
     // Require the user to open an audio device
     println!("Audio devices:");

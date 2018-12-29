@@ -1,4 +1,3 @@
-
 extern crate portmidi;
 
 use std::slice::Iter;
@@ -56,9 +55,7 @@ impl InputBuffer {
                 if let Ok(Some(events)) = port.read_n(defs::MIDI_BUF_LEN) {
                     self.events = events
                         .into_iter()
-                        .filter_map(|raw_midi_event| {
-                            types::MidiEvent::parse(raw_midi_event)
-                        })
+                        .filter_map(|raw_midi_event| types::MidiEvent::parse(raw_midi_event))
                         .collect()
                 }
             }

@@ -27,7 +27,8 @@ impl State {
     fn update_state(&mut self, event_buffer: &Arc<RwLock<event::Buffer>>, sample_rate: f64) {
         // Iterate over any midi events and mutate the frequency accordingly
         self.sample_rate = sample_rate;
-        let events = event_buffer.try_read()
+        let events = event_buffer
+            .try_read()
             .expect("Event buffer unexpectedly locked");
         for event in events.iter_midi() {
             if let event::Event::Midi(midi_event) = event {
@@ -94,8 +95,7 @@ impl<S> processor::ProcessorView for Oscillator<S> {
 
 impl<S> processor::Processor<S> for Oscillator<S> {
     fn update_state(&mut self, sample_rate: f64) {
-        self.state
-            .update_state(&self.event_buffer, sample_rate)
+        self.state.update_state(&self.event_buffer, sample_rate)
     }
 
     fn process(&mut self, _input: S) -> S {

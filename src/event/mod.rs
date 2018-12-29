@@ -1,14 +1,9 @@
-
 extern crate portmidi;
 
 pub mod midi;
 pub mod types;
 
-pub use event::types::{
-    Event,
-    MidiEvent,
-    PatchEvent,
-};
+pub use event::types::{Event, MidiEvent, PatchEvent};
 
 use std::slice;
 
@@ -36,4 +31,3 @@ impl Buffer {
         self.midi.iter()
     }
 }
-
