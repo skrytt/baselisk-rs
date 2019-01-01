@@ -1,6 +1,7 @@
 //! Synthesizer based on dsp-graph, portaudio and portmidi.
 //!
 extern crate ansi_term;
+extern crate arraydeque;
 extern crate dsp;
 extern crate portaudio;
 extern crate portmidi;

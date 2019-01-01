@@ -1,6 +1,7 @@
 pub mod gain;
 pub mod modulator;
 pub mod oscillator;
+pub mod filter;
 
 extern crate dsp;
 
@@ -55,10 +56,12 @@ pub fn new_processor<S>(
     event_buffer: Arc<RwLock<event::Buffer>>,
 ) -> Result<Box<dyn Processor<S>>, &'static str>
 where
-    S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
+    S: dsp::sample::FloatSample + dsp::FromSample<f32> + fmt::Display + 'static,
+    f32: dsp::FromSample<S>,
 {
     match name {
         "adsrgain" => gain::new(name, event_buffer),
+        "lowpass_simple" => filter::new(name, event_buffer),
         _ => Err("Unknown processor name"),
     }
 }
