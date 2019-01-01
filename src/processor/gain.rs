@@ -5,12 +5,13 @@ use dsp::Sample;
 use event;
 use processor;
 use std::fmt;
-use std::sync::{Arc, RwLock};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 /// Function to construct new gain processors
 pub fn new<S>(
     name: &str,
-    event_buffer: Arc<RwLock<event::Buffer>>,
+    event_buffer: Rc<RefCell<event::Buffer>>,
 ) -> Result<Box<dyn processor::Processor<S>>, &'static str>
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
@@ -34,14 +35,14 @@ where
 struct AdsrGain {
     name: String,
     adsr: processor::modulator::Adsr,
-    event_buffer: Arc<RwLock<event::Buffer>>,
+    event_buffer: Rc<RefCell<event::Buffer>>,
     volume: defs::Volume,
 }
 
 impl AdsrGain {
     fn new(
         name: String,
-        event_buffer: Arc<RwLock<event::Buffer>>,
+        event_buffer: Rc<RefCell<event::Buffer>>,
         params: processor::modulator::AdsrParams,
     ) -> AdsrGain {
         AdsrGain {
@@ -77,9 +78,7 @@ where
         let mut notes_pressed: i32 = 0;
         let mut notes_released: i32 = 0;
 
-        let events = self.event_buffer
-            .try_read()
-            .expect("Event buffer unexpectedly locked");
+        let events = self.event_buffer.borrow();
         for event in events.iter_midi() {
             match event {
                 event::Event::Midi(midi_event) => match midi_event {

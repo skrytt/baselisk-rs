@@ -21,7 +21,8 @@ mod view;
 
 use std::io;
 use std::io::prelude::*;
-use std::sync::{Arc, RwLock};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 fn run() -> Result<(), &'static str> {
     let mut graph = dsp::Graph::new();
@@ -41,11 +42,13 @@ fn run() -> Result<(), &'static str> {
     // Initialize the view
     let mut view = view::View::new(&portaudio, &portmidi);
 
-    let events = Arc::new(RwLock::new(event::Buffer::new(portmidi)));
+    let events = Rc::new(RefCell::new(event::Buffer::new(portmidi)));
 
     // The graph context will only be used in the audio thread,
     // never by the main thread.
-    let audio_thread_context = Arc::new(RwLock::new(application::AudioThreadContext {
+    // We must use Rc here to avoid locks during the audio callbacks,
+    // and guarantee that the main thread can't touch the data during processing.
+    let audio_thread_context = Rc::new(RefCell::new(application::AudioThreadContext {
         graph,
         selected_node: master_node,
         comms: audio_thread_comms,
@@ -54,7 +57,7 @@ fn run() -> Result<(), &'static str> {
 
     // Update the view, so that it shows the master node
     view.nodes
-        .update_from_context(&mut audio_thread_context.try_write().unwrap());
+        .update_from_context(&mut audio_thread_context.borrow_mut());
 
     // Initialize the audio interface
     let mut audio_interface = audio::Interface::new(portaudio, audio_thread_context).unwrap();

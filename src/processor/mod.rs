@@ -8,7 +8,8 @@ extern crate dsp;
 use event;
 use processor;
 use std::fmt;
-use std::sync::{Arc, RwLock};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub trait ProcessorView {
     fn name(&self) -> String;
@@ -40,7 +41,7 @@ pub trait Processor<S>: ProcessorView {
 /// the source itself; the second contains a parameter object for the view.
 pub fn new_source<S>(
     name: &str,
-    event_buffer: Arc<RwLock<event::Buffer>>,
+    event_buffer: Rc<RefCell<event::Buffer>>,
 ) -> Result<Box<dyn Processor<S>>, &'static str>
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
@@ -53,7 +54,7 @@ where
 
 pub fn new_processor<S>(
     name: &str,
-    event_buffer: Arc<RwLock<event::Buffer>>,
+    event_buffer: Rc<RefCell<event::Buffer>>,
 ) -> Result<Box<dyn Processor<S>>, &'static str>
 where
     S: dsp::sample::FloatSample + dsp::FromSample<f32> + fmt::Display + 'static,

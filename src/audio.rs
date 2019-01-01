@@ -7,12 +7,13 @@ use dsp;
 use dsp::sample::ToFrameSliceMut;
 use dsp::Node;
 use event;
-use std::sync::{Arc, RwLock};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub type Stream = portaudio::Stream<portaudio::NonBlocking, portaudio::Output<defs::Output>>;
 
 pub struct Interface {
-    audio_thread_context: Arc<RwLock<application::AudioThreadContext>>,
+    audio_thread_context: Rc<RefCell<application::AudioThreadContext>>,
     pa: portaudio::PortAudio,
     stream: Option<Stream>,
 }
@@ -20,7 +21,7 @@ pub struct Interface {
 impl Interface {
     pub fn new(
         portaudio: portaudio::PortAudio,
-        audio_thread_context: Arc<RwLock<application::AudioThreadContext>>,
+        audio_thread_context: Rc<RefCell<application::AudioThreadContext>>,
     ) -> Result<Interface, &'static str> {
         Ok(Interface {
             audio_thread_context,
@@ -53,14 +54,12 @@ impl Interface {
         );
 
         // Clone some references for the audio callback
-        let audio_thread_context_clone = Arc::clone(&self.audio_thread_context);
+        let audio_thread_context_clone = Rc::clone(&self.audio_thread_context);
 
         // We don't use the Result for event handling, but the main thread does.
         #[allow(unused_must_use)]
         let callback = move |portaudio::OutputStreamCallbackArgs { buffer, .. }| {
-            let mut audio_thread_context = audio_thread_context_clone
-                .try_write()
-                .expect("Context was locked when audio callback was called");
+            let mut audio_thread_context = audio_thread_context_clone.borrow_mut();
 
             // Handle patch events but don't block if none are available.
             // Where view updates are required, send events back
@@ -71,8 +70,7 @@ impl Interface {
                         event::PatchEvent::MidiDeviceSet { device_id } => {
                             let mut events = audio_thread_context
                                 .events
-                                .try_write()
-                                .expect("Event buffer unexpectedly locked");
+                                .borrow_mut();
                             events.midi.set_port(device_id)
                         }
 
@@ -108,8 +106,7 @@ impl Interface {
 
             audio_thread_context
                 .events
-                .try_write()
-                .unwrap()
+                .borrow_mut()
                 .update_midi();
 
             let buffer: &mut [defs::Frame] = buffer.to_frame_slice_mut().unwrap();
@@ -172,7 +169,7 @@ impl Interface {
         }
 
         // Give a temporary mutable borrow of this Context to the closure
-        f(&mut self.audio_thread_context.try_write().unwrap());
+        f(&mut self.audio_thread_context.borrow_mut());
 
         // If we're stopping, self.stream will be None.
         // Otherwise, resume the stream

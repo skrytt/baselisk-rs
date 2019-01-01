@@ -5,7 +5,8 @@ use event;
 use processor;
 use std::f64::consts::PI;
 use std::fmt;
-use std::sync::{Arc, RwLock};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 #[derive(Clone)]
 
@@ -24,12 +25,10 @@ impl State {
         }
     }
 
-    fn update_state(&mut self, event_buffer: &Arc<RwLock<event::Buffer>>, sample_rate: f64) {
+    fn update_state(&mut self, event_buffer: &Rc<RefCell<event::Buffer>>, sample_rate: f64) {
         // Iterate over any midi events and mutate the frequency accordingly
         self.sample_rate = sample_rate;
-        let events = event_buffer
-            .try_read()
-            .expect("Event buffer unexpectedly locked");
+        let events = event_buffer.borrow();
         for event in events.iter_midi() {
             if let event::Event::Midi(midi_event) = event {
                 match midi_event {
@@ -57,14 +56,14 @@ impl processor::ProcessorView for OscillatorView {
 pub struct Oscillator<S> {
     name: String,
     state: State,
-    event_buffer: Arc<RwLock<event::Buffer>>,
+    event_buffer: Rc<RefCell<event::Buffer>>,
     generator_func: fn(&mut State) -> S,
 }
 
 /// Function to construct new oscillators
 pub fn new<S>(
     name: &str,
-    event_buffer: Arc<RwLock<event::Buffer>>,
+    event_buffer: Rc<RefCell<event::Buffer>>,
 ) -> Result<Box<dyn processor::Processor<S>>, &'static str>
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,

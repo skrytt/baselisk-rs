@@ -5,7 +5,8 @@ use dsp::Sample;
 use event;
 use processor;
 use std::fmt;
-use std::sync::{Arc, RwLock};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 #[derive(Clone)]
 struct FilterParams {
@@ -51,7 +52,7 @@ impl FilterParams {
 /// Function to construct new filter processors
 pub fn new<S>(
     name: &str,
-    _event_buffer: Arc<RwLock<event::Buffer>>,
+    _event_buffer: Rc<RefCell<event::Buffer>>,
 ) -> Result<Box<dyn processor::Processor<S>>, &'static str>
 where
     S: dsp::sample::FloatSample + dsp::FromSample<f32> + fmt::Display + 'static,
