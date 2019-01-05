@@ -8,6 +8,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::cell::RefCell;
 
+/// Parameters available for filters.
 #[derive(Clone)]
 struct FilterParams {
     frequency_hz: f32,
@@ -15,6 +16,7 @@ struct FilterParams {
 }
 
 impl FilterParams {
+    /// Constructor for FilterParams instances
     fn new() -> FilterParams {
         FilterParams {
             frequency_hz: 1000.0,
@@ -22,6 +24,7 @@ impl FilterParams {
         }
     }
 
+    /// Set parameters for this filter.
     fn set(&mut self, param_name: String, param_val: String, sample_rate: f64) -> Result<(), String> {
         let param_val = param_val
             .parse::<f32>()
@@ -71,6 +74,7 @@ where
     }
 }
 
+/// A low pass filter type that can be used for audio processing.
 struct LowPassFilter
 {
     name: String,
@@ -81,6 +85,7 @@ struct LowPassFilter
 
 impl LowPassFilter
 {
+    /// Constructor for new LowPassFilter instances
     fn new(
         name: String,
         params: FilterParams,
@@ -141,6 +146,7 @@ where
     }
 }
 
+/// A view representation of a LowPassFilter.
 struct LowPassFilterView {
     name: String,
     params: FilterParams,

@@ -11,6 +11,8 @@ use std::fmt;
 use std::rc::Rc;
 use std::cell::RefCell;
 
+/// ProcessorView: represents functionality that views representing Processor types
+/// should implement.
 pub trait ProcessorView {
     fn name(&self) -> String;
 
@@ -26,6 +28,7 @@ pub trait ProcessorView {
     }
 }
 
+/// Processor: represents functionality that actual Processor types should implement.
 pub trait Processor<S>: ProcessorView {
     fn update_state(&mut self, sample_rate: f64);
 
@@ -37,8 +40,10 @@ pub trait Processor<S>: ProcessorView {
 }
 
 /// Create a new source from a given name.
-/// The Ok result contains a tuple of two Boxes: the first contains
-/// the source itself; the second contains a parameter object for the view.
+/// This function can create processors supported by the "add" command.
+/// there is no implementation difference between sources and other processors;
+/// however, generally they are things like oscillators used for sound generation,
+/// that will have no nodes before them in the graph.
 pub fn new_source<S>(
     name: &str,
     event_buffer: Rc<RefCell<event::Buffer>>,
@@ -52,6 +57,10 @@ where
     }
 }
 
+/// Create a new processor from a given name.
+/// This function can create processors supported by the "extend" command.
+/// This is used to create dsp types that will use the input from previous
+/// nodes in the graph to compute their output.
 pub fn new_processor<S>(
     name: &str,
     event_buffer: Rc<RefCell<event::Buffer>>,

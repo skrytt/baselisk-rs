@@ -23,6 +23,7 @@ impl InputBuffer {
         }
     }
 
+    /// Set the MIDI port we will receive input from.
     pub fn set_port(&mut self, device_id: i32) -> Result<(), String> {
         let info = match self.context.device(device_id) {
             Err(e) => return Err(e.to_string()),
@@ -66,8 +67,4 @@ impl InputBuffer {
     pub fn iter(&self) -> Iter<types::Event> {
         self.events.iter()
     }
-}
-
-pub fn note_to_frequency(note: u8) -> f64 {
-    440.0 * ((note as f64 - 69.0) / 12.0).exp2()
 }

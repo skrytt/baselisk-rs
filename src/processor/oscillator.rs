@@ -10,6 +10,7 @@ use std::cell::RefCell;
 
 #[derive(Clone)]
 
+/// Internal state used by oscillator types.
 pub struct State {
     phase: f64,
     frequency: f64,
@@ -25,6 +26,7 @@ impl State {
         }
     }
 
+    /// Process any events and update the internal state accordingly.
     fn update_state(&mut self, event_buffer: &Rc<RefCell<event::Buffer>>, sample_rate: f64) {
         // Iterate over any midi events and mutate the frequency accordingly
         self.sample_rate = sample_rate;
@@ -34,7 +36,7 @@ impl State {
                 match midi_event {
                     event::MidiEvent::NoteOn { note, .. } => {
                         // Set the active note and frequency to match this new note
-                        self.frequency = event::midi::note_to_frequency(*note);
+                        self.frequency = note_to_frequency(*note);
                     }
                     _ => (),
                 }
@@ -43,6 +45,13 @@ impl State {
     }
 }
 
+/// Convert a u8 note number to a corresponding frequency,
+/// using 440 Hz as the pitch of the A above middle C.
+pub fn note_to_frequency(note: u8) -> f64 {
+    440.0 * ((note as f64 - 69.0) / 12.0).exp2()
+}
+
+/// View representation of an oscillator.
 pub struct OscillatorView {
     name: String,
 }
@@ -53,6 +62,7 @@ impl processor::ProcessorView for OscillatorView {
     }
 }
 
+/// Oscillator type that will be used for audio processing.
 pub struct Oscillator<S> {
     name: String,
     state: State,
@@ -60,7 +70,7 @@ pub struct Oscillator<S> {
     generator_func: fn(&mut State) -> S,
 }
 
-/// Function to construct new oscillators
+/// Function to construct new oscillators.
 pub fn new<S>(
     name: &str,
     event_buffer: Rc<RefCell<event::Buffer>>,
@@ -108,6 +118,7 @@ impl<S> processor::Processor<S> for Oscillator<S> {
     }
 }
 
+/// Generator function that produces a sine wave.
 fn sine_generator<S>(state: &mut State) -> S
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
@@ -122,6 +133,8 @@ where
     res
 }
 
+/// Generator function that produces a square wave.
+/// Uses PolyBLEP smoothing to reduce aliasing.
 fn square_generator<S>(state: &mut State) -> S
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
@@ -171,6 +184,8 @@ where
     (res as f32).to_sample::<S>()
 }
 
+/// Generator function that produces a sawtooth wave.
+/// Uses PolyBLEP smoothing to reduce aliasing.
 fn sawtooth_generator<S>(state: &mut State) -> S
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
