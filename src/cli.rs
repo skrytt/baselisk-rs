@@ -80,28 +80,6 @@ pub fn read_and_parse(
                 }
             }
         }
-        // Commands to add oscillators
-        else if *arg == "add" {
-            if let Some(arg) = input_args_iter.next() {
-                audio.exec_while_paused(|audio_thread_context| {
-                    match processor::new(arg, Rc::clone(&audio_thread_context.events)) {
-                        Err(reason) => println!("ERROR: {}", reason),
-                        Ok(osc) => {
-                            let master_index = audio_thread_context.graph.master_index().unwrap();
-                            let (_, node_index) = audio_thread_context
-                                .graph
-                                .add_input(dsp_node::DspNode::Processor(osc), master_index);
-                            audio_thread_context.selected_node = node_index;
-
-                            // Update the view now
-                            view.graph.update_from_context(audio_thread_context);
-
-                            println!("Added and selected node");
-                        }
-                    }
-                })
-            }
-        }
         // Command to select a node, which will be used as the subject for some other commands.
         else if *arg == "select" {
             if let Some(arg) = input_args_iter.next() {
@@ -124,10 +102,9 @@ pub fn read_and_parse(
                 }
             }
         }
-        // Command to insert filters after the selected node
+        // Command to insert a processor after the selected node
         // "extend <node_type>"
         else if *arg == "extend" {
-            // Ok, the node exists, now make a new node to put after it
             if let Some(arg) = input_args_iter.next() {
                 audio.exec_while_paused(|audio_thread_context| {
                     match processor::new(arg, Rc::clone(&audio_thread_context.events)) {
@@ -161,6 +138,34 @@ pub fn read_and_parse(
                             view.graph.update_from_context(audio_thread_context);
 
                             println!("Extended node with new node and selected new node");
+                        }
+                    }
+                })
+            }
+        }
+        // Command to insert a processor before the selected node
+        // "prepend <node_type>"
+        else if *arg == "prepend" {
+            if let Some(arg) = input_args_iter.next() {
+                audio.exec_while_paused(|audio_thread_context| {
+                    match processor::new(arg, Rc::clone(&audio_thread_context.events)) {
+                        Err(reason) => println!("ERROR: {}", reason),
+                        Ok(p) => {
+                            let node_after_index = audio_thread_context.selected_node;
+
+                            // node_after is the node we'll be adding to.
+                            // Connect p to node_after
+                            let p_node = dsp_node::DspNode::Processor(p);
+                            let (_, p_index) = audio_thread_context
+                                .graph
+                                .add_input(p_node, node_after_index);
+
+                            audio_thread_context.selected_node = p_index;
+
+                            // Update the view now
+                            view.graph.update_from_context(audio_thread_context);
+
+                            println!("Prepended node with new node and selected new node");
                         }
                     }
                 })
