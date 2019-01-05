@@ -25,44 +25,33 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 fn run() -> Result<(), &'static str> {
-    let mut graph = dsp::Graph::new();
-    let master_node = graph.add_node(dsp_node::DspNode::Master);
-    graph.set_master(Some(master_node));
-
     // thread comms objects will be used to transfer events back and forth between
     // the main and audio threads.
     let (main_thread_comms, audio_thread_comms) = comms::new_bidirectional();
 
+    // The PortMidi and PortAudio interfaces are required for program operation.
+    // Panic if either of them fail to initialize.
     let portmidi = portmidi::PortMidi::new().unwrap();
-
-    // Create portaudio interface now so that we can initialize the device lists in the view
-    // before we pass ownership of these handles to the audio thread.
     let portaudio = portaudio::PortAudio::new().unwrap();
 
-    // Initialize the view
+    // Initialize the view with lists of audio and MIDI devices.
+    // The instances of PortMidi and PortAudio cache the lists of devices for their lifetime.
+    // It's necessary to restart this program to update the lists if the devices change.
     let mut view = view::View::new(&portaudio, &portmidi);
 
-    let events = Rc::new(RefCell::new(event::Buffer::new(portmidi)));
+    // Create an object to store state of the audio thread's processing.
+    let audio_thread_context = Rc::new(RefCell::new(application::AudioThreadContext::new(
+        audio_thread_comms, // How the audio thread will communicate with the main thread
+        portmidi,           // Needed for MIDI event handling
+    )));
 
-    // The graph context will only be used in the audio thread,
-    // never by the main thread.
-    // We must use Rc here to avoid locks during the audio callbacks,
-    // and guarantee that the main thread can't touch the data during processing.
-    let audio_thread_context = Rc::new(RefCell::new(application::AudioThreadContext {
-        graph,
-        selected_node: master_node,
-        comms: audio_thread_comms,
-        events,
-    }));
-
-    // Update the view, so that it shows the master node
-    view.nodes
-        .update_from_context(&mut audio_thread_context.borrow_mut());
+    // Update the view to show the initial state of the audio context.
+    view.nodes.update_from_context(&mut audio_thread_context.borrow_mut());
 
     // Initialize the audio interface
     let mut audio_interface = audio::Interface::new(portaudio, audio_thread_context).unwrap();
 
-    // Require the user to open an audio device
+    // The user must input which audio device to open here.
     println!("Audio devices:");
     println!("{}", view.audio);
 
