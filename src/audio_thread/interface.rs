@@ -90,7 +90,6 @@ impl Interface {
                         }
 
                         event::PatchEvent::NodeSelect { node_index } => {
-                            println!("Got event NodeSelect {}", node_index);
                             let node_index = dsp::NodeIndex::new(node_index);
                             match context.graph.node(node_index) {
                                 None => Err(String::from("No node with specified index")),
@@ -104,10 +103,6 @@ impl Interface {
                             param_name,
                             param_val,
                         } => {
-                            println!(
-                                "Got event SelectedNodeSetParam {} {}",
-                                param_name, param_val
-                            );
                             let selected_node = context.selected_node;
                             match context.graph.node_mut(selected_node) {
                                 None => Err(String::from("A non-existent node is selected")),
