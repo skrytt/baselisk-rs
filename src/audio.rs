@@ -12,26 +12,28 @@ use std::cell::RefCell;
 
 pub type Stream = portaudio::Stream<portaudio::NonBlocking, portaudio::Output<defs::Output>>;
 
-pub struct Interface {
+pub struct AudioThreadInterface {
     audio_thread_context: Rc<RefCell<application::AudioThreadContext>>,
     pa: portaudio::PortAudio,
     stream: Option<Stream>,
 }
 
-impl Interface {
+impl AudioThreadInterface {
     pub fn new(
         portaudio: portaudio::PortAudio,
         audio_thread_context: Rc<RefCell<application::AudioThreadContext>>,
-    ) -> Result<Interface, &'static str> {
-        Ok(Interface {
+    ) -> Result<AudioThreadInterface, &'static str> {
+        Ok(AudioThreadInterface {
             audio_thread_context,
             pa: portaudio,
             stream: None,
         })
     }
 
-    /// Open an audio stream.
-    pub fn open(&mut self, device_index: u32) -> Result<(), String> {
+    /// Try to open an audio stream with the device corresponding to the
+    /// provided device_index.
+    /// Return a Result indicating whether this was successful.
+    pub fn open_stream(&mut self, device_index: u32) -> Result<(), String> {
         if let Some(_) = self.stream {
             return Err(String::from("Stream is already open"));
         }
@@ -132,7 +134,8 @@ impl Interface {
         Ok(())
     }
 
-    pub fn start(&mut self) -> Result<(), String> {
+    /// Start audio processing for a stream that has already been opened.
+    pub fn start_stream(&mut self) -> Result<(), String> {
         match &mut self.stream {
             None => return Err(String::from("There is no stream open")),
             Some(stream) => {
@@ -143,7 +146,8 @@ impl Interface {
         }
     }
 
-    pub fn finish(&mut self) -> Result<(), String> {
+    /// Stop audio processing for a stream that is open, then drop the stream handle.
+    pub fn finish_stream(&mut self) -> Result<(), String> {
         if let Some(stream) = &mut self.stream {
             if stream.is_active().unwrap() {
                 stream.stop().unwrap();
@@ -157,6 +161,8 @@ impl Interface {
     /// Run a closure while the audio stream is paused, passing
     /// a mutable reference to this Context as an argument.
     /// Afterwards, restore the original state of the audio stream.
+    /// This is the only permissible way that the main thread may gain
+    /// any borrow of the audio thread context.
     pub fn exec_while_paused<F>(&mut self, mut f: F)
     where
         F: FnMut(&mut application::AudioThreadContext),

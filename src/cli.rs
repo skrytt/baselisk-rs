@@ -9,8 +9,11 @@ use std::io::prelude::*;
 use std::rc::Rc;
 use view;
 
+/// Read lines from standard input.
+/// Try to parse those lines as commands, then execute those commands.
+/// Return a bool indicating whether program execution should abort afterwards.
 pub fn read_and_parse(
-    audio: &mut audio::Interface,
+    audio: &mut audio::AudioThreadInterface,
     view: &mut view::View,
     comms: &comms::MainThreadComms,
 ) -> bool {
@@ -27,7 +30,6 @@ pub fn read_and_parse(
         // Users may quit by typing 'quit'.
         if *arg == "quit" {
             println!("Quitting...");
-            audio.finish().unwrap();
             return true; // Exit the main thread loop and terminate the program
         }
         // Commands to control PortAudio features

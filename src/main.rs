@@ -49,7 +49,7 @@ fn run() -> Result<(), &'static str> {
     view.nodes.update_from_context(&mut audio_thread_context.borrow_mut());
 
     // Initialize the audio interface
-    let mut audio_interface = audio::Interface::new(portaudio, audio_thread_context).unwrap();
+    let mut audio_interface = audio::AudioThreadInterface::new(portaudio, audio_thread_context).unwrap();
 
     // The user must input which audio device to open here.
     println!("Audio devices:");
@@ -72,7 +72,7 @@ fn run() -> Result<(), &'static str> {
         };
 
         // 2. verify audio device with this index can be opened
-        match audio_interface.open(device_index) {
+        match audio_interface.open_stream(device_index) {
             Err(reason) => {
                 println!("{}", reason);
                 continue
@@ -81,7 +81,7 @@ fn run() -> Result<(), &'static str> {
         };
     };
 
-    audio_interface.start().unwrap();
+    audio_interface.start_stream().unwrap();
 
     // Process lines of text input until told to quit or interrupted.
     let mut finished = false;
@@ -89,7 +89,7 @@ fn run() -> Result<(), &'static str> {
         finished = cli::read_and_parse(&mut audio_interface, &mut view, &main_thread_comms);
     }
 
-    audio_interface.finish().unwrap();
+    audio_interface.finish_stream().unwrap();
 
     Ok(())
 }
