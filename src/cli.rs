@@ -1,4 +1,4 @@
-use audio;
+use audio_thread;
 use comms;
 use defs;
 use dsp_node;
@@ -13,7 +13,7 @@ use view;
 /// Try to parse those lines as commands, then execute those commands.
 /// Return a bool indicating whether program execution should abort afterwards.
 pub fn read_and_parse(
-    audio: &mut audio::AudioThreadInterface,
+    audio: &mut audio_thread::Interface,
     view: &mut view::View,
     comms: &comms::MainThreadComms,
 ) -> bool {

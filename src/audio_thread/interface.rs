@@ -1,7 +1,8 @@
 extern crate portaudio;
 extern crate portmidi;
 
-use application;
+use audio_thread;
+use comms;
 use defs;
 use dsp;
 use dsp::sample::ToFrameSliceMut;
@@ -12,22 +13,30 @@ use std::cell::RefCell;
 
 pub type Stream = portaudio::Stream<portaudio::NonBlocking, portaudio::Output<defs::Output>>;
 
-pub struct AudioThreadInterface {
-    audio_thread_context: Rc<RefCell<application::AudioThreadContext>>,
+pub struct Interface {
+    context: Rc<RefCell<audio_thread::Context>>,
     pa: portaudio::PortAudio,
     stream: Option<Stream>,
 }
 
-impl AudioThreadInterface {
+impl Interface {
     pub fn new(
         portaudio: portaudio::PortAudio,
-        audio_thread_context: Rc<RefCell<application::AudioThreadContext>>,
-    ) -> Result<AudioThreadInterface, &'static str> {
-        Ok(AudioThreadInterface {
-            audio_thread_context,
+        portmidi: portmidi::PortMidi,
+        comms: comms::AudioThreadComms,
+    ) -> Interface {
+
+        // Create an object to store state of the audio thread's processing.
+        let context = Rc::new(RefCell::new(audio_thread::Context::new(
+            comms,      // How the audio thread will communicate with the main thread
+            portmidi,   // Needed for MIDI event handling
+        )));
+
+        Interface {
+            context,
             pa: portaudio,
             stream: None,
-        })
+        }
     }
 
     /// Try to open an audio stream with the device corresponding to the
@@ -60,21 +69,21 @@ impl AudioThreadInterface {
         );
 
         // Clone some references for the audio callback
-        let audio_thread_context_clone = Rc::clone(&self.audio_thread_context);
+        let context_clone = Rc::clone(&self.context);
 
         // We don't use the Result for event handling, but the main thread does.
         #[allow(unused_must_use)]
         let callback = move |portaudio::OutputStreamCallbackArgs { buffer, .. }| {
-            let mut audio_thread_context = audio_thread_context_clone.borrow_mut();
+            let mut context = context_clone.borrow_mut();
 
             // Handle patch events but don't block if none are available.
             // Where view updates are required, send events back
             // to the main thread to indicate success or failure.
-            while let Ok(event) = audio_thread_context.comms.rx.try_recv() {
+            while let Ok(event) = context.comms.rx.try_recv() {
                 if let event::Event::Patch(event) = event {
                     let result = match event {
                         event::PatchEvent::MidiDeviceSet { device_id } => {
-                            let mut events = audio_thread_context
+                            let mut events = context
                                 .events
                                 .borrow_mut();
                             events.midi.set_port(device_id)
@@ -83,10 +92,10 @@ impl AudioThreadInterface {
                         event::PatchEvent::NodeSelect { node_index } => {
                             println!("Got event NodeSelect {}", node_index);
                             let node_index = dsp::NodeIndex::new(node_index);
-                            match audio_thread_context.graph.node(node_index) {
+                            match context.graph.node(node_index) {
                                 None => Err(String::from("No node with specified index")),
                                 Some(_) => {
-                                    audio_thread_context.selected_node = node_index;
+                                    context.selected_node = node_index;
                                     Ok(())
                                 }
                             }
@@ -99,35 +108,30 @@ impl AudioThreadInterface {
                                 "Got event SelectedNodeSetParam {} {}",
                                 param_name, param_val
                             );
-                            let selected_node = audio_thread_context.selected_node;
-                            match audio_thread_context.graph.node_mut(selected_node) {
+                            let selected_node = context.selected_node;
+                            match context.graph.node_mut(selected_node) {
                                 None => Err(String::from("A non-existent node is selected")),
                                 Some(node) => node.set_param(param_name, param_val),
                             }
                         }
                     };
-                    audio_thread_context.comms.tx.send(result);
+                    context.comms.tx.send(result);
                 }
             }
 
-            audio_thread_context
-                .events
-                .borrow_mut()
-                .update_midi();
+            context.events.borrow_mut().update_midi();
 
             let buffer: &mut [defs::Frame] = buffer.to_frame_slice_mut().unwrap();
             dsp::slice::equilibrium(buffer);
 
-            audio_thread_context
+            context
                 .graph
                 .audio_requested(buffer, settings.sample_rate);
 
             portaudio::Continue
         };
 
-        let stream = self.pa
-            .open_non_blocking_stream(settings, callback)
-            .unwrap();
+        let stream = self.pa.open_non_blocking_stream(settings, callback).unwrap();
 
         self.stream = Some(stream);
 
@@ -165,7 +169,7 @@ impl AudioThreadInterface {
     /// any borrow of the audio thread context.
     pub fn exec_while_paused<F>(&mut self, mut f: F)
     where
-        F: FnMut(&mut application::AudioThreadContext),
+        F: FnMut(&mut audio_thread::Context),
     {
         let was_active = match &mut self.stream {
             None => false,
@@ -179,7 +183,7 @@ impl AudioThreadInterface {
         }
 
         // Give a temporary mutable borrow of this Context to the closure
-        f(&mut self.audio_thread_context.borrow_mut());
+        f(&mut self.context.borrow_mut());
 
         // If we're stopping, self.stream will be None.
         // Otherwise, resume the stream

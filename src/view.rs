@@ -2,7 +2,7 @@ extern crate ansi_term;
 extern crate portaudio;
 extern crate portmidi;
 
-use application;
+use audio_thread;
 use dsp_node;
 use processor;
 use std::fmt;
@@ -11,7 +11,7 @@ use std::fmt;
 /// may be queried.
 ///
 /// The audio (PortAudio) and midi (PortMidi) device lists are generated on
-/// application startup only. If the actual devices change, the user would need
+/// audio_thread_context startup only. If the actual devices change, the user would need
 /// need to restart the program to get the updated lists.
 ///
 /// However, the nodes data can change during program execution.
@@ -140,7 +140,7 @@ impl NodesView {
     /// Update the NodesView based on the borrowed context.
     pub fn update_from_context(
         &mut self,
-        audio_thread_context: &mut application::AudioThreadContext,
+        audio_thread_context: &mut audio_thread::Context,
     ) {
         self.nodes.clear();
 

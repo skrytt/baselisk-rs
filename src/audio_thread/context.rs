@@ -11,7 +11,7 @@ use std::cell::RefCell;
 
 pub type Graph = dsp::Graph<defs::Frame, dsp_node::DspNode<f32>>;
 
-pub struct AudioThreadContext {
+pub struct Context {
     pub graph: Graph,
     pub selected_node: dsp::NodeIndex,
     pub comms: comms::AudioThreadComms,
@@ -19,16 +19,16 @@ pub struct AudioThreadContext {
     pub events: Rc<RefCell<event::Buffer>>,
 }
 
-impl AudioThreadContext {
+impl Context {
     pub fn new(
         comms: comms::AudioThreadComms,
         portmidi: portmidi::PortMidi,
-    ) -> AudioThreadContext {
+    ) -> Context {
         let mut graph = dsp::Graph::new();
         let master_node = graph.add_node(dsp_node::DspNode::Master);
         graph.set_master(Some(master_node));
 
-        AudioThreadContext {
+        Context {
             graph,
             selected_node: master_node,
             comms,

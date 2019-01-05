@@ -9,8 +9,7 @@ extern crate portmidi;
 #[macro_use]
 extern crate text_io;
 
-mod application;
-mod audio;
+mod audio_thread;
 mod cli;
 mod comms;
 mod defs;
@@ -21,8 +20,6 @@ mod view;
 
 use std::io;
 use std::io::prelude::*;
-use std::rc::Rc;
-use std::cell::RefCell;
 
 fn run() -> Result<(), &'static str> {
     // thread comms objects will be used to transfer events back and forth between
@@ -39,17 +36,14 @@ fn run() -> Result<(), &'static str> {
     // It's necessary to restart this program to update the lists if the devices change.
     let mut view = view::View::new(&portaudio, &portmidi);
 
-    // Create an object to store state of the audio thread's processing.
-    let audio_thread_context = Rc::new(RefCell::new(application::AudioThreadContext::new(
-        audio_thread_comms, // How the audio thread will communicate with the main thread
-        portmidi,           // Needed for MIDI event handling
-    )));
+    // Initialize the audio interface
+    let mut audio_thread_interface = audio_thread::Interface::new(
+        portaudio, portmidi, audio_thread_comms);
 
     // Update the view to show the initial state of the audio context.
-    view.nodes.update_from_context(&mut audio_thread_context.borrow_mut());
-
-    // Initialize the audio interface
-    let mut audio_interface = audio::AudioThreadInterface::new(portaudio, audio_thread_context).unwrap();
+    audio_thread_interface.exec_while_paused(|audio_thread_context| {
+        view.nodes.update_from_context(audio_thread_context);
+    });
 
     // The user must input which audio device to open here.
     println!("Audio devices:");
@@ -72,7 +66,7 @@ fn run() -> Result<(), &'static str> {
         };
 
         // 2. verify audio device with this index can be opened
-        match audio_interface.open_stream(device_index) {
+        match audio_thread_interface.open_stream(device_index) {
             Err(reason) => {
                 println!("{}", reason);
                 continue
@@ -81,15 +75,15 @@ fn run() -> Result<(), &'static str> {
         };
     };
 
-    audio_interface.start_stream().unwrap();
+    audio_thread_interface.start_stream().unwrap();
 
     // Process lines of text input until told to quit or interrupted.
     let mut finished = false;
     while !finished {
-        finished = cli::read_and_parse(&mut audio_interface, &mut view, &main_thread_comms);
+        finished = cli::read_and_parse(&mut audio_thread_interface, &mut view, &main_thread_comms);
     }
 
-    audio_interface.finish_stream().unwrap();
+    audio_thread_interface.finish_stream().unwrap();
 
     Ok(())
 }
