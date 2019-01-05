@@ -84,7 +84,7 @@ pub fn read_and_parse(
         else if *arg == "add" {
             if let Some(arg) = input_args_iter.next() {
                 audio.exec_while_paused(|audio_thread_context| {
-                    match processor::new_source(arg, Rc::clone(&audio_thread_context.events)) {
+                    match processor::new(arg, Rc::clone(&audio_thread_context.events)) {
                         Err(reason) => println!("ERROR: {}", reason),
                         Ok(osc) => {
                             let master_index = audio_thread_context.graph.master_index().unwrap();
@@ -130,7 +130,7 @@ pub fn read_and_parse(
             // Ok, the node exists, now make a new node to put after it
             if let Some(arg) = input_args_iter.next() {
                 audio.exec_while_paused(|audio_thread_context| {
-                    match processor::new_processor(arg, Rc::clone(&audio_thread_context.events)) {
+                    match processor::new(arg, Rc::clone(&audio_thread_context.events)) {
                         Err(reason) => println!("ERROR: {}", reason),
                         Ok(p) => {
                             let node_before_index = audio_thread_context.selected_node;

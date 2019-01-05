@@ -44,24 +44,7 @@ pub trait Processor<S>: ProcessorView {
 /// there is no implementation difference between sources and other processors;
 /// however, generally they are things like oscillators used for sound generation,
 /// that will have no nodes before them in the graph.
-pub fn new_source<S>(
-    name: &str,
-    event_buffer: Rc<RefCell<event::Buffer>>,
-) -> Result<Box<dyn Processor<S>>, &'static str>
-where
-    S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
-{
-    match name {
-        "sine" | "saw" | "square" => oscillator::new(name, event_buffer),
-        _ => return Err("Unknown source name"),
-    }
-}
-
-/// Create a new processor from a given name.
-/// This function can create processors supported by the "extend" command.
-/// This is used to create dsp types that will use the input from previous
-/// nodes in the graph to compute their output.
-pub fn new_processor<S>(
+pub fn new<S>(
     name: &str,
     event_buffer: Rc<RefCell<event::Buffer>>,
 ) -> Result<Box<dyn Processor<S>>, &'static str>
@@ -70,8 +53,9 @@ where
     f32: dsp::FromSample<S>,
 {
     match name {
-        "adsrgain" => gain::new(name, event_buffer),
-        "lowpass_simple" => filter::new(name, event_buffer),
-        _ => Err("Unknown processor name"),
+        "sine" | "saw" | "square" => oscillator::new(name, event_buffer),
+        "adsrgain"                => gain::new(name, event_buffer),
+        "lowpass_simple"          => filter::new(name, event_buffer),
+        _ => return Err("Unknown source name"),
     }
 }
