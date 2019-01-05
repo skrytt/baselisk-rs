@@ -55,12 +55,32 @@ fn run() -> Result<(), &'static str> {
     println!("Audio devices:");
     println!("{}", view.audio);
 
-    print!("Enter an output device ID: ");
-    io::stdout().flush().ok().expect("Could not flush stdout");
+    let mut device_index: u32;
+    loop {
+        print!("Enter an output device ID: ");
+        io::stdout().flush().ok().expect("Could not flush stdout");
 
-    let device_index: u32 = read!();
+        // 1. verify input is representable as an unsigned integer
+        match try_read!() {
+            Err(_) => {
+                println!("Device ID must be a non-negative integer");
+                continue
+            }
+            Ok(input) => {
+                device_index = input;
+            }
+        };
 
-    audio_interface.open(device_index).unwrap();
+        // 2. verify audio device with this index can be opened
+        match audio_interface.open(device_index) {
+            Err(reason) => {
+                println!("{}", reason);
+                continue
+            },
+            Ok(_) => break
+        };
+    };
+
     audio_interface.start().unwrap();
 
     // Process lines of text input until told to quit or interrupted.

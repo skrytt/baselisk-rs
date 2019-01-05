@@ -37,7 +37,11 @@ impl Interface {
         }
 
         let device_index = portaudio::DeviceIndex(device_index);
-        let device_info = self.pa.device_info(device_index).unwrap();
+        let device_info = match self.pa.device_info(device_index) {
+            Ok(result) => result,
+            Err(reason) => return Err(String::from(format!(
+                        "PortAudio failed to open device with this ID: {}", reason))),
+        };
 
         let params: portaudio::stream::Parameters<defs::Output> =
             portaudio::stream::Parameters::new(
