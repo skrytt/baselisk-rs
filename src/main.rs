@@ -42,7 +42,7 @@ fn run() -> Result<(), &'static str> {
 
     // Update the view to show the initial state of the audio context.
     audio_thread_interface.exec_while_paused(|audio_thread_context| {
-        view.nodes.update_from_context(audio_thread_context);
+        view.graph.update_from_context(audio_thread_context);
     });
 
     // The user must input which audio device to open here.

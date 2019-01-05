@@ -76,7 +76,7 @@ pub fn read_and_parse(
                 // "nodes list" : list the enumerated nodes of the graph
                 // TODO: view needs updating...
                 if *arg == "list" {
-                    println!("{}", view.nodes);
+                    println!("{}", view.graph);
                 }
             }
         }
@@ -94,7 +94,7 @@ pub fn read_and_parse(
                             audio_thread_context.selected_node = node_index;
 
                             // Update the view now
-                            view.nodes.update_from_context(audio_thread_context);
+                            view.graph.update_from_context(audio_thread_context);
 
                             println!("Added and selected node");
                         }
@@ -118,7 +118,7 @@ pub fn read_and_parse(
                 match result {
                     Err(reason) => println!("{}", reason),
                     Ok(_) => {
-                        view.nodes.set_selected(node_index);
+                        view.graph.set_selected(node_index);
                         println!("OK");
                     }
                 }
@@ -158,7 +158,7 @@ pub fn read_and_parse(
                             audio_thread_context.selected_node = p_index;
 
                             // Update the view now
-                            view.nodes.update_from_context(audio_thread_context);
+                            view.graph.update_from_context(audio_thread_context);
 
                             println!("Extended node with new node and selected new node");
                         }
@@ -185,7 +185,7 @@ pub fn read_and_parse(
                     match result {
                         Err(reason) => println!("{}", reason),
                         Ok(_) => {
-                            view.nodes.set_param(param_name, param_val).unwrap();
+                            view.graph.set_param(param_name, param_val).unwrap();
                             println!("OK");
                         }
                     }

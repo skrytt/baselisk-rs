@@ -18,7 +18,7 @@ use std::fmt;
 pub struct View {
     pub audio: AudioView,
     pub midi: MidiView,
-    pub nodes: NodesView,
+    pub graph: GraphView,
 }
 
 impl View {
@@ -26,11 +26,13 @@ impl View {
         View {
             audio: AudioView::new(audio),
             midi: MidiView::new(midi),
-            nodes: NodesView::new(),
+            graph: GraphView::new(),
         }
     }
 }
 
+/// AudioView represents information relating to our use of PortAudio that should
+/// be available to the user.
 pub struct AudioView {
     devices_text: String,
 }
@@ -79,6 +81,9 @@ impl fmt::Display for AudioView {
         Ok(())
     }
 }
+
+/// MidiView represents information relating to our use of PortMidi that should
+/// be available to the user.
 pub struct MidiView {
     devices_texts: Vec<String>,
     selected: Option<usize>,
@@ -116,7 +121,7 @@ impl fmt::Display for MidiView {
     }
 }
 
-pub struct NodesView {
+pub struct GraphView {
     pub nodes: Vec<Box<dyn processor::ProcessorView>>,
     pub selected: usize,
 }
@@ -129,15 +134,15 @@ impl processor::ProcessorView for MasterNodeView {
     }
 }
 
-impl NodesView {
-    pub fn new() -> NodesView {
-        NodesView {
+impl GraphView {
+    pub fn new() -> GraphView {
+        GraphView {
             nodes: Vec::new(),
             selected: 0,
         }
     }
 
-    /// Update the NodesView based on the borrowed context.
+    /// Update the GraphView based on the borrowed context.
     pub fn update_from_context(
         &mut self,
         audio_thread_context: &mut audio_thread::Context,
@@ -168,7 +173,7 @@ impl NodesView {
     }
 }
 
-impl fmt::Display for NodesView {
+impl fmt::Display for GraphView {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for (i, node) in self.nodes.iter().enumerate() {
             write!(f, "{}) {} {}", i, node.name(), node.details())?;
