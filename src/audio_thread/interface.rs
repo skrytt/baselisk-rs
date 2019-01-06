@@ -50,8 +50,8 @@ impl Interface {
         let device_index = portaudio::DeviceIndex(device_index);
         let device_info = match self.pa.device_info(device_index) {
             Ok(result) => result,
-            Err(reason) => return Err(String::from(format!(
-                        "PortAudio failed to open device with this ID: {}", reason))),
+            Err(reason) => return Err(format!(
+                    "PortAudio failed to open specified device: {}", reason))
         };
 
         let params: portaudio::stream::Parameters<defs::Output> =
@@ -81,18 +81,19 @@ impl Interface {
             // to the main thread to indicate success or failure.
             while let Ok(event) = context.comms.rx.try_recv() {
                 if let event::Event::Patch(event) = event {
-                    let result = match event {
+                    let result: Result<(), &'static str> = match event {
                         event::PatchEvent::MidiDeviceSet { device_id } => {
                             let mut events = context
                                 .events
                                 .borrow_mut();
-                            events.midi.set_port(device_id)
+                            events.midi.set_port(device_id);
+                            Ok(())
                         }
 
                         event::PatchEvent::NodeSelect { node_index } => {
                             let node_index = dsp::NodeIndex::new(node_index);
                             match context.graph.node(node_index) {
-                                None => Err(String::from("No node with specified index")),
+                                None => Err("No node with specified index"),
                                 Some(_) => {
                                     context.selected_node = node_index;
                                     Ok(())
@@ -105,8 +106,11 @@ impl Interface {
                         } => {
                             let selected_node = context.selected_node;
                             match context.graph.node_mut(selected_node) {
-                                None => Err(String::from("A non-existent node is selected")),
-                                Some(node) => node.set_param(param_name, param_val),
+                                None => Err("A non-existent node is selected"),
+                                Some(node) => {
+                                    node.set_param(param_name, param_val);
+                                    Ok(())
+                                }
                             }
                         }
                     };
@@ -134,9 +138,9 @@ impl Interface {
     }
 
     /// Start audio processing for a stream that has already been opened.
-    pub fn start_stream(&mut self) -> Result<(), String> {
+    pub fn start_stream(&mut self) -> Result<(), &'static str> {
         match &mut self.stream {
-            None => return Err(String::from("There is no stream open")),
+            None => return Err("There is no stream open"),
             Some(stream) => {
                 stream.start().unwrap();
                 println!("Stream started");
@@ -146,7 +150,7 @@ impl Interface {
     }
 
     /// Stop audio processing for a stream that is open, then drop the stream handle.
-    pub fn finish_stream(&mut self) -> Result<(), String> {
+    pub fn finish_stream(&mut self) -> Result<(), &'static str> {
         if let Some(stream) = &mut self.stream {
             if stream.is_active().unwrap() {
                 stream.stop().unwrap();

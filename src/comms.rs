@@ -6,7 +6,7 @@ use std::sync::mpsc;
 /// This is used as a client: to request changes to the state, then check the responses.
 pub struct MainThreadComms {
     pub tx: mpsc::Sender<event::Event>,
-    pub rx: mpsc::Receiver<Result<(), String>>,
+    pub rx: mpsc::Receiver<Result<(), &'static str>>,
 }
 
 /// AudioThreadComms contains the pair of mpsc Sender and Receiver instances
@@ -15,7 +15,7 @@ pub struct MainThreadComms {
 /// whether they were successful.
 pub struct AudioThreadComms {
     pub rx: mpsc::Receiver<event::Event>,
-    pub tx: mpsc::Sender<Result<(), String>>,
+    pub tx: mpsc::Sender<Result<(), &'static str>>,
 }
 
 /// Create two MPSC channels (for bidirectional communication).
