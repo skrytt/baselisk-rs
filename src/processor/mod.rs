@@ -55,7 +55,7 @@ where
     match name {
         "sine" | "saw" | "square" => oscillator::new(name, event_buffer),
         "adsrgain"                => gain::new(name, event_buffer),
-        "lowpass_simple"          => filter::new(name, event_buffer),
+        "lowpass"                 => filter::new(name, event_buffer),
         _ => return Err("Unknown source name"),
     }
 }
