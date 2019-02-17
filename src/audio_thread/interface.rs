@@ -95,7 +95,7 @@ impl Interface {
 
             context.events.borrow_mut().update_midi();
 
-            let buffer: &mut [defs::Frame] = buffer.to_frame_slice_mut().unwrap();
+            let buffer: &mut [[defs::Output; 1]] = buffer.to_frame_slice_mut().unwrap();
             dsp::slice::equilibrium(buffer);
 
             context

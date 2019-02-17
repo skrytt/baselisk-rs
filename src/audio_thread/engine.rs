@@ -1,17 +1,36 @@
 
-use defs;
 use dsp;
+use event;
+use processor::Processor;
+use processor::oscillator::Oscillator;
 
-pub struct Engine {
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::fmt;
 
+pub struct Engine<S>
+where
+    S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
+{
+    oscillator: Oscillator<S>,
 }
 
-impl Engine {
-    pub fn new() -> Engine {
-        Engine{}
+impl<S> Engine<S>
+where
+    S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
+{
+    pub fn new(event_buffer: &Rc<RefCell<event::Buffer>>) -> Engine<S> {
+        Engine{
+            oscillator: Oscillator::new("sine", event_buffer).unwrap(),
+        }
     }
 
-    pub fn audio_requested(&mut self, output_buffer: &mut [defs::Frame], _sample_rate: f64) {
+    pub fn audio_requested(&mut self, output_buffer: &mut [[S; 1]], sample_rate: f64) {
+        // Zero the buffer
         dsp::slice::equilibrium(output_buffer);
+
+        // Write oscillator output to the buffer
+        self.oscillator.update_state(sample_rate);
+        self.oscillator.process_buffer(output_buffer, sample_rate);
     }
 }

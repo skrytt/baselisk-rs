@@ -70,28 +70,43 @@ pub struct Oscillator<S> {
     generator_func: fn(&mut State) -> S,
 }
 
+impl<S> Oscillator<S> {
 /// Function to construct new oscillators.
-pub fn new<S>(
-    name: &str,
-    event_buffer: Rc<RefCell<event::Buffer>>,
-) -> Result<Box<dyn processor::Processor<S>>, &'static str>
-where
-    S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
-{
-    let generator_func = match name {
-        "sine" => sine_generator,
-        "saw" => sawtooth_generator,
-        "square" => square_generator,
-        _ => return Err("Unknown oscillator name"),
-    };
-    let state = State::new();
-    Ok(Box::new(Oscillator {
-        name: String::from(name),
-        state: state.clone(),
-        event_buffer,
-        generator_func,
-    }))
+    pub fn new(
+        name: &str,
+        event_buffer: &Rc<RefCell<event::Buffer>>,
+    ) -> Result<Oscillator<S>, &'static str>
+    where
+        S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
+    {
+        let generator_func = match name {
+            "sine" => sine_generator,
+            "saw" => sawtooth_generator,
+            "square" => square_generator,
+            _ => return Err("Unknown oscillator name"),
+        };
+        let state = State::new();
+        Ok(Oscillator {
+            name: String::from(name),
+            state: state.clone(),
+            event_buffer: Rc::clone(event_buffer),
+            generator_func,
+        })
+    }
+
+    pub fn process_buffer(&mut self,
+               output_buffer: &mut [[S; 1]],
+               _sample_rate: f64,
+    ) {
+        // Generate all the samples for this buffer
+        for frame in output_buffer.iter_mut() {
+            let sample: S = (self.generator_func)(&mut self.state);
+            let this_frame: [S; 1] = [sample];
+            *frame = this_frame;
+        }
+    }
 }
+
 impl<S> processor::ProcessorView for Oscillator<S> {
     fn name(&self) -> String {
         self.name.clone()
@@ -105,10 +120,6 @@ impl<S> processor::ProcessorView for Oscillator<S> {
 impl<S> processor::Processor<S> for Oscillator<S> {
     fn update_state(&mut self, sample_rate: f64) {
         self.state.update_state(&self.event_buffer, sample_rate)
-    }
-
-    fn process(&mut self, _input: S) -> S {
-        (self.generator_func)(&mut self.state)
     }
 
     fn get_view(&self) -> Box<dyn processor::ProcessorView> {

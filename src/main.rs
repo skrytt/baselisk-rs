@@ -13,7 +13,6 @@ mod audio_thread;
 mod cli;
 mod comms;
 mod defs;
-mod dsp_unit;
 mod event;
 mod processor;
 mod view;
