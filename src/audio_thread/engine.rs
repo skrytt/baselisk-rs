@@ -12,7 +12,7 @@ pub struct Engine<S>
 where
     S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
 {
-    oscillator: Oscillator<S>,
+    pub oscillator: Oscillator<S>,
 }
 
 impl<S> Engine<S>
@@ -21,7 +21,7 @@ where
 {
     pub fn new(event_buffer: &Rc<RefCell<event::Buffer>>) -> Engine<S> {
         Engine{
-            oscillator: Oscillator::new("sine", event_buffer).unwrap(),
+            oscillator: Oscillator::new(event_buffer).unwrap(),
         }
     }
 

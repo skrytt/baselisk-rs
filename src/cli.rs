@@ -77,6 +77,21 @@ pub fn read_and_parse(
                 }
             }
         }
+        else if *arg == "osc" {
+            if let Some(arg) = input_args_iter.next() {
+                // "osc <osc_type_name>" : set the osc type
+                comms
+                    .tx
+                    .send(event::Event::Patch(event::PatchEvent::OscillatorTypeSet {
+                        type_name: String::from(*arg),
+                    }))
+                    .unwrap();
+                let result = comms.rx.recv().unwrap();
+                if let Ok(_) = result {
+                    println!("OK");
+                }
+            }
+        }
     }
 
     false // keep running

@@ -73,25 +73,34 @@ pub struct Oscillator<S> {
 impl<S> Oscillator<S> {
 /// Function to construct new oscillators.
     pub fn new(
-        name: &str,
         event_buffer: &Rc<RefCell<event::Buffer>>,
     ) -> Result<Oscillator<S>, &'static str>
     where
         S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
     {
-        let generator_func = match name {
+        let generator_func = sine_generator;
+        let state = State::new();
+
+        Ok(Oscillator {
+            name: String::from("oscillator"),
+            state: state.clone(),
+            event_buffer: Rc::clone(event_buffer),
+            generator_func,
+        })
+    }
+
+    pub fn set_type(&mut self, type_name: &str) -> Result<(), &'static str>
+    where
+        S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
+    {
+        let generator_func = match type_name {
             "sine" => sine_generator,
             "saw" => sawtooth_generator,
             "square" => square_generator,
             _ => return Err("Unknown oscillator name"),
         };
-        let state = State::new();
-        Ok(Oscillator {
-            name: String::from(name),
-            state: state.clone(),
-            event_buffer: Rc::clone(event_buffer),
-            generator_func,
-        })
+        self.generator_func = generator_func;
+        Ok(())
     }
 
     pub fn process_buffer(&mut self,

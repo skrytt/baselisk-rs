@@ -13,6 +13,9 @@ pub enum PatchEvent {
     MidiDeviceSet {
         device_id: i32,
     },
+    OscillatorTypeSet {
+        type_name: String,
+    }
 }
 
 /// Midi events are one type of event

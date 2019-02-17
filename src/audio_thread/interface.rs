@@ -81,12 +81,16 @@ impl Interface {
             while let Ok(event) = context.comms.rx.try_recv() {
                 if let event::Event::Patch(event) = event {
                     let result: Result<(), &'static str> = match event {
+
                         event::PatchEvent::MidiDeviceSet { device_id } => {
                             let mut events = context
                                 .events
                                 .borrow_mut();
                             events.midi.set_port(device_id);
                             Ok(())
+                        },
+                        event::PatchEvent::OscillatorTypeSet { type_name } => {
+                            context.engine.oscillator.set_type(&type_name)
                         }
                     };
                     context.comms.tx.send(result);
