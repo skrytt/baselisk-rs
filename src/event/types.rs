@@ -13,13 +13,6 @@ pub enum PatchEvent {
     MidiDeviceSet {
         device_id: i32,
     },
-    NodeSelect {
-        node_index: usize,
-    },
-    SelectedNodeSetParam {
-        param_name: String,
-        param_val: String,
-    },
 }
 
 /// Midi events are one type of event

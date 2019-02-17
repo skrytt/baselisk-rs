@@ -2,9 +2,6 @@ extern crate ansi_term;
 extern crate portaudio;
 extern crate portmidi;
 
-use audio_thread;
-use dsp_node;
-use processor;
 use std::fmt;
 
 /// This View struct represents the interface through which the view of the model
@@ -18,7 +15,7 @@ use std::fmt;
 pub struct View {
     pub audio: AudioView,
     pub midi: MidiView,
-    pub graph: GraphView,
+    pub graph: EngineView,
 }
 
 impl View {
@@ -26,7 +23,7 @@ impl View {
         View {
             audio: AudioView::new(audio),
             midi: MidiView::new(midi),
-            graph: GraphView::new(),
+            graph: EngineView::new(),
         }
     }
 }
@@ -121,67 +118,19 @@ impl fmt::Display for MidiView {
     }
 }
 
-pub struct GraphView {
-    pub nodes: Vec<Box<dyn processor::ProcessorView>>,
-    pub selected: usize,
+pub struct EngineView {
 }
 
-// Master node is a special case, this represents what the user will see for this node
-pub struct MasterNodeView;
-impl processor::ProcessorView for MasterNodeView {
-    fn name(&self) -> String {
-        String::from("master")
-    }
-}
-
-impl GraphView {
-    pub fn new() -> GraphView {
-        GraphView {
-            nodes: Vec::new(),
-            selected: 0,
-        }
-    }
-
-    /// Update the GraphView based on the borrowed context.
-    pub fn update_from_context(
-        &mut self,
-        audio_thread_context: &mut audio_thread::Context,
-    ) {
-        self.nodes.clear();
-
-        let nodes_iter = audio_thread_context.graph.nodes_mut();
-
-        for node in nodes_iter {
-            self.nodes.push(match node {
-                dsp_node::DspNode::Master => Box::new(MasterNodeView {}),
-                dsp_node::DspNode::Processor(processor) => processor.get_view(),
-            })
-        }
-
-        self.selected = audio_thread_context.selected_node.index();
-    }
-
-    pub fn set_selected(&mut self, selected: usize) {
-        self.selected = selected
-    }
-
-    pub fn set_param(&mut self, param_name: String, param_val: String) -> Result<(), String> {
-        match self.nodes.get_mut(self.selected) {
-            Some(selected_node) => selected_node.set_param(param_name, param_val),
-            None => panic!(), // If the model update succeeded, the corresponding view update should too
+impl EngineView {
+    pub fn new() -> EngineView {
+        EngineView {
         }
     }
 }
 
-impl fmt::Display for GraphView {
+impl fmt::Display for EngineView {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for (i, node) in self.nodes.iter().enumerate() {
-            write!(f, "{}) {} {}", i, node.name(), node.details())?;
-            if i == self.selected {
-                write!(f, "{}", " [selected]")?;
-            }
-            writeln!(f)?;
-        }
+        writeln!(f, "TODO: fmt::Display for EngineView")?;
         Ok(())
     }
 }

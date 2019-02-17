@@ -13,7 +13,7 @@ mod audio_thread;
 mod cli;
 mod comms;
 mod defs;
-mod dsp_node;
+mod dsp_unit;
 mod event;
 mod processor;
 mod view;
@@ -39,11 +39,6 @@ fn run() -> Result<(), &'static str> {
     // Initialize the audio interface
     let mut audio_thread_interface = audio_thread::Interface::new(
         portaudio, portmidi, audio_thread_comms);
-
-    // Update the view to show the initial state of the audio context.
-    audio_thread_interface.exec_while_paused(|audio_thread_context| {
-        view.graph.update_from_context(audio_thread_context);
-    });
 
     // The user must input which audio device to open here.
     println!("Audio devices:");

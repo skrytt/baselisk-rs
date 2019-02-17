@@ -6,7 +6,6 @@ use comms;
 use defs;
 use dsp;
 use dsp::sample::ToFrameSliceMut;
-use dsp::Node;
 use event;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -58,7 +57,7 @@ impl Interface {
             portaudio::stream::Parameters::new(
                 device_index,
                 defs::CHANNELS as i32,
-                true, // Interleaved audio: required for dsp-graph
+                true, // Interleaved audio
                 device_info.default_low_output_latency,
             );
 
@@ -89,30 +88,6 @@ impl Interface {
                             events.midi.set_port(device_id);
                             Ok(())
                         }
-
-                        event::PatchEvent::NodeSelect { node_index } => {
-                            let node_index = dsp::NodeIndex::new(node_index);
-                            match context.graph.node(node_index) {
-                                None => Err("No node with specified index"),
-                                Some(_) => {
-                                    context.selected_node = node_index;
-                                    Ok(())
-                                }
-                            }
-                        }
-                        event::PatchEvent::SelectedNodeSetParam {
-                            param_name,
-                            param_val,
-                        } => {
-                            let selected_node = context.selected_node;
-                            match context.graph.node_mut(selected_node) {
-                                None => Err("A non-existent node is selected"),
-                                Some(node) => {
-                                    node.set_param(param_name, param_val);
-                                    Ok(())
-                                }
-                            }
-                        }
                     };
                     context.comms.tx.send(result);
                 }
@@ -124,7 +99,7 @@ impl Interface {
             dsp::slice::equilibrium(buffer);
 
             context
-                .graph
+                .engine
                 .audio_requested(buffer, settings.sample_rate);
 
             portaudio::Continue

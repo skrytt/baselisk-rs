@@ -1,19 +1,19 @@
 
 extern crate portmidi;
 
+use audio_thread;
 use comms;
 use defs;
 use dsp;
-use dsp_node;
+use dsp_unit;
 use event;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-pub type Graph = dsp::Graph<defs::Frame, dsp_node::DspNode<f32>>;
+pub type Graph = dsp::Graph<defs::Frame, dsp_unit::DspUnit<f32>>;
 
 pub struct Context {
-    pub graph: Graph,
-    pub selected_node: dsp::NodeIndex,
+    pub engine: audio_thread::Engine,
     pub comms: comms::AudioThreadComms,
     // Events is refcounted because audio nodes also need to hold references to it
     pub events: Rc<RefCell<event::Buffer>>,
@@ -24,13 +24,8 @@ impl Context {
         comms: comms::AudioThreadComms,
         portmidi: portmidi::PortMidi,
     ) -> Context {
-        let mut graph = dsp::Graph::new();
-        let master_node = graph.add_node(dsp_node::DspNode::Master);
-        graph.set_master(Some(master_node));
-
         Context {
-            graph,
-            selected_node: master_node,
+            engine: audio_thread::Engine::new(),
             comms,
             events: Rc::new(RefCell::new(event::Buffer::new(portmidi))),
         }
