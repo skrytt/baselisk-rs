@@ -3,13 +3,12 @@ extern crate portmidi;
 
 use audio_thread;
 use comms;
-use defs;
 use event;
 use std::rc::Rc;
 use std::cell::RefCell;
 
 pub struct Context {
-    pub engine: audio_thread::Engine<defs::Output>,
+    pub engine: audio_thread::Engine,
     pub comms: comms::AudioThreadComms,
     // Events is refcounted because audio nodes also need to hold references to it
     pub events: Rc<RefCell<event::Buffer>>,

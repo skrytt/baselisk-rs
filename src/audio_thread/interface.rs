@@ -104,7 +104,7 @@ impl Interface {
 
             context
                 .engine
-                .audio_requested(buffer, settings.sample_rate);
+                .audio_requested(buffer, settings.sample_rate as defs::Output);
 
             portaudio::Continue
         };

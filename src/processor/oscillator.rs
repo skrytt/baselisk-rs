@@ -1,9 +1,8 @@
 extern crate dsp;
 
-use dsp::sample::{frame, Sample};
+use defs;
+use dsp::sample::frame;
 use event;
-use std::f64::consts::PI;
-use std::fmt;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -11,9 +10,9 @@ use std::cell::RefCell;
 
 /// Internal state used by oscillator types.
 pub struct State {
-    phase: f64,
-    frequency: f64,
-    sample_rate: f64,
+    phase: defs::Output,
+    frequency: defs::Output,
+    sample_rate: defs::Output,
 }
 
 impl State {
@@ -26,7 +25,7 @@ impl State {
     }
 
     /// Process any events and update the internal state accordingly.
-    fn update(&mut self, event_buffer: &Rc<RefCell<event::Buffer>>, sample_rate: f64) {
+    fn update(&mut self, event_buffer: &Rc<RefCell<event::Buffer>>, sample_rate: defs::Output) {
         // Iterate over any midi events and mutate the frequency accordingly
         self.sample_rate = sample_rate;
         let events = event_buffer.borrow();
@@ -46,24 +45,22 @@ impl State {
 
 /// Convert a u8 note number to a corresponding frequency,
 /// using 440 Hz as the pitch of the A above middle C.
-pub fn note_to_frequency(note: u8) -> f64 {
-    440.0 * ((note as f64 - 69.0) / 12.0).exp2()
+pub fn note_to_frequency(note: u8) -> defs::Output {
+    440.0 as defs::Output * ((note as defs::Output - 69.0) / 12.0).exp2()
 }
 
 /// Oscillator type that will be used for audio processing.
-pub struct Oscillator<S> {
+pub struct Oscillator {
     state: State,
     event_buffer: Rc<RefCell<event::Buffer>>,
-    generator_func: fn(&mut State) -> S,
+    generator_func: fn(&mut State) -> defs::Output,
 }
 
-impl<S> Oscillator<S> {
+impl Oscillator {
 /// Function to construct new oscillators.
     pub fn new(
         event_buffer: &Rc<RefCell<event::Buffer>>,
-    ) -> Oscillator<S>
-    where
-        S: Sample + dsp::FromSample<f32> + fmt::Display + 'static,
+    ) -> Oscillator
     {
         let generator_func = sine_generator;
         let state = State::new();
@@ -76,8 +73,6 @@ impl<S> Oscillator<S> {
     }
 
     pub fn set_type(&mut self, type_name: &str) -> Result<(), &'static str>
-    where
-        S: Sample + dsp::FromSample<f32> + fmt::Display + 'static,
     {
         let generator_func = match type_name {
             "sine" => sine_generator,
@@ -89,33 +84,31 @@ impl<S> Oscillator<S> {
         Ok(())
     }
 
-    pub fn update_state(&mut self, sample_rate: f64) {
+    pub fn update_state(&mut self, sample_rate: defs::Output) {
         self.state.update(&self.event_buffer, sample_rate);
     }
 
     pub fn process_buffer(&mut self,
-               output_buffer: &mut [frame::Mono<S>],
-               _sample_rate: f64,
+               output_buffer: &mut [frame::Mono<defs::Output>],
+               _sample_rate: defs::Output,
     ) {
         // Generate all the samples for this buffer
         for frame in output_buffer.iter_mut() {
-            let sample: S = (self.generator_func)(&mut self.state);
-            let this_frame: frame::Mono<S> = [sample];
+            let sample: defs::Output = (self.generator_func)(&mut self.state);
+            let this_frame: frame::Mono<defs::Output> = [sample];
             *frame = this_frame;
         }
     }
 }
 
 /// Generator function that produces a sine wave.
-fn sine_generator<S>(state: &mut State) -> S
-where
-    S: Sample + dsp::FromSample<f32> + fmt::Display + 'static,
+fn sine_generator(state: &mut State) -> defs::Output
 {
-    let res = (state.phase.sin() as f32).to_sample::<S>();
+    let res = state.phase.sin();
 
-    state.phase += 2.0 * PI * state.frequency / state.sample_rate;
-    while state.phase >= PI {
-        state.phase -= PI * 2.0;
+    state.phase += 2.0 as defs::Output * defs::PI * state.frequency / state.sample_rate;
+    while state.phase >= defs::PI {
+        state.phase -= defs::PI * 2.0;
     }
 
     res
@@ -123,9 +116,7 @@ where
 
 /// Generator function that produces a square wave.
 /// Uses PolyBLEP smoothing to reduce aliasing.
-fn square_generator<S>(state: &mut State) -> S
-where
-    S: Sample + dsp::FromSample<f32> + fmt::Display + 'static,
+fn square_generator(state: &mut State) -> defs::Output
 {
     let step = state.frequency / state.sample_rate;
 
@@ -143,7 +134,7 @@ where
     let mut res = if phase < 0.5 { 1.0 } else { -1.0 };
 
     // PolyBLEP smoothing to reduce aliasing by smoothing discontinuities,
-    let polyblep = |phase: f64, step: f64| -> f64 {
+    let polyblep = |phase: defs::Output, step: defs::Output| -> defs::Output {
         // Apply PolyBLEP Smoothing for 0 < phase < (freq / sample_rate)
         //   phase == 0:    x = 0.0
         //   phase == step: x = 1.0
@@ -169,14 +160,12 @@ where
     // Store the phase for next iteration
     state.phase = phase;
 
-    (res as f32).to_sample::<S>()
+    res as f32
 }
 
 /// Generator function that produces a sawtooth wave.
 /// Uses PolyBLEP smoothing to reduce aliasing.
-fn sawtooth_generator<S>(state: &mut State) -> S
-where
-    S: Sample + dsp::FromSample<f32> + fmt::Display + 'static,
+fn sawtooth_generator(state: &mut State) -> defs::Output
 {
     let step = state.frequency / state.sample_rate;
 
@@ -213,5 +202,5 @@ where
     // Store the phase for next iteration
     state.phase = phase;
 
-    (res as f32).to_sample::<S>()
+    res as defs::Output
 }

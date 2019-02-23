@@ -1,31 +1,30 @@
 
+use defs;
 use dsp;
-use dsp::sample::{frame, FloatSample, FromSample};
+use dsp::sample::frame;
 use event;
 use processor::oscillator::Oscillator;
 
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::fmt;
 
-pub struct Engine<S>
-where
-    S: FloatSample + FromSample<f32> + fmt::Display + 'static,
+pub struct Engine
 {
-    pub oscillator: Oscillator<S>,
+    pub oscillator: Oscillator,
 }
 
-impl<S> Engine<S>
-where
-    S: FloatSample + FromSample<f32> + fmt::Display,
+impl Engine
 {
-    pub fn new(event_buffer: &Rc<RefCell<event::Buffer>>) -> Engine<S> {
+    pub fn new(event_buffer: &Rc<RefCell<event::Buffer>>) -> Engine {
         Engine{
             oscillator: Oscillator::new(event_buffer),
         }
     }
 
-    pub fn audio_requested(&mut self, output_buffer: &mut [frame::Mono<S>], sample_rate: f64) {
+    pub fn audio_requested(&mut self,
+                           output_buffer: &mut [frame::Mono<defs::Output>],
+                           sample_rate: defs::Output)
+    {
         // Zero the buffer
         dsp::slice::equilibrium(output_buffer);
 
