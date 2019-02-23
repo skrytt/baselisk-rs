@@ -139,36 +139,4 @@ impl Interface {
         println!("Stream finished");
         Ok(())
     }
-
-    /// Run a closure while the audio stream is paused, passing
-    /// a mutable reference to this Context as an argument.
-    /// Afterwards, restore the original state of the audio stream.
-    /// This is the only permissible way that the main thread may gain
-    /// any borrow of the audio thread context.
-    pub fn exec_while_paused<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&mut audio_thread::Context),
-    {
-        let was_active = match &mut self.stream {
-            None => false,
-            Some(stream) => stream.is_active().unwrap(),
-        };
-
-        if was_active {
-            if let Some(stream) = &mut self.stream {
-                stream.stop().unwrap();
-            }
-        }
-
-        // Give a temporary mutable borrow of this Context to the closure
-        f(&mut self.context.borrow_mut());
-
-        // If we're stopping, self.stream will be None.
-        // Otherwise, resume the stream
-        if was_active {
-            if let Some(stream) = &mut self.stream {
-                stream.start().unwrap();
-            }
-        }
-    }
 }
