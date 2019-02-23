@@ -52,17 +52,6 @@ pub fn note_to_frequency(note: u8) -> f64 {
     440.0 * ((note as f64 - 69.0) / 12.0).exp2()
 }
 
-/// View representation of an oscillator.
-pub struct OscillatorView {
-    name: String,
-}
-
-impl processor::ProcessorView for OscillatorView {
-    fn name(&self) -> String {
-        self.name.clone()
-    }
-}
-
 /// Oscillator type that will be used for audio processing.
 pub struct Oscillator<S> {
     name: String,
@@ -117,25 +106,13 @@ impl<S> Oscillator<S> {
     }
 }
 
-impl<S> processor::ProcessorView for Oscillator<S> {
+impl<S> processor::Processor<S> for Oscillator<S> {
     fn name(&self) -> String {
         self.name.clone()
     }
 
-    fn details(&self) -> String {
-        String::from("")
-    }
-}
-
-impl<S> processor::Processor<S> for Oscillator<S> {
     fn update_state(&mut self, sample_rate: f64) {
         self.state.update_state(&self.event_buffer, sample_rate)
-    }
-
-    fn get_view(&self) -> Box<dyn processor::ProcessorView> {
-        Box::new(OscillatorView {
-            name: self.name.clone(),
-        })
     }
 }
 
