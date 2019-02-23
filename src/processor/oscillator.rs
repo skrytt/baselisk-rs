@@ -1,6 +1,7 @@
 extern crate dsp;
 
 use dsp::Sample;
+use dsp::sample::frame;
 use event;
 use processor;
 use std::f64::consts::PI;
@@ -74,19 +75,19 @@ impl<S> Oscillator<S> {
 /// Function to construct new oscillators.
     pub fn new(
         event_buffer: &Rc<RefCell<event::Buffer>>,
-    ) -> Result<Oscillator<S>, &'static str>
+    ) -> Oscillator<S>
     where
         S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
     {
         let generator_func = sine_generator;
         let state = State::new();
 
-        Ok(Oscillator {
+        Oscillator {
             name: String::from("oscillator"),
             state: state.clone(),
             event_buffer: Rc::clone(event_buffer),
             generator_func,
-        })
+        }
     }
 
     pub fn set_type(&mut self, type_name: &str) -> Result<(), &'static str>
@@ -104,13 +105,13 @@ impl<S> Oscillator<S> {
     }
 
     pub fn process_buffer(&mut self,
-               output_buffer: &mut [[S; 1]],
+               output_buffer: &mut [frame::Mono<S>],
                _sample_rate: f64,
     ) {
         // Generate all the samples for this buffer
         for frame in output_buffer.iter_mut() {
             let sample: S = (self.generator_func)(&mut self.state);
-            let this_frame: [S; 1] = [sample];
+            let this_frame: frame::Mono<S> = [sample];
             *frame = this_frame;
         }
     }
