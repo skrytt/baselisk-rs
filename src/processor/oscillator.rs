@@ -1,9 +1,7 @@
 extern crate dsp;
 
-use dsp::Sample;
-use dsp::sample::frame;
+use dsp::sample::{frame, Sample};
 use event;
-use processor;
 use std::f64::consts::PI;
 use std::fmt;
 use std::rc::Rc;
@@ -28,7 +26,7 @@ impl State {
     }
 
     /// Process any events and update the internal state accordingly.
-    fn update_state(&mut self, event_buffer: &Rc<RefCell<event::Buffer>>, sample_rate: f64) {
+    fn update(&mut self, event_buffer: &Rc<RefCell<event::Buffer>>, sample_rate: f64) {
         // Iterate over any midi events and mutate the frequency accordingly
         self.sample_rate = sample_rate;
         let events = event_buffer.borrow();
@@ -54,7 +52,6 @@ pub fn note_to_frequency(note: u8) -> f64 {
 
 /// Oscillator type that will be used for audio processing.
 pub struct Oscillator<S> {
-    name: String,
     state: State,
     event_buffer: Rc<RefCell<event::Buffer>>,
     generator_func: fn(&mut State) -> S,
@@ -66,13 +63,12 @@ impl<S> Oscillator<S> {
         event_buffer: &Rc<RefCell<event::Buffer>>,
     ) -> Oscillator<S>
     where
-        S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
+        S: Sample + dsp::FromSample<f32> + fmt::Display + 'static,
     {
         let generator_func = sine_generator;
         let state = State::new();
 
         Oscillator {
-            name: String::from("oscillator"),
             state: state.clone(),
             event_buffer: Rc::clone(event_buffer),
             generator_func,
@@ -81,7 +77,7 @@ impl<S> Oscillator<S> {
 
     pub fn set_type(&mut self, type_name: &str) -> Result<(), &'static str>
     where
-        S: dsp::Sample + dsp::FromSample<f32> + fmt::Display + 'static,
+        S: Sample + dsp::FromSample<f32> + fmt::Display + 'static,
     {
         let generator_func = match type_name {
             "sine" => sine_generator,
@@ -91,6 +87,10 @@ impl<S> Oscillator<S> {
         };
         self.generator_func = generator_func;
         Ok(())
+    }
+
+    pub fn update_state(&mut self, sample_rate: f64) {
+        self.state.update(&self.event_buffer, sample_rate);
     }
 
     pub fn process_buffer(&mut self,
@@ -106,20 +106,10 @@ impl<S> Oscillator<S> {
     }
 }
 
-impl<S> processor::Processor<S> for Oscillator<S> {
-    fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    fn update_state(&mut self, sample_rate: f64) {
-        self.state.update_state(&self.event_buffer, sample_rate)
-    }
-}
-
 /// Generator function that produces a sine wave.
 fn sine_generator<S>(state: &mut State) -> S
 where
-    S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
+    S: Sample + dsp::FromSample<f32> + fmt::Display + 'static,
 {
     let res = (state.phase.sin() as f32).to_sample::<S>();
 
@@ -135,7 +125,7 @@ where
 /// Uses PolyBLEP smoothing to reduce aliasing.
 fn square_generator<S>(state: &mut State) -> S
 where
-    S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
+    S: Sample + dsp::FromSample<f32> + fmt::Display + 'static,
 {
     let step = state.frequency / state.sample_rate;
 
@@ -186,7 +176,7 @@ where
 /// Uses PolyBLEP smoothing to reduce aliasing.
 fn sawtooth_generator<S>(state: &mut State) -> S
 where
-    S: dsp::Sample + dsp::FromSample<f32> + fmt::Display,
+    S: Sample + dsp::FromSample<f32> + fmt::Display + 'static,
 {
     let step = state.frequency / state.sample_rate;
 

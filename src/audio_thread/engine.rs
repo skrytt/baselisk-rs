@@ -2,7 +2,6 @@
 use dsp;
 use dsp::sample::{frame, FloatSample, FromSample};
 use event;
-use processor::Processor;
 use processor::oscillator::Oscillator;
 
 use std::rc::Rc;
