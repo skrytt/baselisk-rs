@@ -5,6 +5,7 @@ use audio_thread;
 use comms;
 use defs;
 use dsp;
+use dsp::sample::frame;
 use dsp::sample::ToFrameSliceMut;
 use event;
 use std::rc::Rc;
@@ -99,7 +100,7 @@ impl Interface {
 
             context.events.borrow_mut().update_midi();
 
-            let buffer: &mut [[defs::Output; 1]] = buffer.to_frame_slice_mut().unwrap();
+            let buffer: &mut [frame::Mono<defs::Output>] = buffer.to_frame_slice_mut().unwrap();
             dsp::slice::equilibrium(buffer);
 
             context
