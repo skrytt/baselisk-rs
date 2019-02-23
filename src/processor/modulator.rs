@@ -1,4 +1,8 @@
-use processor;
+use defs;
+use dsp::sample::frame;
+use event;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 /// States that ADSR can be in
 enum AdsrStages {
@@ -72,32 +76,6 @@ impl AdsrParams {
     }
 }
 
-/// Struct to hold a view of an ADSR processor
-pub struct AdsrView {
-    pub name: String,
-    pub params: AdsrParams,
-}
-
-impl processor::ProcessorView for AdsrView {
-    fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    fn details(&self) -> String {
-        format!(
-            "attack={:.3}s, decay={:.3}s, sustain={:.3}, release={:.3}s",
-            self.params.attack_duration,
-            self.params.decay_duration,
-            self.params.sustain_level,
-            self.params.release_duration,
-        )
-    }
-
-    fn set_param(&mut self, param_name: String, param_val: String) -> Result<(), String> {
-        self.params.set(param_name, param_val)
-    }
-}
-
 /// Struct to hold the current state of an ADSR processor
 struct AdsrState {
     stage: AdsrStages,
@@ -110,14 +88,15 @@ struct AdsrState {
 
 /// An ADSR struct with all the bits plugged together:
 pub struct Adsr {
-    pub params: AdsrParams,
+    params: AdsrParams,
     state: AdsrState,
+    event_buffer: Rc<RefCell<event::Buffer>>,
 }
 
 impl Adsr {
-    pub fn new(params: AdsrParams) -> Adsr {
+    pub fn new(event_buffer: &Rc<RefCell<event::Buffer>>) -> Adsr {
         Adsr {
-            params,
+            params: AdsrParams::new(),
             state: AdsrState {
                 stage: AdsrStages::Off,
                 notes_held_count: 0,
@@ -126,6 +105,7 @@ impl Adsr {
                 sample_duration: 1.0, // Needs to be set by update_sample_rate
                 phase_time: 0.0,
             },
+            event_buffer: Rc::clone(event_buffer),
         }
     }
 
@@ -133,17 +113,7 @@ impl Adsr {
         self.params.set(param_name, param_val)
     }
 
-    pub fn details(&self) -> String {
-        format!(
-            "A={}s, D={}s, S={}s, R={}s",
-            self.params.attack_duration,
-            self.params.decay_duration,
-            self.params.sustain_level,
-            self.params.release_duration,
-        )
-    }
-
-    pub fn set_sample_rate(&mut self, sample_rate: f64) {
+    fn set_sample_rate(&mut self, sample_rate: defs::Output) {
         self.state.sample_duration = 1.0 / sample_rate as f32;
     }
 
@@ -220,6 +190,43 @@ impl Adsr {
                         + self.state.relative_gain_at_stage_end
                             * (self.state.phase_time / self.params.release_duration)
                 }
+            }
+        }
+    }
+
+    pub fn process_buffer(&mut self,
+                      buffer: &mut [frame::Mono<defs::Output>],
+                      sample_rate: defs::Output)
+    {
+        self.set_sample_rate(sample_rate);
+
+        let mut notes_pressed: i32 = 0;
+        let mut notes_released: i32 = 0;
+
+        {
+            let events = self.event_buffer.borrow();
+            for event in events.iter_midi() {
+                match event {
+                    event::Event::Midi(midi_event) => match midi_event {
+                        event::MidiEvent::NoteOn { .. } => {
+                            notes_pressed += 1;
+                        }
+                        event::MidiEvent::NoteOff { .. } => {
+                            notes_released += 1;
+                        }
+                    },
+                    _ => (),
+                }
+            }
+        }
+        if notes_pressed > 0 || notes_released > 0 {
+            self.update_notes_held_count(notes_pressed, notes_released);
+        }
+
+        for frame in buffer.iter_mut() {
+            let value = self.next().unwrap();
+            for sample in frame.iter_mut() {
+                *sample = value;
             }
         }
     }
