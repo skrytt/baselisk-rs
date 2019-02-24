@@ -4,9 +4,7 @@ use defs;
 use dsp;
 use dsp::sample::frame;
 use event;
-use processor::oscillator::Oscillator;
-use processor::modulator::Adsr;
-use processor::gain::Gain;
+use processor::{Adsr, Gain, Oscillator};
 
 use std::rc::Rc;
 use std::cell::RefCell;
