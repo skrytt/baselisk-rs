@@ -4,7 +4,7 @@ use defs;
 use dsp;
 use dsp::sample::frame;
 use event;
-use processor::{Adsr, Gain, Oscillator, LowPassFilter};
+use processor::{Adsr, Gain, Oscillator, LowPassFilter, Waveshaper};
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -18,6 +18,7 @@ pub struct Engine
     pub adsr_gain: Adsr,
     pub gain: Gain,
     pub low_pass_filter: LowPassFilter,
+    pub waveshaper: Waveshaper,
 }
 
 impl Engine
@@ -29,8 +30,9 @@ impl Engine
             // DSP Units
             oscillator: Oscillator::new(event_buffer),
             adsr_gain: Adsr::new(event_buffer),
-            gain: Gain::new(0.2),
+            gain: Gain::new(1.0),
             low_pass_filter: LowPassFilter::new(),
+            waveshaper: Waveshaper::new(),
         }
     }
 
@@ -59,6 +61,9 @@ impl Engine
 
         // Filter
         self.low_pass_filter.process_buffer(adsr_buffer, main_buffer, sample_rate);
+
+        // Waveshaper
+        self.waveshaper.process_buffer(main_buffer);
 
     }
 }

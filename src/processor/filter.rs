@@ -18,8 +18,7 @@ impl FilterParams {
     fn new() -> FilterParams {
         FilterParams {
             base_frequency_hz: 100.0,
-            adsr_sweep_octaves: 7.0, // Note: the filter becomes unstable if the value of
-                                     // adsr_sweep_octaves is increased beyond 7.0.
+            adsr_sweep_octaves: 5.0, // Note: this filter has stability problems...
             quality_factor: 2.0,
         }
     }
