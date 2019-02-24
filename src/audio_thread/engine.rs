@@ -50,17 +50,15 @@ impl Engine
         self.oscillator.update_state(sample_rate);
         self.oscillator.process_buffer(main_buffer, sample_rate);
 
-        // Amplitude ADSR
+        // ADSR buffer for Gain and Filter (shared for now)
         let adsr_buffer = self.adsr_buffer.get_sized_mut(frames_this_buffer);
         self.adsr_gain.process_buffer(adsr_buffer, sample_rate);
 
-        // Gain (TODO: make this driven by Amplitude ADSR)
+        // Gain
         self.gain.process_buffer(adsr_buffer, main_buffer);
 
-        // Filter ADSR
-        self.low_pass_filter.process_buffer(main_buffer, sample_rate);
-
-        // Filter (driven by Filter ADSR)
+        // Filter
+        self.low_pass_filter.process_buffer(adsr_buffer, main_buffer, sample_rate);
 
     }
 }

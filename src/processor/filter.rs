@@ -8,7 +8,8 @@ use dsp::Frame;
 /// Parameters available for filters.
 #[derive(Clone)]
 struct FilterParams {
-    frequency_hz: defs::Output,
+    base_frequency_hz: defs::Output,
+    adsr_sweep_octaves: defs::Output,
     quality_factor: defs::Output,
 }
 
@@ -16,8 +17,10 @@ impl FilterParams {
     /// Constructor for FilterParams instances
     fn new() -> FilterParams {
         FilterParams {
-            frequency_hz: 5000.0,
-            quality_factor: 1.0 / defs::Output::sqrt(2.0),
+            base_frequency_hz: 100.0,
+            adsr_sweep_octaves: 7.0, // Note: the filter becomes unstable if the value of
+                                     // adsr_sweep_octaves is increased beyond 7.0.
+            quality_factor: 2.0,
         }
     }
 
@@ -31,7 +34,7 @@ impl FilterParams {
         match param_name.as_str() {
             "f" | "freq" | "frequency" | "frequency_hz" => {
                 if param_val > 0.0 && param_val < ((sample_rate as defs::Output) / 2.0) {
-                    self.frequency_hz = param_val;
+                    self.base_frequency_hz = param_val;
                 } else {
                     return Err(String::from("Filter frequency must be 0.0 > f > sample_rate/2.0"))
                 }
@@ -83,21 +86,24 @@ impl LowPassFilter
     }
 
     pub fn process_buffer(&mut self,
-                          buffer: &mut [frame::Mono<defs::Output>],
+                          adsr_input_buffer: &[frame::Mono<defs::Output>],
+                          output_buffer: &mut [frame::Mono<defs::Output>],
                           sample_rate: defs::Output) {
         self.sample_rate = sample_rate;
 
-        // Note: This won't work as intended if we ever switch to poly frames
-        // because self.process assumes mono frames
-        slice::map_in_place(buffer, |frame|
+        // Iterate over two buffers at once using a zip method
+        slice::zip_map_in_place(output_buffer, adsr_input_buffer,
+                                |output_frame, adsr_input_frame|
         {
-            frame.map(|sample| {
-                self.process(sample)
+            // Iterate over the samples in each frame using a zip method
+            output_frame.zip_map(adsr_input_frame,
+                                 |output_sample, adsr_input_sample| {
+                self.process(output_sample, adsr_input_sample)
             })
         })
     }
 
-    fn process(&mut self, input: defs::Output) -> defs::Output
+    fn process(&mut self, input: defs::Output, adsr_input: defs::Output) -> defs::Output
     {
         // Update input buffer:
         self.ringbuffer_input.pop_back().unwrap();
@@ -116,6 +122,11 @@ impl LowPassFilter
             y_2 = *output_iter.next().unwrap();
         } // End borrow of ringbuffer_output
 
+        // Use adsr_input (0 <= x <= 1) to determine the influence
+        // of self.params.adsr_sweep_octaves on the filter frequency.
+        let frequency_hz = self.params.base_frequency_hz
+                            * defs::Output::exp2(self.params.adsr_sweep_octaves * adsr_input);
+
         // We implement a biquad section with coefficients selected to achieve
         // a low-pass filter.
         //
@@ -128,7 +139,7 @@ impl LowPassFilter
         // to save on computation steps.
         // There are some intermediate variables:
         //
-        let theta_c = 2.0 * defs::PI * self.params.frequency_hz / self.sample_rate as defs::Output;
+        let theta_c = 2.0 * defs::PI * frequency_hz / self.sample_rate as defs::Output;
         let cos_theta_c = theta_c.cos();
         let sin_theta_c = theta_c.sin();
         let alpha = sin_theta_c / (2.0 * self.params.quality_factor);
@@ -149,6 +160,10 @@ impl LowPassFilter
         // Update output buffer for next time:
         self.ringbuffer_output.pop_back().unwrap();
         self.ringbuffer_output.push_front(y_0).unwrap();
+
+        // TODO: remove these once confident in filter stability
+        assert!(y_0 >= -5.0);
+        assert!(y_0 <= 5.0);
 
         // Set sample to output
         y_0
