@@ -1,41 +1,36 @@
 extern crate dsp;
 
 use arraydeque::ArrayDeque;
-use dsp::Sample;
-use event;
-use processor;
-use std::fmt;
-use std::f64;
-use std::f32::consts::PI;
-use std::rc::Rc;
-use std::cell::RefCell;
+use defs;
+use dsp::sample::{slice, frame};
+use dsp::Frame;
 
 /// Parameters available for filters.
 #[derive(Clone)]
 struct FilterParams {
-    frequency_hz: f32,
-    quality_factor: f32,
+    frequency_hz: defs::Output,
+    quality_factor: defs::Output,
 }
 
 impl FilterParams {
     /// Constructor for FilterParams instances
     fn new() -> FilterParams {
         FilterParams {
-            frequency_hz: 10000.0,
-            quality_factor: 1.0 / f32::sqrt(2.0),
+            frequency_hz: 5000.0,
+            quality_factor: 1.0 / defs::Output::sqrt(2.0),
         }
     }
 
     /// Set parameters for this filter.
-    fn set(&mut self, param_name: String, param_val: String, sample_rate: f64) -> Result<(), String> {
+    fn set(&mut self, param_name: String, param_val: String, sample_rate: defs::Output) -> Result<(), String> {
         let param_val = param_val
-            .parse::<f32>()
+            .parse::<defs::Output>()
             .or_else(|_| return Err(String::from("param_val can't be parsed as a float")))
             .unwrap();
 
         match param_name.as_str() {
             "f" | "freq" | "frequency" | "frequency_hz" => {
-                if param_val > 0.0 && param_val < ((sample_rate as f32) / 2.0) {
+                if param_val > 0.0 && param_val < ((sample_rate as defs::Output) / 2.0) {
                     self.frequency_hz = param_val;
                 } else {
                     return Err(String::from("Filter frequency must be 0.0 > f > sample_rate/2.0"))
@@ -54,50 +49,23 @@ impl FilterParams {
     }
 }
 
-/// Function to construct new filter processors
-pub fn new<S>(
-    name: &str,
-    _event_buffer: Rc<RefCell<event::Buffer>>,
-) -> Result<Box<dyn processor::Processor<S>>, &'static str>
-where
-    S: dsp::sample::FloatSample + dsp::FromSample<f32> + fmt::Display + 'static,
-    f32: dsp::FromSample<S>,
-{
-    match name {
-        "lowpass" => {
-            let name = String::from(name);
-            let params = FilterParams::new();
-            Ok(Box::new(LowPassFilter::new(
-                name.clone(),
-                params.clone(),
-            )))
-        }
-        _ => Err("Unknown filter name"),
-    }
-}
-
 /// A low pass filter type that can be used for audio processing.
 /// This is to be a constant-peak-gain two-pole resonator with
 /// parameterized cutoff frequency and resonance.
-struct LowPassFilter
+pub struct LowPassFilter
 {
-    name: String,
     params: FilterParams,
-    sample_rate: f64,
-    ringbuffer_input: ArrayDeque<[f32; 3]>,
-    ringbuffer_output: ArrayDeque<[f32; 2]>,
+    sample_rate: defs::Output,
+    ringbuffer_input: ArrayDeque<[defs::Output; 3]>,
+    ringbuffer_output: ArrayDeque<[defs::Output; 2]>,
 }
 
 impl LowPassFilter
 {
     /// Constructor for new LowPassFilter instances
-    fn new(
-        name: String,
-        params: FilterParams,
-    ) -> LowPassFilter {
+    pub fn new() -> LowPassFilter {
         let mut result = LowPassFilter {
-            name,
-            params,
+            params: FilterParams::new(),
             sample_rate: 0.0,
             ringbuffer_input: ArrayDeque::new(),
             ringbuffer_output: ArrayDeque::new(),
@@ -113,49 +81,35 @@ impl LowPassFilter
 
         result
     }
-}
 
-impl processor::ProcessorView for LowPassFilter
-{
-    fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    fn details(&self) -> String {
-        panic!("Not implemented: details for LowPassFilter");
-    }
-
-    fn set_param(&mut self, param_name: String, param_val: String) -> Result<(), String> {
-        // Sample rate isn't important for the user-facing params
-        self.params.set(param_name, param_val, self.sample_rate)
-    }
-}
-
-impl<S> processor::Processor<S> for LowPassFilter
-where
-    S: dsp::sample::FloatSample + dsp::FromSample<f32> + fmt::Display,
-    f32: dsp::FromSample<S>,
-{
-    fn update_state(&mut self, sample_rate: f64) {
+    pub fn process_buffer(&mut self,
+                          buffer: &mut [frame::Mono<defs::Output>],
+                          sample_rate: defs::Output) {
         self.sample_rate = sample_rate;
+
+        // Note: This won't work as intended if we ever switch to poly frames
+        // because self.process assumes mono frames
+        slice::map_in_place(buffer, |frame|
+        {
+            frame.map(|sample| {
+                self.process(sample)
+            })
+        })
     }
 
-    fn process(&mut self, input: S) -> S
-    where
-        S: dsp::sample::FloatSample + dsp::FromSample<f32> + fmt::Display,
-        f32: dsp::FromSample<S>,
+    fn process(&mut self, input: defs::Output) -> defs::Output
     {
         // Update input buffer:
         self.ringbuffer_input.pop_back().unwrap();
-        self.ringbuffer_input.push_front(f32::from_sample(input)).unwrap();
+        self.ringbuffer_input.push_front(input).unwrap();
 
         let mut input_iter = self.ringbuffer_input.iter();
         let x_0 = *input_iter.next().unwrap();
         let x_1 = *input_iter.next().unwrap();
         let x_2 = *input_iter.next().unwrap();
 
-        let y_1: f32;
-        let y_2: f32;
+        let y_1: defs::Output;
+        let y_2: defs::Output;
         {
             let mut output_iter = self.ringbuffer_output.iter();
             y_1 = *output_iter.next().unwrap();
@@ -174,7 +128,7 @@ where
         // to save on computation steps.
         // There are some intermediate variables:
         //
-        let theta_c = 2.0 * PI * self.params.frequency_hz / self.sample_rate as f32;
+        let theta_c = 2.0 * defs::PI * self.params.frequency_hz / self.sample_rate as defs::Output;
         let cos_theta_c = theta_c.cos();
         let sin_theta_c = theta_c.sin();
         let alpha = sin_theta_c / (2.0 * self.params.quality_factor);
@@ -196,35 +150,7 @@ where
         self.ringbuffer_output.pop_back().unwrap();
         self.ringbuffer_output.push_front(y_0).unwrap();
 
-        y_0.to_sample::<S>()
-    }
-
-    fn get_view(&self) -> Box<dyn processor::ProcessorView> {
-        Box::new(LowPassFilterView {
-            name: self.name.clone(),
-            params: self.params.clone(),
-        })
+        // Set sample to output
+        y_0
     }
 }
-
-/// A view representation of a LowPassFilter.
-struct LowPassFilterView {
-    name: String,
-    params: FilterParams,
-}
-
-impl processor::ProcessorView for LowPassFilterView {
-    fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    fn details(&self) -> String {
-        panic!("Not implemented: details for LowPassFilter");
-    }
-
-    fn set_param(&mut self, param_name: String, param_val: String) -> Result<(), String> {
-        // Sample rate isn't important for the user-facing params
-        self.params.set(param_name, param_val, f64::MAX)
-    }
-}
-

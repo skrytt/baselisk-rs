@@ -4,7 +4,7 @@ use defs;
 use dsp;
 use dsp::sample::frame;
 use event;
-use processor::{Adsr, Gain, Oscillator};
+use processor::{Adsr, Gain, Oscillator, LowPassFilter};
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -17,6 +17,7 @@ pub struct Engine
     pub oscillator: Oscillator,
     pub adsr_gain: Adsr,
     pub gain: Gain,
+    pub low_pass_filter: LowPassFilter,
 }
 
 impl Engine
@@ -29,6 +30,7 @@ impl Engine
             oscillator: Oscillator::new(event_buffer),
             adsr_gain: Adsr::new(event_buffer),
             gain: Gain::new(0.2),
+            low_pass_filter: LowPassFilter::new(),
         }
     }
 
@@ -56,6 +58,7 @@ impl Engine
         self.gain.process_buffer(adsr_buffer, main_buffer);
 
         // Filter ADSR
+        self.low_pass_filter.process_buffer(main_buffer, sample_rate);
 
         // Filter (driven by Filter ADSR)
 

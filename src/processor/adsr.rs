@@ -225,6 +225,10 @@ impl Adsr {
 
         for frame in buffer.iter_mut() {
             let value = self.next().unwrap();
+
+            assert!(value >= 0.0);
+            assert!(value <= 1.0);
+
             for sample in frame.iter_mut() {
                 *sample = value;
             }
