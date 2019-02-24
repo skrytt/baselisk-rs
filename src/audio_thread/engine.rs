@@ -55,7 +55,7 @@ impl Engine
         self.adsr_gain.process_buffer(adsr_buffer, sample_rate);
 
         // Gain (TODO: make this driven by Amplitude ADSR)
-        self.gain.process_buffer(main_buffer);
+        self.gain.process_buffer(adsr_buffer, main_buffer);
 
         // Filter ADSR
 
