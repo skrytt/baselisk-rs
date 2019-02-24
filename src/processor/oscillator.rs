@@ -84,14 +84,12 @@ impl Oscillator {
         Ok(())
     }
 
-    pub fn update_state(&mut self, sample_rate: defs::Output) {
-        self.state.update(&self.event_buffer, sample_rate);
-    }
-
     pub fn process_buffer(&mut self,
                buffer: &mut [frame::Mono<defs::Output>],
-               _sample_rate: defs::Output,
+               sample_rate: defs::Output,
     ) {
+        self.state.update(&self.event_buffer, sample_rate);
+
         // Generate all the samples for this buffer
         for frame in buffer.iter_mut() {
             let sample: defs::Output = (self.generator_func)(&mut self.state);

@@ -49,7 +49,6 @@ impl Engine
         dsp::slice::equilibrium(main_buffer);
 
         // Oscillator
-        self.oscillator.update_state(sample_rate);
         self.oscillator.process_buffer(main_buffer, sample_rate);
 
         // ADSR buffer for Gain and Filter (shared for now)
