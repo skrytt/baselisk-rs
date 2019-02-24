@@ -2,15 +2,15 @@ extern crate dsp;
 
 use arraydeque::ArrayDeque;
 use defs;
-use dsp::sample::{slice, frame};
+use dsp::sample::slice;
 use dsp::Frame;
 
 /// Parameters available for filters.
 #[derive(Clone)]
 struct FilterParams {
-    base_frequency_hz: defs::Output,
-    adsr_sweep_octaves: defs::Output,
-    quality_factor: defs::Output,
+    base_frequency_hz: defs::Sample,
+    adsr_sweep_octaves: defs::Sample,
+    quality_factor: defs::Sample,
 }
 
 impl FilterParams {
@@ -24,15 +24,15 @@ impl FilterParams {
     }
 
     /// Set parameters for this filter.
-    fn set(&mut self, param_name: String, param_val: String, sample_rate: defs::Output) -> Result<(), String> {
+    fn set(&mut self, param_name: String, param_val: String, sample_rate: defs::Sample) -> Result<(), String> {
         let param_val = param_val
-            .parse::<defs::Output>()
+            .parse::<defs::Sample>()
             .or_else(|_| return Err(String::from("param_val can't be parsed as a float")))
             .unwrap();
 
         match param_name.as_str() {
             "f" | "freq" | "frequency" | "frequency_hz" => {
-                if param_val > 0.0 && param_val < ((sample_rate as defs::Output) / 2.0) {
+                if param_val > 0.0 && param_val < ((sample_rate as defs::Sample) / 2.0) {
                     self.base_frequency_hz = param_val;
                 } else {
                     return Err(String::from("Filter frequency must be 0.0 > f > sample_rate/2.0"))
@@ -57,9 +57,9 @@ impl FilterParams {
 pub struct LowPassFilter
 {
     params: FilterParams,
-    sample_rate: defs::Output,
-    ringbuffer_input: ArrayDeque<[defs::Output; 3]>,
-    ringbuffer_output: ArrayDeque<[defs::Output; 2]>,
+    sample_rate: defs::Sample,
+    ringbuffer_input: ArrayDeque<[defs::Sample; 3]>,
+    ringbuffer_output: ArrayDeque<[defs::Sample; 2]>,
 }
 
 impl LowPassFilter
@@ -85,9 +85,9 @@ impl LowPassFilter
     }
 
     pub fn process_buffer(&mut self,
-                          adsr_input_buffer: &[frame::Mono<defs::Output>],
-                          output_buffer: &mut [frame::Mono<defs::Output>],
-                          sample_rate: defs::Output) {
+                          adsr_input_buffer: &defs::FrameBuffer,
+                          output_buffer: &mut defs::FrameBuffer,
+                          sample_rate: defs::Sample) {
         self.sample_rate = sample_rate;
 
         // Iterate over two buffers at once using a zip method
@@ -102,7 +102,7 @@ impl LowPassFilter
         })
     }
 
-    fn process(&mut self, input: defs::Output, adsr_input: defs::Output) -> defs::Output
+    fn process(&mut self, input: defs::Sample, adsr_input: defs::Sample) -> defs::Sample
     {
         // Update input buffer:
         self.ringbuffer_input.pop_back().unwrap();
@@ -113,8 +113,8 @@ impl LowPassFilter
         let x_1 = *input_iter.next().unwrap();
         let x_2 = *input_iter.next().unwrap();
 
-        let y_1: defs::Output;
-        let y_2: defs::Output;
+        let y_1: defs::Sample;
+        let y_2: defs::Sample;
         {
             let mut output_iter = self.ringbuffer_output.iter();
             y_1 = *output_iter.next().unwrap();
@@ -124,7 +124,7 @@ impl LowPassFilter
         // Use adsr_input (0 <= x <= 1) to determine the influence
         // of self.params.adsr_sweep_octaves on the filter frequency.
         let frequency_hz = self.params.base_frequency_hz
-                            * defs::Output::exp2(self.params.adsr_sweep_octaves * adsr_input);
+                            * defs::Sample::exp2(self.params.adsr_sweep_octaves * adsr_input);
 
         // We implement a biquad section with coefficients selected to achieve
         // a low-pass filter.
@@ -138,7 +138,7 @@ impl LowPassFilter
         // to save on computation steps.
         // There are some intermediate variables:
         //
-        let theta_c = 2.0 * defs::PI * frequency_hz / self.sample_rate as defs::Output;
+        let theta_c = 2.0 * defs::PI * frequency_hz / self.sample_rate as defs::Sample;
         let cos_theta_c = theta_c.cos();
         let sin_theta_c = theta_c.sin();
         let alpha = sin_theta_c / (2.0 * self.params.quality_factor);

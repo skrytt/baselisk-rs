@@ -1,19 +1,18 @@
 extern crate dsp;
 
 use defs;
-use dsp::sample::frame;
 use dsp::sample::slice;
 use dsp::Sample;
 use dsp::Frame;
 
 pub struct Gain {
-    amplitude: defs::Output,
+    amplitude: defs::Sample,
 }
 
 impl Gain
 {
     pub fn new(
-        amplitude: defs::Output,
+        amplitude: defs::Sample,
     ) -> Gain {
         Gain {
             amplitude,
@@ -21,8 +20,8 @@ impl Gain
     }
 
     pub fn process_buffer(&mut self,
-                          adsr_input_buffer: &[frame::Mono<defs::Output>],
-                          output_buffer: &mut [frame::Mono<defs::Output>],
+                          adsr_input_buffer: &defs::FrameBuffer,
+                          output_buffer: &mut defs::FrameBuffer,
     )
     {
         // Iterate over two buffers at once using a zip method

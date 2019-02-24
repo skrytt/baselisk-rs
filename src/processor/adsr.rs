@@ -1,5 +1,4 @@
 use defs;
-use dsp::sample::frame;
 use event;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -113,7 +112,7 @@ impl Adsr {
         self.params.set(param_name, param_val)
     }
 
-    fn set_sample_rate(&mut self, sample_rate: defs::Output) {
+    fn set_sample_rate(&mut self, sample_rate: defs::Sample) {
         self.state.sample_duration = 1.0 / sample_rate as f32;
     }
 
@@ -195,8 +194,8 @@ impl Adsr {
     }
 
     pub fn process_buffer(&mut self,
-                      buffer: &mut [frame::Mono<defs::Output>],
-                      sample_rate: defs::Output)
+                      buffer: &mut defs::FrameBuffer,
+                      sample_rate: defs::Sample)
     {
         self.set_sample_rate(sample_rate);
 

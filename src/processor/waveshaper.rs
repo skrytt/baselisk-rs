@@ -2,12 +2,11 @@
 extern crate dsp;
 
 use defs;
-use dsp::sample::frame;
 use dsp::sample::slice;
 use dsp::Frame;
 
 pub struct Waveshaper {
-    input_gain: defs::Output,
+    input_gain: defs::Sample,
 }
 
 impl Waveshaper {
@@ -17,7 +16,7 @@ impl Waveshaper {
         }
     }
 
-    pub fn process_buffer(&mut self, output_buffer: &mut [frame::Mono<defs::Output>])
+    pub fn process_buffer(&mut self, output_buffer: &mut defs::FrameBuffer)
     {
         slice::map_in_place(output_buffer, |output_frame| {
             output_frame.map(|output_sample| {

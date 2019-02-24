@@ -1,7 +1,6 @@
 extern crate dsp;
 
 use defs;
-use dsp::sample::frame;
 use event;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -10,9 +9,9 @@ use std::cell::RefCell;
 
 /// Internal state used by oscillator types.
 pub struct State {
-    phase: defs::Output,
-    frequency: defs::Output,
-    sample_rate: defs::Output,
+    phase: defs::Sample,
+    frequency: defs::Sample,
+    sample_rate: defs::Sample,
 }
 
 impl State {
@@ -25,7 +24,7 @@ impl State {
     }
 
     /// Process any events and update the internal state accordingly.
-    fn update(&mut self, event_buffer: &Rc<RefCell<event::Buffer>>, sample_rate: defs::Output) {
+    fn update(&mut self, event_buffer: &Rc<RefCell<event::Buffer>>, sample_rate: defs::Sample) {
         // Iterate over any midi events and mutate the frequency accordingly
         self.sample_rate = sample_rate;
         let events = event_buffer.borrow();
@@ -45,15 +44,15 @@ impl State {
 
 /// Convert a u8 note number to a corresponding frequency,
 /// using 440 Hz as the pitch of the A above middle C.
-pub fn note_to_frequency(note: u8) -> defs::Output {
-    440.0 as defs::Output * ((note as defs::Output - 69.0) / 12.0).exp2()
+pub fn note_to_frequency(note: u8) -> defs::Sample {
+    440.0 as defs::Sample * ((note as defs::Sample - 69.0) / 12.0).exp2()
 }
 
 /// Oscillator type that will be used for audio processing.
 pub struct Oscillator {
     state: State,
     event_buffer: Rc<RefCell<event::Buffer>>,
-    generator_func: fn(&mut State) -> defs::Output,
+    generator_func: fn(&mut State) -> defs::Sample,
 }
 
 impl Oscillator {
@@ -85,26 +84,26 @@ impl Oscillator {
     }
 
     pub fn process_buffer(&mut self,
-               buffer: &mut [frame::Mono<defs::Output>],
-               sample_rate: defs::Output,
+               buffer: &mut defs::FrameBuffer,
+               sample_rate: defs::Sample,
     ) {
         self.state.update(&self.event_buffer, sample_rate);
 
         // Generate all the samples for this buffer
         for frame in buffer.iter_mut() {
-            let sample: defs::Output = (self.generator_func)(&mut self.state);
-            let this_frame: frame::Mono<defs::Output> = [sample];
+            let sample: defs::Sample = (self.generator_func)(&mut self.state);
+            let this_frame: defs::Frame = [sample];
             *frame = this_frame;
         }
     }
 }
 
 /// Generator function that produces a sine wave.
-fn sine_generator(state: &mut State) -> defs::Output
+fn sine_generator(state: &mut State) -> defs::Sample
 {
     let res = state.phase.sin();
 
-    state.phase += 2.0 as defs::Output * defs::PI * state.frequency / state.sample_rate;
+    state.phase += 2.0 as defs::Sample * defs::PI * state.frequency / state.sample_rate;
     while state.phase >= defs::PI {
         state.phase -= defs::PI * 2.0;
     }
@@ -114,7 +113,7 @@ fn sine_generator(state: &mut State) -> defs::Output
 
 /// Generator function that produces a square wave.
 /// Uses PolyBLEP smoothing to reduce aliasing.
-fn square_generator(state: &mut State) -> defs::Output
+fn square_generator(state: &mut State) -> defs::Sample
 {
     let step = state.frequency / state.sample_rate;
 
@@ -132,7 +131,7 @@ fn square_generator(state: &mut State) -> defs::Output
     let mut res = if phase < 0.5 { 1.0 } else { -1.0 };
 
     // PolyBLEP smoothing to reduce aliasing by smoothing discontinuities,
-    let polyblep = |phase: defs::Output, step: defs::Output| -> defs::Output {
+    let polyblep = |phase: defs::Sample, step: defs::Sample| -> defs::Sample {
         // Apply PolyBLEP Smoothing for 0 < phase < (freq / sample_rate)
         //   phase == 0:    x = 0.0
         //   phase == step: x = 1.0
@@ -163,7 +162,7 @@ fn square_generator(state: &mut State) -> defs::Output
 
 /// Generator function that produces a sawtooth wave.
 /// Uses PolyBLEP smoothing to reduce aliasing.
-fn sawtooth_generator(state: &mut State) -> defs::Output
+fn sawtooth_generator(state: &mut State) -> defs::Sample
 {
     let step = state.frequency / state.sample_rate;
 
@@ -200,5 +199,5 @@ fn sawtooth_generator(state: &mut State) -> defs::Output
     // Store the phase for next iteration
     state.phase = phase;
 
-    res as defs::Output
+    res as defs::Sample
 }

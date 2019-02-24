@@ -1,12 +1,11 @@
 
 use defs;
-use dsp::sample::frame;
 use dsp::sample::Frame;
 
 /// Buffer: a container for a buffer needed for processing,
 /// and a means to manage its size.
 pub struct Buffer {
-    data: Vec<frame::Mono<defs::Output>>,
+    data: Vec<defs::Frame>,
 }
 
 // If the frames per callback exceed this value,
@@ -43,7 +42,7 @@ impl Buffer {
 
     /// get_mut: Returns a mutable reference to a buffer of size expected_frames.
     /// The buffer will be resized if necessary.
-    pub fn get_sized_mut(&mut self, expected_frames: usize) -> &mut Vec<frame::Mono<defs::Output>> {
+    pub fn get_sized_mut(&mut self, expected_frames: usize) -> &mut Vec<defs::Frame> {
         self.ensure_size(expected_frames);
         &mut self.data
     }

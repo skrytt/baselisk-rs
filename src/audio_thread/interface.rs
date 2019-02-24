@@ -5,13 +5,12 @@ use audio_thread;
 use comms;
 use defs;
 use dsp;
-use dsp::sample::frame;
 use dsp::sample::ToFrameSliceMut;
 use event;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-pub type Stream = portaudio::Stream<portaudio::NonBlocking, portaudio::Output<defs::Output>>;
+pub type Stream = portaudio::Stream<portaudio::NonBlocking, portaudio::Output<defs::Sample>>;
 
 pub struct Interface {
     context: Rc<RefCell<audio_thread::Context>>,
@@ -54,7 +53,7 @@ impl Interface {
                     "PortAudio failed to open specified device: {}", reason))
         };
 
-        let params: portaudio::stream::Parameters<defs::Output> =
+        let params: portaudio::stream::Parameters<defs::Sample> =
             portaudio::stream::Parameters::new(
                 device_index,
                 defs::CHANNELS as i32,
@@ -100,12 +99,12 @@ impl Interface {
 
             context.events.borrow_mut().update_midi();
 
-            let buffer: &mut [frame::Mono<defs::Output>] = buffer.to_frame_slice_mut().unwrap();
+            let buffer: &mut defs::FrameBuffer = buffer.to_frame_slice_mut().unwrap();
             dsp::slice::equilibrium(buffer);
 
             context
                 .engine
-                .audio_requested(buffer, settings.sample_rate as defs::Output);
+                .audio_requested(buffer, settings.sample_rate as defs::Sample);
 
             portaudio::Continue
         };

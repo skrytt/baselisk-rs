@@ -2,7 +2,6 @@
 use audio_thread::buffer::Buffer;
 use defs;
 use dsp;
-use dsp::sample::frame;
 use event;
 use processor::{Adsr, Gain, Oscillator, LowPassFilter, Waveshaper};
 
@@ -40,8 +39,8 @@ impl Engine
     /// Buffer is a mutable slice of frames,
     /// where each frame is a slice containing a single sample.
     pub fn audio_requested(&mut self,
-                           main_buffer: &mut [frame::Mono<defs::Output>],
-                           sample_rate: defs::Output)
+                           main_buffer: &mut defs::FrameBuffer,
+                           sample_rate: defs::Sample)
     {
         let frames_this_buffer = main_buffer.len();
 
