@@ -7,12 +7,14 @@ use dsp::Frame;
 
 pub struct Waveshaper {
     input_gain: defs::Sample,
+    output_gain: defs::Sample,
 }
 
 impl Waveshaper {
     pub fn new() -> Waveshaper {
         Waveshaper{
-            input_gain: 0.7,
+            input_gain: 0.333,
+            output_gain: 0.667,
         }
     }
 
@@ -23,7 +25,7 @@ impl Waveshaper {
                 // Polynomial: -x^3 + x^2 + x
                 // With input and output gain scaling
                 let x = output_sample.abs() * self.input_gain;
-                output_sample.signum() * (
+                self.output_gain * output_sample.signum() * (
                     -x.powi(3) + x.powi(2) + x)
             })
         })
