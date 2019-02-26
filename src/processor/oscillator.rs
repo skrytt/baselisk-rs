@@ -9,6 +9,7 @@ use std::cell::RefCell;
 
 /// Internal state used by oscillator types.
 pub struct State {
+    pitch_offset: defs::Sample,
     phase: defs::Sample,
     frequency: defs::Sample,
     sample_rate: defs::Sample,
@@ -17,10 +18,17 @@ pub struct State {
 impl State {
     pub fn new() -> State {
         State {
+            pitch_offset: 0.0,
             phase: 0.0,
             frequency: 0.0,
             sample_rate: 0.0,
         }
+    }
+
+    /// Convert a u8 note number to a corresponding frequency,
+    /// using 440 Hz as the pitch of the A above middle C.
+    pub fn note_to_frequency(&self, note: u8) -> defs::Sample {
+        440.0 * ((note as defs::Sample + self.pitch_offset - 69.0) / 12.0).exp2()
     }
 
     /// Process any events and update the internal state accordingly.
@@ -33,19 +41,13 @@ impl State {
                 match midi_event {
                     event::MidiEvent::NoteOn { note, .. } => {
                         // Set the active note and frequency to match this new note
-                        self.frequency = note_to_frequency(*note);
+                        self.frequency = self.note_to_frequency(*note);
                     }
                     _ => (),
                 }
             }
         }
     }
-}
-
-/// Convert a u8 note number to a corresponding frequency,
-/// using 440 Hz as the pitch of the A above middle C.
-pub fn note_to_frequency(note: u8) -> defs::Sample {
-    440.0 as defs::Sample * ((note as defs::Sample - 69.0) / 12.0).exp2()
 }
 
 /// Oscillator type that will be used for audio processing.
@@ -81,6 +83,18 @@ impl Oscillator {
         };
         self.generator_func = generator_func;
         Ok(())
+    }
+
+    pub fn set_pitch(&mut self, semitones: defs::Sample) -> Result<(), &'static str>
+    {
+        if semitones < -36.0 {
+            Err("Pitch offset must be >= -36.0 semitones")
+        } else if semitones > 36.0 {
+            Err("Pitch offset must be <= 36.0 semitones")
+        } else {
+            self.state.pitch_offset = semitones;
+            Ok(())
+        }
     }
 
     pub fn process_buffer(&mut self,

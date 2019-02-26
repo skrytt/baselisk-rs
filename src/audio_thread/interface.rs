@@ -92,6 +92,9 @@ impl Interface {
                         event::PatchEvent::OscillatorTypeSet { type_name } => {
                             context.engine.oscillator.set_type(&type_name)
                         }
+                        event::PatchEvent::OscillatorPitchSet { semitones } => {
+                            context.engine.oscillator.set_pitch(semitones)
+                        }
                     };
                     context.comms.tx.send(result);
                 }
