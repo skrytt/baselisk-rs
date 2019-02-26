@@ -1,11 +1,18 @@
 extern crate portmidi;
 
 pub mod midi;
-pub mod types;
+pub mod patch;
 
-pub use event::types::{Event, MidiEvent, PatchEvent};
+pub use event::midi::MidiEvent;
+pub use event::patch::PatchEvent;
 
 use std::slice;
+
+/// Generic event type enum that can be used for notifications
+pub enum Event {
+    Midi(MidiEvent),
+    Patch(PatchEvent),
+}
 
 /// Aggregate buffer for different types of events.
 pub struct Buffer {
@@ -29,7 +36,7 @@ impl Buffer {
     /// Get an iterator over MIDI events that were collected in the
     /// previous call to update_midi. This is intended to be called
     /// once per processor that uses MIDI events.
-    pub fn iter_midi(&self) -> slice::Iter<types::Event> {
+    pub fn iter_midi(&self) -> slice::Iter<Event> {
         self.midi.iter()
     }
 }
