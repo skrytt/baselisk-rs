@@ -29,16 +29,6 @@ pub fn read_and_parse(
             println!("Quitting...");
             return true; // Exit the main thread loop and terminate the program
         }
-        // Commands to control PortAudio features
-        else if *arg == "audio" {
-            if let Some(arg) = input_args_iter.next() {
-                // "portaudio list": list portaudio devices
-                if *arg == "devices" {
-                    println!("Audio devices:");
-                    println!("{}", view.audio);
-                }
-            }
-        }
         // Commands to control PortMidi input devices
         else if *arg == "midi" {
             if let Some(arg) = input_args_iter.next() {
@@ -64,16 +54,6 @@ pub fn read_and_parse(
                             println!("OK");
                         }
                     }
-                }
-            }
-        }
-        // Commands to provide information about nodes
-        else if *arg == "nodes" {
-            if let Some(arg) = input_args_iter.next() {
-                // "nodes list" : list the enumerated nodes of the graph
-                // TODO: view needs updating...
-                if *arg == "list" {
-                    println!("{}", view.graph);
                 }
             }
         }
