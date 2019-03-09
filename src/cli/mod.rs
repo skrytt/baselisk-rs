@@ -1,99 +1,72 @@
-use audio_thread;
-use comms;
+mod tree;
+mod completer;
+
+use cli::tree::{
+    Tree as Tree,
+    Node as Node,
+};
+use cli::completer::Cli as Cli;
+use comms::MainThreadComms;
+use event::{Event, PatchEvent};
+
 use defs;
-use event;
-use std::io;
-use std::io::prelude::*;
-use view;
 
-/// Read lines from standard input.
-/// Try to parse those lines as commands, then execute those commands.
-/// Return a bool indicating whether program execution should abort afterwards.
-pub fn read_and_parse(
-    _audio: &mut audio_thread::Interface,
-    view: &mut view::View,
-    comms: &comms::MainThreadComms,
-) -> bool {
-    print!("{}> ", defs::PROGNAME);
-    io::stdout().flush().ok().expect("Could not flush stdout");
+fn build_tree() -> Tree
+{
+    let mut root = Node::new_with_children();
 
-    let input_line: String = read!("{}\n");
-    let input_line: String = input_line.to_lowercase();
-    let input_args: Vec<&str> = input_line.split(' ').filter(|s| s.len() > 0).collect();
+    {
+        let midi = root.add_child("midi", Node::new_with_children());
 
-    let mut input_args_iter = input_args.iter();
-
-    if let Some(arg) = input_args_iter.next() {
-        // Users may quit by typing 'quit'.
-        if *arg == "quit" {
-            println!("Quitting...");
-            return true; // Exit the main thread loop and terminate the program
-        }
-        // Commands to control PortMidi input devices
-        else if *arg == "midi" {
-            if let Some(arg) = input_args_iter.next() {
-                // "midi list": list the enumerated midi devices
-                if *arg == "list" {
-                    println!("Midi devices:");
-                    println!("{}", view.midi);
-                }
-                // "midi input {device_id}": set device_id as the midi input device
-                else if *arg == "input" {
-                    if let Some(arg) = input_args_iter.next() {
+        // midi.add_child("list", Node::??);
+        midi.add_child("input", Node::new_dispatch_event(
+            |token_vec| {
+                let device_id = match token_vec.iter().next() {
+                    None => return Err(String::from(
+                            "Syntax: midi input <device_id>")),
+                    Some(device_id_str) => {
                         let device_id: i32;
-                        scan!(arg.bytes() => "{}", device_id);
-                        comms
-                            .tx
-                            .send(event::Event::Patch(event::PatchEvent::MidiDeviceSet {
-                                device_id,
-                            }))
-                            .unwrap();
-                        let result = comms.rx.recv().unwrap();
-                        if let Ok(_) = result {
-                            view.midi.select_device(device_id as usize);
-                            println!("OK");
-                        }
-                    }
-                }
+                        scan!(device_id_str.bytes() => "{}", device_id);
+                        device_id
+                    },
+                };
+                Ok(Event::Patch(PatchEvent::MidiDeviceSet{ device_id }))
             }
-        }
-        else if *arg == "osc" {
-            if let Some(arg) = input_args_iter.next() {
-                if *arg == "type" {
-                    if let Some(arg) = input_args_iter.next() {
-                        // "osc type <osc_type_name>" : set the osc type
-                        comms
-                            .tx
-                            .send(event::Event::Patch(event::PatchEvent::OscillatorTypeSet {
-                                type_name: String::from(*arg),
-                            }))
-                            .unwrap();
-                        let result = comms.rx.recv().unwrap();
-                        if let Ok(_) = result {
-                            println!("OK");
-                        }
-                    }
-                }
-                else if *arg == "pitch" {
-                    if let Some(arg) = input_args_iter.next() {
-                        // "osc type <osc_type_name>" : set the osc type
-                        let semitones: defs::Sample;
-                        scan!(arg.bytes() => "{}", semitones);
-                        comms
-                            .tx
-                            .send(event::Event::Patch(event::PatchEvent::OscillatorPitchSet {
-                                semitones,
-                            }))
-                            .unwrap();
-                        let result = comms.rx.recv().unwrap();
-                        if let Ok(_) = result {
-                            println!("OK");
-                        }
-                    }
-                }
-            }
-        }
-    }
 
-    false // keep running
+        ));
+    }
+    {
+        let oscillator = root.add_child("oscillator", Node::new_with_children());
+
+        oscillator.add_child("type", Node::new_dispatch_event(
+            |token_vec| {
+                let type_name = match token_vec.iter().next() {
+                    None => return Err(String::from(
+                            "Syntax: oscillator type <type_name>")),
+                    Some(type_name) => type_name.to_string(),
+                };
+                Ok(Event::Patch(PatchEvent::OscillatorTypeSet{ type_name }))
+            }
+        ));
+
+        oscillator.add_child("pitch", Node::new_dispatch_event(
+            |token_vec| {
+                let semitones = match token_vec.iter().next() {
+                    None => return Err(String::from(
+                            "Syntax: oscillator pitch <pitch_octaves>")),
+                    Some(type_name) => {
+                        let semitones: defs::Sample;
+                        scan!(type_name.bytes() => "{}", semitones);
+                        semitones
+                    },
+                };
+                Ok(Event::Patch(PatchEvent::OscillatorPitchSet{ semitones }))
+            }
+        ));
+    }
+    Tree::new(root)
+}
+
+pub fn new(comms: MainThreadComms) -> Cli {
+    Cli::new(build_tree(), comms)
 }

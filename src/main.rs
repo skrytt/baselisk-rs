@@ -5,6 +5,7 @@ extern crate arraydeque;
 extern crate dsp;
 extern crate portaudio;
 extern crate portmidi;
+extern crate rustyline;
 
 #[macro_use]
 extern crate text_io;
@@ -68,14 +69,19 @@ fn run() -> Result<(), &'static str> {
             Ok(_) => break
         };
     };
+    println!("OK");
+
+    // The user must input which audio device to open here.
+    println!("MIDI devices:");
+    println!("{}", view.midi);
+    println!();
+    println!("Use 'midi input <device_id>' to set the input MIDI device.");
 
     audio_thread_interface.start_stream().unwrap();
 
     // Process lines of text input until told to quit or interrupted.
-    let mut finished = false;
-    while !finished {
-        finished = cli::read_and_parse(&mut audio_thread_interface, &mut view, &main_thread_comms);
-    }
+    cli::new(main_thread_comms)
+        .read_until_interrupted();
 
     audio_thread_interface.finish_stream().unwrap();
 
