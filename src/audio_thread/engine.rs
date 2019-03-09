@@ -1,10 +1,9 @@
 
 use audio_thread::buffer::Buffer;
 use defs;
-use dsp;
 use event;
 use processor::{Adsr, Gain, Oscillator, LowPassFilter, Waveshaper};
-
+use sample::slice;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -45,7 +44,7 @@ impl Engine
         let frames_this_buffer = main_buffer.len();
 
         // Zero the buffer
-        dsp::slice::equilibrium(main_buffer);
+        slice::equilibrium(main_buffer);
 
         // Oscillator
         self.oscillator.process_buffer(main_buffer, sample_rate);

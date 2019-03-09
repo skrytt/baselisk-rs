@@ -1,3 +1,4 @@
+extern crate sample;
 
 pub mod adsr;
 pub mod gain;
@@ -12,6 +13,3 @@ pub use processor::{
     filter::LowPassFilter as LowPassFilter,
     waveshaper::Waveshaper as Waveshaper,
 };
-
-extern crate dsp;
-

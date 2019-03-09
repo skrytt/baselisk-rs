@@ -1,6 +1,7 @@
+extern crate sample;
 
 use defs;
-use dsp::sample::Frame;
+use sample::Frame;
 
 /// Buffer: a container for a buffer needed for processing,
 /// and a means to manage its size.

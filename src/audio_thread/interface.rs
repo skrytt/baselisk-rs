@@ -4,9 +4,8 @@ extern crate portmidi;
 use audio_thread;
 use comms;
 use defs;
-use dsp;
-use dsp::sample::ToFrameSliceMut;
 use event;
+use sample::{slice, ToFrameSliceMut};
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -106,7 +105,7 @@ impl Interface {
             context.events.borrow_mut().update_midi();
 
             let buffer: &mut defs::FrameBuffer = buffer.to_frame_slice_mut().unwrap();
-            dsp::slice::equilibrium(buffer);
+            slice::equilibrium(buffer);
 
             context
                 .engine

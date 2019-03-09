@@ -2,7 +2,7 @@
 //!
 extern crate ansi_term;
 extern crate arraydeque;
-extern crate dsp;
+extern crate sample;
 extern crate portaudio;
 extern crate portmidi;
 extern crate rustyline;

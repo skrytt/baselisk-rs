@@ -1,4 +1,4 @@
-extern crate dsp;
+extern crate sample;
 
 use defs;
 use event;

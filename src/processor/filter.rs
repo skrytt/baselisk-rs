@@ -1,9 +1,8 @@
-extern crate dsp;
+extern crate sample;
 
 use arraydeque::ArrayDeque;
 use defs;
-use dsp::sample::slice;
-use dsp::Frame;
+use sample::{Frame, slice};
 
 /// Parameters available for filters.
 #[derive(Clone)]

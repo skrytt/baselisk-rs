@@ -1,9 +1,7 @@
-extern crate dsp;
+extern crate sample;
 
 use defs;
-use dsp::sample::slice;
-use dsp::Sample;
-use dsp::Frame;
+use sample::{Frame, Sample, slice};
 
 pub struct Gain {
     amplitude: defs::Sample,

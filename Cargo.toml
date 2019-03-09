@@ -6,7 +6,7 @@ authors = ["skrytt"]
 [dependencies]
 ansi_term = "0.11"
 arraydeque = { version = "0.4", default-features = false }
-dsp-chain = "0.13.1"
+sample = "0.10.0"
 portaudio = "0.7.0"
 portmidi = "0.2.4"
 rustyline = "3.0.0"

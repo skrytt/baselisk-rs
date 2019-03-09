@@ -1,5 +1,5 @@
 use std::f64;
-use dsp::sample::frame;
+use sample::frame;
 
 pub const CHANNELS: usize = 1;
 pub const FRAMES: u32 = 0;
