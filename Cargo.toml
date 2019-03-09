@@ -1,12 +1,13 @@
 [package]
-name = "dsp_chain_synth"
+name = "baselisk"
 version = "0.1.0"
 authors = ["skrytt"]
 
 [dependencies]
 ansi_term = "0.11"
+arraydeque = { version = "0.4", default-features = false }
 dsp-chain = "0.13.1"
 portaudio = "0.7.0"
 portmidi = "0.2.4"
+rustyline = "3.0.0"
 text_io = "0.1.7"
-arraydeque = { version = "0.4", default-features = false }
