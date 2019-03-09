@@ -12,6 +12,9 @@ pub enum PatchEvent {
     },
     OscillatorPitchSet {
         semitones: defs::Sample,
-    }
+    },
+    OscillatorPulseWidthSet {
+        width: defs::Sample,
+    },
 }
 

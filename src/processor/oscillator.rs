@@ -9,8 +9,9 @@ use std::cell::RefCell;
 
 /// Internal state used by oscillator types.
 pub struct State {
-    pitch_offset: defs::Sample,
-    phase: defs::Sample,
+    pitch_offset: defs::Sample, // Semitones
+    pulse_width: defs::Sample,  // 0.001 <= pulse_width <= 0.999
+    phase: defs::Sample,        // 0 <= phase <= 1
     frequency: defs::Sample,
     sample_rate: defs::Sample,
 }
@@ -19,6 +20,7 @@ impl State {
     pub fn new() -> State {
         State {
             pitch_offset: 0.0,
+            pulse_width: 0.5,
             phase: 0.0,
             frequency: 0.0,
             sample_rate: 0.0,
@@ -78,7 +80,7 @@ impl Oscillator {
         let generator_func = match type_name {
             "sine" => sine_generator,
             "saw" => sawtooth_generator,
-            "square" => square_generator,
+            "pulse" => pulse_generator,
             _ => return Err("Unknown oscillator name"),
         };
         self.generator_func = generator_func;
@@ -93,6 +95,16 @@ impl Oscillator {
             Err("Pitch offset must be <= 36.0 semitones")
         } else {
             self.state.pitch_offset = semitones;
+            Ok(())
+        }
+    }
+
+    pub fn set_pulse_width(&mut self, width: defs::Sample) -> Result<(), &'static str>
+    {
+        if width < 0.001 || width > 0.999 {
+            Err("Pulse width must be in range 0.001 <= width <= 0.999")
+        } else {
+            self.state.pulse_width = width;
             Ok(())
         }
     }
@@ -125,9 +137,9 @@ fn sine_generator(state: &mut State) -> defs::Sample
     res
 }
 
-/// Generator function that produces a square wave.
+/// Generator function that produces a pulse wave.
 /// Uses PolyBLEP smoothing to reduce aliasing.
-fn square_generator(state: &mut State) -> defs::Sample
+fn pulse_generator(state: &mut State) -> defs::Sample
 {
     let step = state.frequency / state.sample_rate;
 
@@ -138,11 +150,11 @@ fn square_generator(state: &mut State) -> defs::Sample
         phase -= 1.0;
     }
 
-    // Naive sawtooth is:
-    //   phase == 0:   res = 1.0
-    //   phase == 0.5: res = 0.0
-    //   phase == 1.0: res = -1.0
-    let mut res = if phase < 0.5 { 1.0 } else { -1.0 };
+    let mut res = if phase < state.pulse_width {
+        1.0
+    } else {
+        -1.0
+    };
 
     // PolyBLEP smoothing to reduce aliasing by smoothing discontinuities,
     let polyblep = |phase: defs::Sample, step: defs::Sample| -> defs::Sample {
@@ -166,7 +178,7 @@ fn square_generator(state: &mut State) -> defs::Sample
     // PolyBLEP for the first (upward) discontinuity
     res += polyblep(phase, step);
     // PolyBLEP for the second (downward) discontinuity
-    res -= polyblep((phase + 0.5) % 1.0, step);
+    res -= polyblep((phase + 1.0 - state.pulse_width) % 1.0, step);
 
     // Store the phase for next iteration
     state.phase = phase;

@@ -54,13 +54,28 @@ fn build_tree() -> Tree
                 let semitones = match token_vec.iter().next() {
                     None => return Err(String::from(
                             "Syntax: oscillator pitch <pitch_octaves>")),
-                    Some(type_name) => {
+                    Some(semitones_str) => {
                         let semitones: defs::Sample;
-                        scan!(type_name.bytes() => "{}", semitones);
+                        scan!(semitones_str.bytes() => "{}", semitones);
                         semitones
                     },
                 };
                 Ok(Event::Patch(PatchEvent::OscillatorPitchSet{ semitones }))
+            }
+        ));
+
+        oscillator.add_child("pulsewidth", Node::new_dispatch_event(
+            |token_vec| {
+                let width = match token_vec.iter().next() {
+                    None => return Err(String::from(
+                            "Syntax: oscillator pulsewidth <width>")),
+                    Some(width_str) => {
+                        let width: defs::Sample;
+                        scan!(width_str.bytes() => "{}", width);
+                        width
+                    },
+                };
+                Ok(Event::Patch(PatchEvent::OscillatorPulseWidthSet{ width }))
             }
         ));
     }

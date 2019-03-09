@@ -91,10 +91,13 @@ impl Interface {
                         },
                         event::PatchEvent::OscillatorTypeSet { type_name } => {
                             context.engine.oscillator.set_type(&type_name)
-                        }
+                        },
                         event::PatchEvent::OscillatorPitchSet { semitones } => {
                             context.engine.oscillator.set_pitch(semitones)
-                        }
+                        },
+                        event::PatchEvent::OscillatorPulseWidthSet { width } => {
+                            context.engine.oscillator.set_pulse_width(width)
+                        },
                     };
                     context.comms.tx.send(result);
                 }
