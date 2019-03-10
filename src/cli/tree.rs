@@ -111,8 +111,9 @@ impl Tree {
                     if let Ok(event) = event {
                         comms.tx.send(event).unwrap();
                         let result = comms.rx.recv().unwrap();
-                        if let Ok(_) = result {
-                            println!("OK");
+                        match result {
+                            Ok(_) => println!("OK"),
+                            Err(e) => println!("Error: {}", e),
                         }
                     }
                     // And finally
