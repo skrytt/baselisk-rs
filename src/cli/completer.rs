@@ -48,7 +48,10 @@ impl Completer for CliHelper {
             let matches = options
                 .into_iter()
                 .filter(|s| { s.starts_with(partial) });
-            for item in matches {
+            for mut item in matches {
+                // Push a space to the end, so that autocompleting this token in full
+                // allows the user to then begin autocompleting the next token
+                item.push(' ');
                 result_vec.push(item);
             }
         }
