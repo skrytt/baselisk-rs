@@ -70,7 +70,6 @@ impl Interface {
         let context_clone = Rc::clone(&self.context);
 
         // We don't use the Result for event handling, but the main thread does.
-        #[allow(unused_must_use)]
         let callback = move |portaudio::OutputStreamCallbackArgs { buffer, .. }| {
             let mut context = context_clone.borrow_mut();
 
@@ -85,8 +84,7 @@ impl Interface {
                             let mut events = context
                                 .events
                                 .borrow_mut();
-                            events.midi.set_port(device_id);
-                            Ok(())
+                            events.midi.set_port(device_id)
                         },
                         event::PatchEvent::OscillatorTypeSet { type_name } => {
                             context.engine.oscillator.set_type(&type_name)
@@ -116,7 +114,8 @@ impl Interface {
                             context.engine.adsr.set_release(duration)
                         },
                     };
-                    context.comms.tx.send(result);
+                    context.comms.tx.send(result)
+                        .expect("Failed to send response to main thread");
                 }
             }
 

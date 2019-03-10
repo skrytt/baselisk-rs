@@ -65,15 +65,15 @@ impl InputBuffer {
     }
 
     /// Set the MIDI port we will receive input from.
-    pub fn set_port(&mut self, device_id: i32) -> Result<(), String> {
+    pub fn set_port(&mut self, device_id: i32) -> Result<(), &'static str> {
         let info = match self.context.device(device_id) {
-            Err(e) => return Err(e.to_string()),
-            Ok(t) => t,
+            Err(_) => return Err("PortMidi returned an error for this device ID"),
+            Ok(info) => info,
         };
         println!("Listening on MIDI input: {}) {}", info.id(), info.name());
 
         match self.context.input_port(info, defs::MIDI_BUF_LEN) {
-            Err(e) => Err(e.to_string()),
+            Err(_) => Err("PortMidi returned an error trying to use this device ID as input"),
             Ok(port) => {
                 self.port = Some(port);
                 Ok(())
