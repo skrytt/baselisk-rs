@@ -16,5 +16,11 @@ pub enum PatchEvent {
     OscillatorPulseWidthSet {
         width: defs::Sample,
     },
+    FilterFrequencySet {
+        hz: defs::Sample,
+    },
+    FilterQualitySet {
+        q: defs::Sample,
+    },
 }
 

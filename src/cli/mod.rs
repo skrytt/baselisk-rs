@@ -79,6 +79,39 @@ fn build_tree() -> Tree
             }
         ));
     }
+    {
+        let filter = root.add_child("filter", Node::new_with_children());
+
+        filter.add_child("frequency", Node::new_dispatch_event(
+            |token_vec| {
+                let hz = match token_vec.iter().next() {
+                    None => return Err(String::from(
+                            "Syntax: filter frequency <hz>")),
+                    Some(hz_str) => {
+                        let hz: defs::Sample;
+                        scan!(hz_str.bytes() => "{}", hz);
+                        hz
+                    },
+                };
+                Ok(Event::Patch(PatchEvent::FilterFrequencySet{ hz }))
+            }
+        ));
+
+        filter.add_child("quality", Node::new_dispatch_event(
+            |token_vec| {
+                let q = match token_vec.iter().next() {
+                    None => return Err(String::from(
+                            "Syntax: filter quality <q>")),
+                    Some(q_str) => {
+                        let q: defs::Sample;
+                        scan!(q_str.bytes() => "{}", q);
+                        q
+                    },
+                };
+                Ok(Event::Patch(PatchEvent::FilterQualitySet{ q }))
+            }
+        ));
+    }
     Tree::new(root)
 }
 

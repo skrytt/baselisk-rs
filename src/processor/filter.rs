@@ -23,33 +23,6 @@ impl FilterParams {
             quality_factor: 3.0,
         }
     }
-
-    /// Set parameters for this filter.
-    fn set(&mut self, param_name: String, param_val: String, sample_rate: defs::Sample) -> Result<(), String> {
-        let param_val = param_val
-            .parse::<defs::Sample>()
-            .or_else(|_| return Err(String::from("param_val can't be parsed as a float")))
-            .unwrap();
-
-        match param_name.as_str() {
-            "f" | "freq" | "frequency" | "frequency_hz" => {
-                if param_val > 0.0 && param_val < ((sample_rate as defs::Sample) / 2.0) {
-                    self.base_frequency_hz = param_val;
-                } else {
-                    return Err(String::from("Filter frequency must be 0.0 > f > sample_rate/2.0"))
-                }
-            },
-            "q" | "qual" | "quality" | "quality_factor" => {
-                if param_val >= 0.5 && param_val <= 10.0 {
-                    self.quality_factor = param_val;
-                } else {
-                    return Err(String::from("Filter resonance must be 0.5 >= r >= 10.0"))
-                }
-            }
-            _ => return Err(String::from("Unknown param_name")),
-        }
-        Ok(())
-    }
 }
 
 /// A low pass filter type that can be used for audio processing.
@@ -83,6 +56,26 @@ impl LowPassFilter
         }
 
         result
+    }
+
+    /// Set frequency (Hz) for this filter.
+    /// Note: frequency will always be limited to the Nyquist frequency,
+    /// a function of the sample rate, even if this parameter is higher.
+    pub fn set_frequency(&mut self, value: defs::Sample) -> Result<(), &'static str> {
+        if value <= 0.0 {
+            return Err("Filter frequency must be 0.0 > f > sample_rate/2.0")
+        }
+        self.params.base_frequency_hz = value;
+        Ok(())
+    }
+
+    /// Set quality for this filter.
+    pub fn set_quality(&mut self, value: defs::Sample) -> Result<(), &'static str> {
+        if value < 0.5 || value > 10.0 {
+            return Err("Filter resonance must be 0.5 >= r >= 10.0")
+        }
+        self.params.quality_factor = value;
+        Ok(())
     }
 
     pub fn process_buffer(&mut self,
@@ -124,8 +117,12 @@ impl LowPassFilter
 
         // Use adsr_input (0 <= x <= 1) to determine the influence
         // of self.params.adsr_sweep_octaves on the filter frequency.
-        let frequency_hz = self.params.base_frequency_hz
-                            * defs::Sample::exp2(self.params.adsr_sweep_octaves * adsr_input);
+        let mut frequency_hz = self.params.base_frequency_hz
+                               * defs::Sample::exp2(self.params.adsr_sweep_octaves * adsr_input);
+
+        // Limit frequency_hz to just under half of the sample rate for stability.
+        frequency_hz = frequency_hz.min(0.495 * self.sample_rate);
+
 
         // We implement a biquad section with coefficients selected to achieve
         // a low-pass filter.

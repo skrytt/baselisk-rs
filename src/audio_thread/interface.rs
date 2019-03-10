@@ -97,6 +97,12 @@ impl Interface {
                         event::PatchEvent::OscillatorPulseWidthSet { width } => {
                             context.engine.oscillator.set_pulse_width(width)
                         },
+                        event::PatchEvent::FilterFrequencySet { hz } => {
+                            context.engine.low_pass_filter.set_frequency(hz)
+                        },
+                        event::PatchEvent::FilterQualitySet { q } => {
+                            context.engine.low_pass_filter.set_quality(q)
+                        },
                     };
                     context.comms.tx.send(result);
                 }
