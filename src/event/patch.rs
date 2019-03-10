@@ -16,6 +16,18 @@ pub enum PatchEvent {
     OscillatorPulseWidthSet {
         width: defs::Sample,
     },
+    AdsrAttackSet {
+        duration: defs::Sample,
+    },
+    AdsrDecaySet {
+        duration: defs::Sample,
+    },
+    AdsrSustainSet {
+        level: defs::Sample,
+    },
+    AdsrReleaseSet {
+        duration: defs::Sample,
+    },
     FilterFrequencySet {
         hz: defs::Sample,
     },

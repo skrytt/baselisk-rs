@@ -103,6 +103,18 @@ impl Interface {
                         event::PatchEvent::FilterQualitySet { q } => {
                             context.engine.low_pass_filter.set_quality(q)
                         },
+                        event::PatchEvent::AdsrAttackSet { duration } => {
+                            context.engine.adsr.set_attack(duration)
+                        },
+                        event::PatchEvent::AdsrDecaySet { duration } => {
+                            context.engine.adsr.set_decay(duration)
+                        },
+                        event::PatchEvent::AdsrSustainSet { level } => {
+                            context.engine.adsr.set_sustain(level)
+                        },
+                        event::PatchEvent::AdsrReleaseSet { duration } => {
+                            context.engine.adsr.set_release(duration)
+                        },
                     };
                     context.comms.tx.send(result);
                 }

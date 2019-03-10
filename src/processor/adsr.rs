@@ -30,49 +30,6 @@ impl AdsrParams {
             release_duration: 0.707,
         }
     }
-
-    pub fn set(&mut self, param_name: String, param_val: String) -> Result<(), String> {
-        let param_val = param_val
-            .parse::<f32>()
-            .or_else(|_| return Err(String::from("param_val can't be parsed as a float")))
-            .unwrap();
-
-        match param_name.as_str() {
-            "attack" => {
-                if param_val >= 0.0 {
-                    self.attack_duration = param_val;
-                    return Ok(());
-                } else {
-                    return Err(String::from("attack param must be >= 0.0"));
-                }
-            }
-            "decay" => {
-                if param_val >= 0.0 {
-                    self.decay_duration = param_val;
-                    return Ok(());
-                } else {
-                    return Err(String::from("decay param must be >= 0.0"));
-                }
-            }
-            "sustain" => {
-                if param_val >= 0.0 && param_val <= 1.0 {
-                    self.sustain_level = param_val;
-                    return Ok(());
-                } else {
-                    return Err(String::from("sustain param must be >= 0.0 and <= 1.0"));
-                }
-            }
-            "release" => {
-                if param_val >= 0.0 {
-                    self.release_duration = param_val;
-                    return Ok(());
-                } else {
-                    return Err(String::from("release param must be >= 0.0"));
-                }
-            }
-            _ => return Err(String::from("unknown param_name")),
-        }
-    }
 }
 
 /// Struct to hold the current state of an ADSR processor
@@ -108,8 +65,36 @@ impl Adsr {
         }
     }
 
-    pub fn set_param(&mut self, param_name: String, param_val: String) -> Result<(), String> {
-        self.params.set(param_name, param_val)
+    pub fn set_attack(&mut self, duration: defs::Sample) -> Result<(), &'static str> {
+        if duration < 0.0 {
+            return Err("attack duration must be >= 0.0");
+        }
+        self.params.attack_duration = duration;
+        Ok(())
+    }
+
+    pub fn set_decay(&mut self, duration: defs::Sample) -> Result<(), &'static str> {
+        if duration < 0.0 {
+            return Err("decay duration must be >= 0.0");
+        }
+        self.params.decay_duration = duration;
+        Ok(())
+    }
+
+    pub fn set_sustain(&mut self, level: defs::Sample) -> Result<(), &'static str> {
+        if level < 0.0 || level > 1.0 {
+            return Err("sustain level must be 0.0 >= level >= 1.0");
+        }
+        self.params.sustain_level = level;
+        Ok(())
+    }
+
+    pub fn set_release(&mut self, duration: defs::Sample) -> Result<(), &'static str> {
+        if duration < 0.0 {
+            return Err("release duration must be >= 0.0");
+        }
+        self.params.release_duration = duration;
+        Ok(())
     }
 
     fn set_sample_rate(&mut self, sample_rate: defs::Sample) {

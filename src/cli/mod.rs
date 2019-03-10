@@ -80,6 +80,70 @@ fn build_tree() -> Tree
         ));
     }
     {
+        let adsr = root.add_child("adsr", Node::new_with_children());
+
+        adsr.add_child("attack", Node::new_dispatch_event(
+            |token_vec| {
+                let duration = match token_vec.iter().next() {
+                    None => return Err(String::from(
+                            "Syntax: envelope attack <duration>")),
+                    Some(duration_str) => {
+                        let duration: defs::Sample;
+                        scan!(duration_str.bytes() => "{}", duration);
+                        duration
+                    },
+                };
+                Ok(Event::Patch(PatchEvent::AdsrAttackSet{ duration }))
+            }
+        ));
+
+        adsr.add_child("decay", Node::new_dispatch_event(
+            |token_vec| {
+                let duration = match token_vec.iter().next() {
+                    None => return Err(String::from(
+                            "Syntax: envelope decay <duration>")),
+                    Some(duration_str) => {
+                        let duration: defs::Sample;
+                        scan!(duration_str.bytes() => "{}", duration);
+                        duration
+                    },
+                };
+                Ok(Event::Patch(PatchEvent::AdsrDecaySet{ duration }))
+            }
+        ));
+
+        adsr.add_child("sustain", Node::new_dispatch_event(
+            |token_vec| {
+                let level = match token_vec.iter().next() {
+                    None => return Err(String::from(
+                            "Syntax: envelope sustain <level>")),
+                    Some(level_str) => {
+                        let level: defs::Sample;
+                        scan!(level_str.bytes() => "{}", level);
+                        level
+                    },
+                };
+                Ok(Event::Patch(PatchEvent::AdsrSustainSet{ level }))
+            }
+        ));
+
+        adsr.add_child("release", Node::new_dispatch_event(
+            |token_vec| {
+                let duration = match token_vec.iter().next() {
+                    None => return Err(String::from(
+                            "Syntax: envelope release <duration>")),
+                    Some(duration_str) => {
+                        let duration: defs::Sample;
+                        scan!(duration_str.bytes() => "{}", duration);
+                        duration
+                    },
+                };
+                Ok(Event::Patch(PatchEvent::AdsrReleaseSet{ duration }))
+            }
+        ));
+
+    }
+    {
         let filter = root.add_child("filter", Node::new_with_children());
 
         filter.add_child("frequency", Node::new_dispatch_event(

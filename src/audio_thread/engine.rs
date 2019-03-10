@@ -13,7 +13,7 @@ pub struct Engine
     pub adsr_buffer: Buffer,
     // DSP Units
     pub oscillator: Oscillator,
-    pub adsr_gain: Adsr,
+    pub adsr: Adsr,
     pub gain: Gain,
     pub low_pass_filter: LowPassFilter,
     pub waveshaper: Waveshaper,
@@ -27,7 +27,7 @@ impl Engine
             adsr_buffer: Buffer::new(),
             // DSP Units
             oscillator: Oscillator::new(event_buffer),
-            adsr_gain: Adsr::new(event_buffer),
+            adsr: Adsr::new(event_buffer),
             gain: Gain::new(1.0),
             low_pass_filter: LowPassFilter::new(),
             waveshaper: Waveshaper::new(),
@@ -51,7 +51,7 @@ impl Engine
 
         // ADSR buffer for Gain and Filter (shared for now)
         let adsr_buffer = self.adsr_buffer.get_sized_mut(frames_this_buffer);
-        self.adsr_gain.process_buffer(adsr_buffer, sample_rate);
+        self.adsr.process_buffer(adsr_buffer, sample_rate);
 
         // Gain
         self.gain.process_buffer(adsr_buffer, main_buffer);
