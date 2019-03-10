@@ -97,10 +97,6 @@ impl MidiView {
         };
         result
     }
-
-    pub fn select_device(&mut self, device: usize) {
-        self.selected = Some(device);
-    }
 }
 
 impl fmt::Display for MidiView {

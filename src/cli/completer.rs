@@ -1,5 +1,7 @@
 extern crate rustyline;
 
+use defs;
+
 use rustyline::completion::{Completer, extract_word};
 use rustyline::config::OutputStreamType;
 use rustyline::error::ReadlineError;
@@ -9,9 +11,6 @@ use rustyline::{Cmd, CompletionType, Config, EditMode, Editor, Helper, KeyPress}
 
 use cli::tree::Tree;
 use comms::MainThreadComms;
-
-static COLORED_PROMPT: &'static str = "\x1b[1;32mbaselisk>\x1b[0m ";
-static PROMPT: &'static str = "baselisk> ";
 
 static BREAK_CHARS: [u8; 1] = [b' '];
 
@@ -99,7 +98,7 @@ impl Cli {
 
     pub fn read_until_interrupted(&mut self) {
         loop {
-            let readline = self.rl.readline(PROMPT);
+            let readline = self.rl.readline(defs::PROMPT);
             match readline {
                 Ok(line) => {
                     self.rl.add_history_entry(line.as_ref());

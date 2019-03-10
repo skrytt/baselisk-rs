@@ -34,7 +34,7 @@ fn run() -> Result<(), &'static str> {
     // Initialize the view with lists of audio and MIDI devices.
     // The instances of PortMidi and PortAudio cache the lists of devices for their lifetime.
     // It's necessary to restart this program to update the lists if the devices change.
-    let mut view = view::View::new(&portaudio, &portmidi);
+    let view = view::View::new(&portaudio, &portmidi);
 
     // Initialize the audio interface
     let mut audio_thread_interface = audio_thread::Interface::new(
