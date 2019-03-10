@@ -8,15 +8,15 @@ use cli::tree::{
 use cli::completer::Cli as Cli;
 use comms::MainThreadComms;
 use event::{Event, PatchEvent};
+use std::str::{FromStr, SplitWhitespace};
 
 use defs;
 
-fn parse_from_next_token<T, I>(token_iter: &mut I) -> Result<T, ()>
+fn parse_from_next_token<T>(token_iter: &mut SplitWhitespace) -> Result<T, ()>
 where
-    T: std::str::FromStr,
-    I: Iterator<Item=String>,
+    T: FromStr,
 {
-    let token: String = match token_iter.next() {
+    let token: &str = match token_iter.next() {
         None => return Err(()),
         Some(token) => token,
     };
@@ -33,11 +33,9 @@ fn build_tree() -> Tree
     {
         let midi = root.add_child("midi", Node::new_with_children());
 
-        // midi.add_child("list", Node::??);
         midi.add_child("input", Node::new_dispatch_event(
-            |token_vec| {
+            |mut token_iter| {
                 let usage_str = "Syntax: midi input <device_id>";
-                let mut token_iter = token_vec.into_iter();
                 let device_id: i32 = match parse_from_next_token(&mut token_iter) {
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
@@ -51,20 +49,19 @@ fn build_tree() -> Tree
         let oscillator = root.add_child("oscillator", Node::new_with_children());
 
         oscillator.add_child("type", Node::new_dispatch_event(
-            |token_vec| {
-                let type_name = match token_vec.iter().next() {
-                    None => return Err(String::from(
-                            "Syntax: oscillator type <type_name>")),
-                    Some(type_name) => type_name.to_string(),
+            |token_iter| {
+                let usage_str = "Syntax: oscillator type <type_name>";
+                let type_name: String = match parse_from_next_token(token_iter) {
+                    Err(_) => return Err(String::from(usage_str)),
+                    Ok(type_name) => type_name,
                 };
                 Ok(Event::Patch(PatchEvent::OscillatorTypeSet{ type_name }))
             }
         ));
 
         oscillator.add_child("pitch", Node::new_dispatch_event(
-            |token_vec| {
+            |mut token_iter| {
                 let usage_str = "Syntax: oscillator pitch <pitch_octaves>";
-                let mut token_iter = token_vec.into_iter();
                 let semitones: defs::Sample = match parse_from_next_token(&mut token_iter) {
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
@@ -74,9 +71,8 @@ fn build_tree() -> Tree
         ));
 
         oscillator.add_child("pulsewidth", Node::new_dispatch_event(
-            |token_vec| {
+            |mut token_iter| {
                 let usage_str = "Syntax: oscillator pulsewidth <width>";
-                let mut token_iter = token_vec.into_iter();
                 let width: defs::Sample = match parse_from_next_token(&mut token_iter) {
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
@@ -89,9 +85,8 @@ fn build_tree() -> Tree
         let adsr = root.add_child("adsr", Node::new_with_children());
 
         adsr.add_child("attack", Node::new_dispatch_event(
-            |token_vec| {
+            |mut token_iter| {
                 let usage_str = "Syntax: adsr attack <duration>";
-                let mut token_iter = token_vec.into_iter();
                 let duration: defs::Sample = match parse_from_next_token(&mut token_iter) {
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
@@ -101,9 +96,8 @@ fn build_tree() -> Tree
         ));
 
         adsr.add_child("decay", Node::new_dispatch_event(
-            |token_vec| {
+            |mut token_iter| {
                 let usage_str = "Syntax: adsr decay <duration>";
-                let mut token_iter = token_vec.into_iter();
                 let duration: defs::Sample = match parse_from_next_token(&mut token_iter) {
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
@@ -113,9 +107,8 @@ fn build_tree() -> Tree
         ));
 
         adsr.add_child("sustain", Node::new_dispatch_event(
-            |token_vec| {
+            |mut token_iter| {
                 let usage_str = "Syntax: adsr sustain <level>";
-                let mut token_iter = token_vec.into_iter();
                 let level: defs::Sample = match parse_from_next_token(&mut token_iter) {
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
@@ -125,9 +118,8 @@ fn build_tree() -> Tree
         ));
 
         adsr.add_child("release", Node::new_dispatch_event(
-            |token_vec| {
+            |mut token_iter| {
                 let usage_str = "Syntax: adsr release <duration>";
-                let mut token_iter = token_vec.into_iter();
                 let duration: defs::Sample = match parse_from_next_token(&mut token_iter) {
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
@@ -141,9 +133,8 @@ fn build_tree() -> Tree
         let filter = root.add_child("filter", Node::new_with_children());
 
         filter.add_child("frequency", Node::new_dispatch_event(
-            |token_vec| {
+            |mut token_iter| {
                 let usage_str = "Syntax: filter frequency <hz>";
-                let mut token_iter = token_vec.into_iter();
                 let hz: defs::Sample = match parse_from_next_token(&mut token_iter) {
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
@@ -153,9 +144,8 @@ fn build_tree() -> Tree
         ));
 
         filter.add_child("quality", Node::new_dispatch_event(
-            |token_vec| {
+            |mut token_iter| {
                 let usage_str = "Syntax: filter quality <q>";
-                let mut token_iter = token_vec.into_iter();
                 let q: defs::Sample = match parse_from_next_token(&mut token_iter) {
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,

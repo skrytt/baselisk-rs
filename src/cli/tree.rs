@@ -1,5 +1,6 @@
 
 use std::collections::HashMap;
+use std::str::SplitWhitespace;
 use comms::MainThreadComms;
 use event::Event;
 
@@ -7,7 +8,7 @@ use event::Event;
 pub enum Node
 {
     WithChildren(HashMap<String, Node>),
-    DispatchEvent(fn(Vec<String>) -> Result<Event, String>),
+    DispatchEvent(fn(&mut SplitWhitespace) -> Result<Event, String>),
 }
 
 impl Node {
@@ -18,7 +19,7 @@ impl Node {
 
     /// Build a new node with a function to process
     /// any remaining tokens and return an event
-    pub fn new_dispatch_event(f: fn(Vec<String>) -> Result<Event, String>) -> Node
+    pub fn new_dispatch_event(f: fn(&mut SplitWhitespace) -> Result<Event, String>) -> Node
     {
         Node::DispatchEvent(f)
     }
@@ -46,8 +47,7 @@ impl Tree {
     }
 
     pub fn get_current_node(&self, line: &str) -> &Node {
-        let mut tokens = line.trim().split_whitespace()
-            .map(|item| { item.to_string() });
+        let mut tokens = line.trim().split_whitespace();
 
         let mut current_node = &self.root;
         loop {
@@ -55,7 +55,7 @@ impl Tree {
                 Node::WithChildren(child_map) => {
                     match tokens.next() {
                         Some(token) => {
-                            match child_map.get(&token) {
+                            match child_map.get(token) {
                                 Some(child) => current_node = &child,
                                 None => break, // Can't match the trailing text to a node,
                                                // return the last node that we could match
@@ -90,8 +90,7 @@ impl Tree {
     }
 
     pub fn execute_command(&self, line: String, comms: &mut MainThreadComms) {
-        let mut tokens = line.trim().split_whitespace()
-            .map(|item| { item.to_string() });
+        let mut tokens = line.trim().split_whitespace();
 
         // Identify the right node to generate the event
         let mut current_node = &self.root;
@@ -102,7 +101,7 @@ impl Tree {
                         None => return, // Can't proceed, would need more tokens
                         Some(token) => token,
                     };
-                    match child_map.get(&token) {
+                    match child_map.get(token) {
                         None => return, // Can't proceed, invalid command
                         Some(child) => {
                             // assign this child as the current node and continue looping
@@ -112,7 +111,7 @@ impl Tree {
                 },
                 Node::DispatchEvent(f) => {
                     // The final node. Get the event
-                    let event = match f(tokens.collect()) {
+                    let event = match f(&mut tokens) {
                         Err(usage_msg) => {
                             println!("{}", usage_msg);
                             return
