@@ -107,14 +107,18 @@ impl Tree {
                 },
                 Node::DispatchEvent(f) => {
                     // The final node. Get the event
-                    let event = f(tokens.collect());
-                    if let Ok(event) = event {
-                        comms.tx.send(event).unwrap();
-                        let result = comms.rx.recv().unwrap();
-                        match result {
-                            Ok(_) => println!("OK"),
-                            Err(e) => println!("Error: {}", e),
+                    let event = match f(tokens.collect()) {
+                        Err(usage_msg) => {
+                            println!("{}", usage_msg);
+                            return
                         }
+                        Ok(event) => event,
+                    };
+                    comms.tx.send(event).expect("Could not send event to audio thread");
+                    let result = comms.rx.recv();
+                    match result {
+                        Ok(_) => println!("OK"),
+                        Err(e) => println!("Error: {}", e),
                     }
                     // And finally
                     break

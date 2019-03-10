@@ -11,6 +11,21 @@ use event::{Event, PatchEvent};
 
 use defs;
 
+fn parse_from_next_token<T, I>(token_iter: &mut I) -> Result<T, ()>
+where
+    T: std::str::FromStr,
+    I: Iterator<Item=String>,
+{
+    let token: String = match token_iter.next() {
+        None => return Err(()),
+        Some(token) => token,
+    };
+    match token.trim().parse::<T>() {
+        Err(_) => Err(()),
+        Ok(value) => Ok(value),
+    }
+}
+
 fn build_tree() -> Tree
 {
     let mut root = Node::new_with_children();
@@ -21,14 +36,11 @@ fn build_tree() -> Tree
         // midi.add_child("list", Node::??);
         midi.add_child("input", Node::new_dispatch_event(
             |token_vec| {
-                let device_id = match token_vec.iter().next() {
-                    None => return Err(String::from(
-                            "Syntax: midi input <device_id>")),
-                    Some(device_id_str) => {
-                        let device_id: i32;
-                        scan!(device_id_str.bytes() => "{}", device_id);
-                        device_id
-                    },
+                let usage_str = "Syntax: midi input <device_id>";
+                let mut token_iter = token_vec.into_iter();
+                let device_id: i32 = match parse_from_next_token(&mut token_iter) {
+                    Err(_) => return Err(String::from(usage_str)),
+                    Ok(value) => value,
                 };
                 Ok(Event::Patch(PatchEvent::MidiDeviceSet{ device_id }))
             }
@@ -51,14 +63,11 @@ fn build_tree() -> Tree
 
         oscillator.add_child("pitch", Node::new_dispatch_event(
             |token_vec| {
-                let semitones = match token_vec.iter().next() {
-                    None => return Err(String::from(
-                            "Syntax: oscillator pitch <pitch_octaves>")),
-                    Some(semitones_str) => {
-                        let semitones: defs::Sample;
-                        scan!(semitones_str.bytes() => "{}", semitones);
-                        semitones
-                    },
+                let usage_str = "Syntax: oscillator pitch <pitch_octaves>";
+                let mut token_iter = token_vec.into_iter();
+                let semitones: defs::Sample = match parse_from_next_token(&mut token_iter) {
+                    Err(_) => return Err(String::from(usage_str)),
+                    Ok(value) => value,
                 };
                 Ok(Event::Patch(PatchEvent::OscillatorPitchSet{ semitones }))
             }
@@ -66,14 +75,11 @@ fn build_tree() -> Tree
 
         oscillator.add_child("pulsewidth", Node::new_dispatch_event(
             |token_vec| {
-                let width = match token_vec.iter().next() {
-                    None => return Err(String::from(
-                            "Syntax: oscillator pulsewidth <width>")),
-                    Some(width_str) => {
-                        let width: defs::Sample;
-                        scan!(width_str.bytes() => "{}", width);
-                        width
-                    },
+                let usage_str = "Syntax: oscillator pulsewidth <width>";
+                let mut token_iter = token_vec.into_iter();
+                let width: defs::Sample = match parse_from_next_token(&mut token_iter) {
+                    Err(_) => return Err(String::from(usage_str)),
+                    Ok(value) => value,
                 };
                 Ok(Event::Patch(PatchEvent::OscillatorPulseWidthSet{ width }))
             }
@@ -84,14 +90,11 @@ fn build_tree() -> Tree
 
         adsr.add_child("attack", Node::new_dispatch_event(
             |token_vec| {
-                let duration = match token_vec.iter().next() {
-                    None => return Err(String::from(
-                            "Syntax: envelope attack <duration>")),
-                    Some(duration_str) => {
-                        let duration: defs::Sample;
-                        scan!(duration_str.bytes() => "{}", duration);
-                        duration
-                    },
+                let usage_str = "Syntax: adsr attack <duration>";
+                let mut token_iter = token_vec.into_iter();
+                let duration: defs::Sample = match parse_from_next_token(&mut token_iter) {
+                    Err(_) => return Err(String::from(usage_str)),
+                    Ok(value) => value,
                 };
                 Ok(Event::Patch(PatchEvent::AdsrAttackSet{ duration }))
             }
@@ -99,14 +102,11 @@ fn build_tree() -> Tree
 
         adsr.add_child("decay", Node::new_dispatch_event(
             |token_vec| {
-                let duration = match token_vec.iter().next() {
-                    None => return Err(String::from(
-                            "Syntax: envelope decay <duration>")),
-                    Some(duration_str) => {
-                        let duration: defs::Sample;
-                        scan!(duration_str.bytes() => "{}", duration);
-                        duration
-                    },
+                let usage_str = "Syntax: adsr decay <duration>";
+                let mut token_iter = token_vec.into_iter();
+                let duration: defs::Sample = match parse_from_next_token(&mut token_iter) {
+                    Err(_) => return Err(String::from(usage_str)),
+                    Ok(value) => value,
                 };
                 Ok(Event::Patch(PatchEvent::AdsrDecaySet{ duration }))
             }
@@ -114,14 +114,11 @@ fn build_tree() -> Tree
 
         adsr.add_child("sustain", Node::new_dispatch_event(
             |token_vec| {
-                let level = match token_vec.iter().next() {
-                    None => return Err(String::from(
-                            "Syntax: envelope sustain <level>")),
-                    Some(level_str) => {
-                        let level: defs::Sample;
-                        scan!(level_str.bytes() => "{}", level);
-                        level
-                    },
+                let usage_str = "Syntax: adsr sustain <level>";
+                let mut token_iter = token_vec.into_iter();
+                let level: defs::Sample = match parse_from_next_token(&mut token_iter) {
+                    Err(_) => return Err(String::from(usage_str)),
+                    Ok(value) => value,
                 };
                 Ok(Event::Patch(PatchEvent::AdsrSustainSet{ level }))
             }
@@ -129,14 +126,11 @@ fn build_tree() -> Tree
 
         adsr.add_child("release", Node::new_dispatch_event(
             |token_vec| {
-                let duration = match token_vec.iter().next() {
-                    None => return Err(String::from(
-                            "Syntax: envelope release <duration>")),
-                    Some(duration_str) => {
-                        let duration: defs::Sample;
-                        scan!(duration_str.bytes() => "{}", duration);
-                        duration
-                    },
+                let usage_str = "Syntax: adsr release <duration>";
+                let mut token_iter = token_vec.into_iter();
+                let duration: defs::Sample = match parse_from_next_token(&mut token_iter) {
+                    Err(_) => return Err(String::from(usage_str)),
+                    Ok(value) => value,
                 };
                 Ok(Event::Patch(PatchEvent::AdsrReleaseSet{ duration }))
             }
@@ -148,14 +142,11 @@ fn build_tree() -> Tree
 
         filter.add_child("frequency", Node::new_dispatch_event(
             |token_vec| {
-                let hz = match token_vec.iter().next() {
-                    None => return Err(String::from(
-                            "Syntax: filter frequency <hz>")),
-                    Some(hz_str) => {
-                        let hz: defs::Sample;
-                        scan!(hz_str.bytes() => "{}", hz);
-                        hz
-                    },
+                let usage_str = "Syntax: filter frequency <hz>";
+                let mut token_iter = token_vec.into_iter();
+                let hz: defs::Sample = match parse_from_next_token(&mut token_iter) {
+                    Err(_) => return Err(String::from(usage_str)),
+                    Ok(value) => value,
                 };
                 Ok(Event::Patch(PatchEvent::FilterFrequencySet{ hz }))
             }
@@ -163,14 +154,11 @@ fn build_tree() -> Tree
 
         filter.add_child("quality", Node::new_dispatch_event(
             |token_vec| {
-                let q = match token_vec.iter().next() {
-                    None => return Err(String::from(
-                            "Syntax: filter quality <q>")),
-                    Some(q_str) => {
-                        let q: defs::Sample;
-                        scan!(q_str.bytes() => "{}", q);
-                        q
-                    },
+                let usage_str = "Syntax: filter quality <q>";
+                let mut token_iter = token_vec.into_iter();
+                let q: defs::Sample = match parse_from_next_token(&mut token_iter) {
+                    Err(_) => return Err(String::from(usage_str)),
+                    Ok(value) => value,
                 };
                 Ok(Event::Patch(PatchEvent::FilterQualitySet{ q }))
             }
