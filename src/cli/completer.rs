@@ -101,8 +101,6 @@ impl Cli {
             let readline = self.rl.readline(defs::PROMPT);
             match readline {
                 Ok(line) => {
-                    self.rl.add_history_entry(line.as_ref());
-                    println!("Line: {}", line);
                     if let Some(helper) = self.rl.helper() {
                         helper.tree.execute_command(line, &mut self.comms);
                     }

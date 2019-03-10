@@ -97,11 +97,16 @@ impl Tree {
         let mut current_node = &self.root;
         loop {
             match current_node {
-                Node::WithChildren(map) => {
-                    if let Some(token) = tokens.next() {
-                        match map.get(&token) {
-                            Some(child) => current_node = &child,
-                            None => return, // Can't proceed, invalid command
+                Node::WithChildren(child_map) => {
+                    let token = match tokens.next() {
+                        None => return, // Can't proceed, would need more tokens
+                        Some(token) => token,
+                    };
+                    match child_map.get(&token) {
+                        None => return, // Can't proceed, invalid command
+                        Some(child) => {
+                            // assign this child as the current node and continue looping
+                            current_node = &child;
                         }
                     }
                 },
@@ -114,9 +119,9 @@ impl Tree {
                         }
                         Ok(event) => event,
                     };
+                    // Send the event to the audio thread, then handle the response
                     comms.tx.send(event).expect("Could not send event to audio thread");
-                    let result = comms.rx.recv();
-                    match result {
+                    match comms.rx.recv() {
                         Ok(_) => println!("OK"),
                         Err(e) => println!("Error: {}", e),
                     }
