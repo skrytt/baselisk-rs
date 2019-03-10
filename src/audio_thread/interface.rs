@@ -113,6 +113,12 @@ impl Interface {
                         event::PatchEvent::AdsrReleaseSet { duration } => {
                             context.engine.adsr.set_release(duration)
                         },
+                        event::PatchEvent::WaveshaperInputGainSet { gain } => {
+                            context.engine.waveshaper.set_input_gain(gain)
+                        },
+                        event::PatchEvent::WaveshaperOutputGainSet { gain } => {
+                            context.engine.waveshaper.set_output_gain(gain)
+                        },
                     };
                     context.comms.tx.send(result)
                         .expect("Failed to send response to main thread");

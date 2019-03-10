@@ -154,6 +154,31 @@ fn build_tree() -> Tree
             }
         ));
     }
+    {
+        let waveshaper = root.add_child("waveshaper", Node::new_with_children());
+
+        waveshaper.add_child("inputgain", Node::new_dispatch_event(
+            |mut token_iter| {
+                let usage_str = "Syntax: waveshaper inputgain <gain>";
+                let gain: defs::Sample = match parse_from_next_token(&mut token_iter) {
+                    Err(_) => return Err(String::from(usage_str)),
+                    Ok(value) => value,
+                };
+                Ok(Event::Patch(PatchEvent::WaveshaperInputGainSet{ gain }))
+            }
+        ));
+
+        waveshaper.add_child("outputgain", Node::new_dispatch_event(
+            |mut token_iter| {
+                let usage_str = "Syntax: waveshaper outputgain <gain>";
+                let gain: defs::Sample = match parse_from_next_token(&mut token_iter) {
+                    Err(_) => return Err(String::from(usage_str)),
+                    Ok(value) => value,
+                };
+                Ok(Event::Patch(PatchEvent::WaveshaperOutputGainSet{ gain }))
+            }
+        ));
+    }
     Tree::new(root)
 }
 
