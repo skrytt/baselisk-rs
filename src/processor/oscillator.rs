@@ -5,11 +5,13 @@ use event;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-#[derive(Clone)]
 
 /// Internal state used by oscillator types.
+#[derive(Clone)]
 pub struct State {
+    note: u8,
     pitch_offset: defs::Sample, // Semitones
+    pitch_bend: defs::Sample,   // Semitones
     pulse_width: defs::Sample,  // 0.001 <= pulse_width <= 0.999
     phase: defs::Sample,        // 0 <= phase <= 1
     frequency: defs::Sample,
@@ -19,7 +21,9 @@ pub struct State {
 impl State {
     pub fn new() -> State {
         State {
+            note: 69,
             pitch_offset: 0.0,
+            pitch_bend: 0.0,
             pulse_width: 0.5,
             phase: 0.0,
             frequency: 0.0,
@@ -27,10 +31,18 @@ impl State {
         }
     }
 
+    pub fn set_pitch_bend(&mut self, value: u16, range: defs::Sample) {
+        // Value is 14-bit (range 0 <= value <= 16383)
+        // 0 => -2
+        // 8192 => 0
+        // 16383 => ~= +2
+        self.pitch_bend = range * (value as defs::Sample - 8192.0) / 8192.0;
+    }
+
     /// Convert a u8 note number to a corresponding frequency,
     /// using 440 Hz as the pitch of the A above middle C.
-    pub fn note_to_frequency(&self, note: u8) -> defs::Sample {
-        440.0 * ((note as defs::Sample + self.pitch_offset - 69.0) / 12.0).exp2()
+    fn update_frequency(&mut self) {
+        self.frequency = 440.0 * ((self.note as defs::Sample + self.pitch_offset + self.pitch_bend - 69.0) / 12.0).exp2()
     }
 
     /// Process any events and update the internal state accordingly.
@@ -43,7 +55,12 @@ impl State {
                 match midi_event {
                     event::MidiEvent::NoteOn { note, .. } => {
                         // Set the active note and frequency to match this new note
-                        self.frequency = self.note_to_frequency(*note);
+                        self.note = *note;
+                        self.update_frequency();
+                    },
+                    event::MidiEvent::PitchBend { value } => {
+                        self.set_pitch_bend(*value, 2.0);
+                        self.update_frequency();
                     }
                     _ => (),
                 }
