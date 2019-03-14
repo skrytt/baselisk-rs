@@ -194,10 +194,11 @@ impl Adsr {
                     event::Event::Midi(midi_event) => match midi_event {
                         event::MidiEvent::NoteOn { .. } => {
                             notes_pressed += 1;
-                        }
+                        },
                         event::MidiEvent::NoteOff { .. } => {
                             notes_released += 1;
-                        }
+                        },
+                        _ => (),
                     },
                     _ => (),
                 }

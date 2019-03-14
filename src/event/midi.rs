@@ -6,10 +6,27 @@ use defs;
 use event::Event;
 use event::midi;
 
-/// Midi events are one type of event
+/// Enumeration of MIDI event types
 pub enum MidiEvent {
     NoteOff { note: u8 },
     NoteOn { note: u8, velocity: u8 },
+    PolyphonicAftertouch { note: u8, pressure: u8 },
+    ControlChange { controller: u8, value: u8 },
+    ProgramChange { program: u8 },
+    ChannelPressure { pressure: u8 },
+    PitchBend { value: u16 },
+    SystemExclusive { data1: u8, data2: u8 },
+    TimeCodeQuarterFrame { message_type: u8, values: u8 },
+    SongPositionPointer { beats: u16 },
+    SongSelect { value: u8 },
+    TuneRequest {},
+    EndOfExclusive {},
+    TimingClock {},
+    Start {},
+    Continue {},
+    Stop {},
+    ActiveSensing {},
+    Reset {},
 }
 
 impl MidiEvent {
@@ -20,29 +37,72 @@ impl MidiEvent {
         let message = event.message;
         let status = message.status;
 
-        if status == 0x80 {
-            Some(Event::Midi(MidiEvent::NoteOff {
+        match status & 0xF0 {
+            0x80 => Some(Event::Midi(MidiEvent::NoteOff {
                 note: message.data1,
-            }))
-        } else if status == 0x90 {
-            // Often MIDI devices send a Note On with velocity == 0 to indicate
-            // a Note Off event. Handle that here.
-            let velocity = message.data2;
-            match velocity {
-                0 => Some(Event::Midi(MidiEvent::NoteOff {
-                    note: message.data1,
-                })),
-                _ => Some(Event::Midi(MidiEvent::NoteOn {
-                    note: message.data1,
-                    velocity: message.data2,
-                })),
+            })),
+            0x90 => {
+                // Often MIDI devices send a Note On with velocity == 0 to indicate
+                // a Note Off event. Handle that here.
+                let velocity = message.data2;
+                match velocity {
+                    0 => Some(Event::Midi(MidiEvent::NoteOff {
+                        note: message.data1,
+                    })),
+                    _ => Some(Event::Midi(MidiEvent::NoteOn {
+                        note: message.data1,
+                        velocity: message.data2,
+                    })),
+                }
+            },
+            0xA0 => Some(Event::Midi(MidiEvent::PolyphonicAftertouch {
+                note: message.data1,
+                pressure: message.data2,
+            })),
+            0xB0 => Some(Event::Midi(MidiEvent::ControlChange {
+                controller: message.data1,
+                value: message.data2,
+            })),
+            0xC0 => Some(Event::Midi(MidiEvent::ProgramChange {
+                program: message.data1,
+            })),
+            0xD0 => Some(Event::Midi(MidiEvent::ChannelPressure {
+                pressure: message.data1,
+            })),
+            0xE0 => Some(Event::Midi(MidiEvent::PitchBend {
+                value: ((message.data2 as u16) << 7) + (message.data1 as u16),
+            })),
+            0xF0 => {
+                // System message. Consider the second four bits
+                match status & 0x0F {
+                    0x00 => Some(Event::Midi(MidiEvent::SystemExclusive {
+                        data1: message.data1,
+                        data2: message.data2,
+                    })),
+                    0x01 => Some(Event::Midi(MidiEvent::TimeCodeQuarterFrame {
+                        message_type: message.data1 >> 4,
+                        values: message.data1 & 0x0F,
+                    })),
+                    0x02 => Some(Event::Midi(MidiEvent::SongPositionPointer {
+                        beats: ((message.data2 as u16) << 7) + (message.data1 as u16),
+                    })),
+                    0x03 => Some(Event::Midi(MidiEvent::SongSelect {
+                        value: message.data1,
+                    })),
+                    0x06 => Some(Event::Midi(MidiEvent::TuneRequest {})),
+                    0x07 => Some(Event::Midi(MidiEvent::EndOfExclusive {})),
+                    0x08 => Some(Event::Midi(MidiEvent::TimingClock {})),
+                    0x10 => Some(Event::Midi(MidiEvent::Start {})),
+                    0x11 => Some(Event::Midi(MidiEvent::Continue {})),
+                    0x12 => Some(Event::Midi(MidiEvent::Stop {})),
+                    0x14 => Some(Event::Midi(MidiEvent::ActiveSensing {})),
+                    0x15 => Some(Event::Midi(MidiEvent::Reset {})),
+                    _ => None,
+                }
             }
-        } else {
-            println!(
-                "t={}: Dropping unknown MIDI event: {}",
-                event.timestamp, message
-            );
-            None
+            _ => {
+                None
+            }
         }
     }
 }
