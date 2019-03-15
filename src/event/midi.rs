@@ -12,6 +12,15 @@ pub enum MidiEvent {
     NoteOn { note: u8, velocity: u8 },
     PolyphonicAftertouch { note: u8, pressure: u8 },
     ControlChange { controller: u8, value: u8 },
+    AllSoundOff {},
+    ResetAllControllers {},
+    LocalControlOff {},
+    LocalControlOn {},
+    AllNotesOff {},
+    OmniModeOff {},
+    OmniModeOn {},
+    MonoModeOn {},
+    PolyModeOn {},
     ProgramChange { program: u8 },
     ChannelPressure { pressure: u8 },
     PitchBend { value: u16 },
@@ -36,16 +45,18 @@ impl MidiEvent {
     pub fn parse(event: portmidi::MidiEvent, filter_by_channel: Option<u8>) -> Option<Event> {
         let message = event.message;
         let status = message.status;
-        let category = status & 0xF0;
-        let channel = status & 0x0F;
+        let status_category = status & 0xF0;
+        let status_extra = status & 0x0F;
 
+        // Suppress MIDI messages according to the filter_by_channel parameter.
         if let Some(channel_requested) = filter_by_channel {
-            if channel != channel_requested {
+            // Anything except system messages can be filtered by channel
+            if status_category != 0xF0 && status_extra != channel_requested {
                 return None;
             }
         }
 
-        match category {
+        match status_category {
             0x80 => Some(Event::Midi(MidiEvent::NoteOff {
                 note: message.data1,
             })),
@@ -67,10 +78,29 @@ impl MidiEvent {
                 note: message.data1,
                 pressure: message.data2,
             })),
-            0xB0 => Some(Event::Midi(MidiEvent::ControlChange {
-                controller: message.data1,
-                value: message.data2,
-            })),
+            0xB0 => {
+                match message.data1 {
+                    0..=119 => Some(Event::Midi(MidiEvent::ControlChange {
+                        controller: message.data1,
+                        value: message.data2,
+                    })),
+                    120 => Some(Event::Midi(MidiEvent::AllSoundOff {})),
+                    121 => Some(Event::Midi(MidiEvent::ResetAllControllers {})),
+                    122 => {
+                        match message.data2 {
+                            0 => Some(Event::Midi(MidiEvent::LocalControlOff {})),
+                            127 => Some(Event::Midi(MidiEvent::LocalControlOn {})),
+                            _ => None, // Undefined
+                        }
+                    }
+                    123 => Some(Event::Midi(MidiEvent::AllNotesOff {})),
+                    124 => Some(Event::Midi(MidiEvent::OmniModeOff {})),
+                    125 => Some(Event::Midi(MidiEvent::OmniModeOn {})),
+                    126 => Some(Event::Midi(MidiEvent::MonoModeOn {})),
+                    127 => Some(Event::Midi(MidiEvent::PolyModeOn {})),
+                    _ => None, // Undefined
+                }
+            },
             0xC0 => Some(Event::Midi(MidiEvent::ProgramChange {
                 program: message.data1,
             })),
@@ -107,10 +137,8 @@ impl MidiEvent {
                     0x15 => Some(Event::Midi(MidiEvent::Reset {})),
                     _ => None,
                 }
-            }
-            _ => {
-                None
-            }
+            },
+            _ => None
         }
     }
 }
