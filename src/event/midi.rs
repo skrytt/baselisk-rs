@@ -33,11 +33,19 @@ impl MidiEvent {
     /// Process a portmidi::MidiEvent into our format of midi event.
     /// If the event is recognised, return Some(MidiEventProcessed).
     /// Otherwise, return None.
-    pub fn parse(event: portmidi::MidiEvent) -> Option<Event> {
+    pub fn parse(event: portmidi::MidiEvent, filter_by_channel: Option<u8>) -> Option<Event> {
         let message = event.message;
         let status = message.status;
+        let category = status & 0xF0;
+        let channel = status & 0x0F;
 
-        match status & 0xF0 {
+        if let Some(channel_requested) = filter_by_channel {
+            if channel != channel_requested {
+                return None;
+            }
+        }
+
+        match category {
             0x80 => Some(Event::Midi(MidiEvent::NoteOff {
                 note: message.data1,
             })),
@@ -157,7 +165,7 @@ impl InputBuffer {
                 if let Ok(Some(events)) = port.read_n(defs::MIDI_BUF_LEN) {
                     self.events = events
                         .into_iter()
-                        .filter_map(|raw_midi_event| midi::MidiEvent::parse(raw_midi_event))
+                        .filter_map(|raw_midi_event| midi::MidiEvent::parse(raw_midi_event, None))
                         .collect()
                 }
             }
