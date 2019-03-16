@@ -46,21 +46,22 @@ impl State {
     }
 
     /// Process any events and update the internal state accordingly.
-    fn update(&mut self, event_buffer: &Rc<RefCell<Buffer>>, sample_rate: defs::Sample) {
+    fn update(&mut self,
+              event_buffer: &Rc<RefCell<Buffer>>,
+              selected_note: Option<u8>,
+              sample_rate: defs::Sample)
+    {
         // Iterate over any midi events and mutate the frequency accordingly
         self.sample_rate = sample_rate;
+        if let Some(note) = selected_note {
+            self.note = note;
+            self.update_frequency();
+        }
 
         let events = event_buffer.borrow();
         for event in events.iter_midi() {
             if let Event::Midi(midi_event) = event {
                 match midi_event {
-
-                    MidiEvent::NoteOn { note, .. } => {
-                        // Set the active note and frequency to match this new note
-                        self.note = *note;
-                        self.update_frequency();
-                    },
-
                     MidiEvent::PitchBend { value } => {
                         self.set_pitch_bend(*value, 2.0);
                         self.update_frequency();
@@ -137,9 +138,10 @@ impl Oscillator {
 
     pub fn process_buffer(&mut self,
                buffer: &mut defs::FrameBuffer,
+               selected_note: Option<u8>,
                sample_rate: defs::Sample,
     ) {
-        self.state.update(&self.event_buffer, sample_rate);
+        self.state.update(&self.event_buffer, selected_note, sample_rate);
 
         // Generate all the samples for this buffer
         for frame in buffer.iter_mut() {

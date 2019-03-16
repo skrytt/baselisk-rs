@@ -4,6 +4,7 @@ pub mod adsr;
 pub mod gain;
 pub mod oscillator;
 pub mod filter;
+pub mod note_selector;
 pub mod waveshaper;
 
 pub use processor::{
@@ -11,5 +12,6 @@ pub use processor::{
     gain::Gain as Gain,
     oscillator::Oscillator as Oscillator,
     filter::LowPassFilter as LowPassFilter,
+    note_selector::MonoNoteSelector as MonoNoteSelector,
     waveshaper::Waveshaper as Waveshaper,
 };
