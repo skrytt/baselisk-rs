@@ -1,5 +1,5 @@
 use defs;
-use event;
+use event::{Buffer, Event, MidiEvent};
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -46,11 +46,11 @@ struct AdsrState {
 pub struct Adsr {
     params: AdsrParams,
     state: AdsrState,
-    event_buffer: Rc<RefCell<event::Buffer>>,
+    event_buffer: Rc<RefCell<Buffer>>,
 }
 
 impl Adsr {
-    pub fn new(event_buffer: &Rc<RefCell<event::Buffer>>) -> Adsr {
+    pub fn new(event_buffer: &Rc<RefCell<Buffer>>) -> Adsr {
         Adsr {
             params: AdsrParams::new(),
             state: AdsrState {
@@ -105,7 +105,8 @@ impl Adsr {
         let old_notes_held_count = self.state.notes_held_count;
         self.state.notes_held_count += notes_pressed - notes_released;
 
-        // Shouldn't happen but could do if MIDI events are missed
+        // Could happen during all notes/sound off events
+        // or if note on messages were missed somehow
         if self.state.notes_held_count <= 0 {
             self.state.notes_held_count = 0;
         }
@@ -190,17 +191,22 @@ impl Adsr {
         {
             let events = self.event_buffer.borrow();
             for event in events.iter_midi() {
-                match event {
-                    event::Event::Midi(midi_event) => match midi_event {
-                        event::MidiEvent::NoteOn { .. } => {
+                if let Event::Midi(midi_event) = event {
+                    match midi_event {
+                        MidiEvent::NoteOn { .. } => {
                             notes_pressed += 1;
                         },
-                        event::MidiEvent::NoteOff { .. } => {
+                        MidiEvent::NoteOff { .. } => {
                             notes_released += 1;
                         },
+                        MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
+                            // Release all notes and reset state to "Off"
+                            self.state.notes_held_count = 0;
+                            self.state.stage = AdsrStages::Off;
+                        },
+
                         _ => (),
-                    },
-                    _ => (),
+                    }
                 }
             }
         }

@@ -8,34 +8,38 @@ use event::midi;
 
 /// Enumeration of MIDI event types
 pub enum MidiEvent {
+    // Channel Voice Messages
     NoteOff { note: u8 },
     NoteOn { note: u8, velocity: u8 },
+    PitchBend { value: u16 },
     PolyphonicAftertouch { note: u8, pressure: u8 },
     ControlChange { controller: u8, value: u8 },
-    AllSoundOff {},
-    ResetAllControllers {},
-    LocalControlOff {},
-    LocalControlOn {},
-    AllNotesOff {},
-    OmniModeOff {},
-    OmniModeOn {},
-    MonoModeOn {},
-    PolyModeOn {},
     ProgramChange { program: u8 },
     ChannelPressure { pressure: u8 },
-    PitchBend { value: u16 },
+    // Channel Mode Messages
+    AllSoundOff,
+    ResetAllControllers,
+    LocalControlOff,
+    LocalControlOn,
+    AllNotesOff,
+    OmniModeOff,
+    OmniModeOn,
+    MonoModeOn,
+    PolyModeOn,
+    // System Common Messages
     SystemExclusive { data1: u8, data2: u8 },
     TimeCodeQuarterFrame { message_type: u8, values: u8 },
     SongPositionPointer { beats: u16 },
     SongSelect { value: u8 },
-    TuneRequest {},
-    EndOfExclusive {},
-    TimingClock {},
-    Start {},
-    Continue {},
-    Stop {},
-    ActiveSensing {},
-    Reset {},
+    TuneRequest,
+    EndOfExclusive,
+    // System Real-Time Messages
+    TimingClock,
+    Start,
+    Continue,
+    Stop,
+    ActiveSensing,
+    Reset,
 }
 
 impl MidiEvent {
@@ -84,20 +88,20 @@ impl MidiEvent {
                         controller: message.data1,
                         value: message.data2,
                     })),
-                    120 => Some(Event::Midi(MidiEvent::AllSoundOff {})),
-                    121 => Some(Event::Midi(MidiEvent::ResetAllControllers {})),
+                    120 => Some(Event::Midi(MidiEvent::AllSoundOff)),
+                    121 => Some(Event::Midi(MidiEvent::ResetAllControllers)),
                     122 => {
                         match message.data2 {
-                            0 => Some(Event::Midi(MidiEvent::LocalControlOff {})),
-                            127 => Some(Event::Midi(MidiEvent::LocalControlOn {})),
+                            0 => Some(Event::Midi(MidiEvent::LocalControlOff)),
+                            127 => Some(Event::Midi(MidiEvent::LocalControlOn)),
                             _ => None, // Undefined
                         }
                     }
-                    123 => Some(Event::Midi(MidiEvent::AllNotesOff {})),
-                    124 => Some(Event::Midi(MidiEvent::OmniModeOff {})),
-                    125 => Some(Event::Midi(MidiEvent::OmniModeOn {})),
-                    126 => Some(Event::Midi(MidiEvent::MonoModeOn {})),
-                    127 => Some(Event::Midi(MidiEvent::PolyModeOn {})),
+                    123 => Some(Event::Midi(MidiEvent::AllNotesOff)),
+                    124 => Some(Event::Midi(MidiEvent::OmniModeOff)),
+                    125 => Some(Event::Midi(MidiEvent::OmniModeOn)),
+                    126 => Some(Event::Midi(MidiEvent::MonoModeOn)),
+                    127 => Some(Event::Midi(MidiEvent::PolyModeOn)),
                     _ => None, // Undefined
                 }
             },
@@ -127,14 +131,14 @@ impl MidiEvent {
                     0x03 => Some(Event::Midi(MidiEvent::SongSelect {
                         value: message.data1,
                     })),
-                    0x06 => Some(Event::Midi(MidiEvent::TuneRequest {})),
-                    0x07 => Some(Event::Midi(MidiEvent::EndOfExclusive {})),
-                    0x08 => Some(Event::Midi(MidiEvent::TimingClock {})),
-                    0x10 => Some(Event::Midi(MidiEvent::Start {})),
-                    0x11 => Some(Event::Midi(MidiEvent::Continue {})),
-                    0x12 => Some(Event::Midi(MidiEvent::Stop {})),
-                    0x14 => Some(Event::Midi(MidiEvent::ActiveSensing {})),
-                    0x15 => Some(Event::Midi(MidiEvent::Reset {})),
+                    0x06 => Some(Event::Midi(MidiEvent::TuneRequest)),
+                    0x07 => Some(Event::Midi(MidiEvent::EndOfExclusive)),
+                    0x08 => Some(Event::Midi(MidiEvent::TimingClock)),
+                    0x10 => Some(Event::Midi(MidiEvent::Start)),
+                    0x11 => Some(Event::Midi(MidiEvent::Continue)),
+                    0x12 => Some(Event::Midi(MidiEvent::Stop)),
+                    0x14 => Some(Event::Midi(MidiEvent::ActiveSensing)),
+                    0x15 => Some(Event::Midi(MidiEvent::Reset)),
                     _ => None,
                 }
             },

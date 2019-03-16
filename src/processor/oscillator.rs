@@ -1,7 +1,7 @@
 extern crate sample;
 
 use defs;
-use event;
+use event::{Buffer, Event, MidiEvent};
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -46,22 +46,31 @@ impl State {
     }
 
     /// Process any events and update the internal state accordingly.
-    fn update(&mut self, event_buffer: &Rc<RefCell<event::Buffer>>, sample_rate: defs::Sample) {
+    fn update(&mut self, event_buffer: &Rc<RefCell<Buffer>>, sample_rate: defs::Sample) {
         // Iterate over any midi events and mutate the frequency accordingly
         self.sample_rate = sample_rate;
+
         let events = event_buffer.borrow();
         for event in events.iter_midi() {
-            if let event::Event::Midi(midi_event) = event {
+            if let Event::Midi(midi_event) = event {
                 match midi_event {
-                    event::MidiEvent::NoteOn { note, .. } => {
+
+                    MidiEvent::NoteOn { note, .. } => {
                         // Set the active note and frequency to match this new note
                         self.note = *note;
                         self.update_frequency();
                     },
-                    event::MidiEvent::PitchBend { value } => {
+
+                    MidiEvent::PitchBend { value } => {
                         self.set_pitch_bend(*value, 2.0);
                         self.update_frequency();
-                    }
+                    },
+
+                    MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
+                        self.frequency = 0.0;
+                        self.phase = 0.0;
+                    },
+
                     _ => (),
                 }
             }
@@ -72,14 +81,14 @@ impl State {
 /// Oscillator type that will be used for audio processing.
 pub struct Oscillator {
     state: State,
-    event_buffer: Rc<RefCell<event::Buffer>>,
+    event_buffer: Rc<RefCell<Buffer>>,
     generator_func: fn(&mut State) -> defs::Sample,
 }
 
 impl Oscillator {
 /// Function to construct new oscillators.
     pub fn new(
-        event_buffer: &Rc<RefCell<event::Buffer>>,
+        event_buffer: &Rc<RefCell<Buffer>>,
     ) -> Oscillator
     {
         let generator_func = sine_generator;
