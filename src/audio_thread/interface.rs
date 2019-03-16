@@ -4,7 +4,6 @@ extern crate portmidi;
 use audio_thread;
 use comms;
 use defs;
-use event;
 use sample::{slice, ToFrameSliceMut};
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -12,9 +11,9 @@ use std::cell::RefCell;
 pub type Stream = portaudio::Stream<portaudio::NonBlocking, portaudio::Output<defs::Sample>>;
 
 pub struct Interface {
-    context: Rc<RefCell<audio_thread::Context>>,
     pa: portaudio::PortAudio,
     stream: Option<Stream>,
+    engine: Rc<RefCell<audio_thread::Engine>>,
 }
 
 impl Interface {
@@ -23,17 +22,10 @@ impl Interface {
         portmidi: portmidi::PortMidi,
         comms: comms::AudioThreadComms,
     ) -> Interface {
-
-        // Create an object to store state of the audio thread's processing.
-        let context = Rc::new(RefCell::new(audio_thread::Context::new(
-            comms,      // How the audio thread will communicate with the main thread
-            portmidi,   // Needed for MIDI event handling
-        )));
-
         Interface {
-            context,
             pa: portaudio,
             stream: None,
+            engine: Rc::new(RefCell::new(audio_thread::Engine::new(comms, portmidi))),
         }
     }
 
@@ -66,72 +58,14 @@ impl Interface {
             defs::FRAMES,
         );
 
-        // Clone some references for the audio callback
-        let context_clone = Rc::clone(&self.context);
+        let engine_callback = Rc::clone(&self.engine);
 
         // We don't use the Result for event handling, but the main thread does.
         let callback = move |portaudio::OutputStreamCallbackArgs { buffer, .. }| {
-            let mut context = context_clone.borrow_mut();
-
-            // Handle patch events but don't block if none are available.
-            // Where view updates are required, send events back
-            // to the main thread to indicate success or failure.
-            while let Ok(event) = context.comms.rx.try_recv() {
-                if let event::Event::Patch(event) = event {
-                    let result: Result<(), &'static str> = match event {
-
-                        event::PatchEvent::MidiDeviceSet { device_id } => {
-                            let mut events = context
-                                .events
-                                .borrow_mut();
-                            events.midi.set_port(device_id)
-                        },
-                        event::PatchEvent::OscillatorTypeSet { type_name } => {
-                            context.engine.oscillator.set_type(&type_name)
-                        },
-                        event::PatchEvent::OscillatorPitchSet { semitones } => {
-                            context.engine.oscillator.set_pitch(semitones)
-                        },
-                        event::PatchEvent::OscillatorPulseWidthSet { width } => {
-                            context.engine.oscillator.set_pulse_width(width)
-                        },
-                        event::PatchEvent::FilterFrequencySet { hz } => {
-                            context.engine.low_pass_filter.set_frequency(hz)
-                        },
-                        event::PatchEvent::FilterQualitySet { q } => {
-                            context.engine.low_pass_filter.set_quality(q)
-                        },
-                        event::PatchEvent::AdsrAttackSet { duration } => {
-                            context.engine.adsr.set_attack(duration)
-                        },
-                        event::PatchEvent::AdsrDecaySet { duration } => {
-                            context.engine.adsr.set_decay(duration)
-                        },
-                        event::PatchEvent::AdsrSustainSet { level } => {
-                            context.engine.adsr.set_sustain(level)
-                        },
-                        event::PatchEvent::AdsrReleaseSet { duration } => {
-                            context.engine.adsr.set_release(duration)
-                        },
-                        event::PatchEvent::WaveshaperInputGainSet { gain } => {
-                            context.engine.waveshaper.set_input_gain(gain)
-                        },
-                        event::PatchEvent::WaveshaperOutputGainSet { gain } => {
-                            context.engine.waveshaper.set_output_gain(gain)
-                        },
-                    };
-                    context.comms.tx.send(result)
-                        .expect("Failed to send response to main thread");
-                }
-            }
-
-            context.events.borrow_mut().update_midi();
-
             let buffer: &mut defs::FrameBuffer = buffer.to_frame_slice_mut().unwrap();
             slice::equilibrium(buffer);
 
-            context
-                .engine
+            engine_callback.borrow_mut()
                 .audio_requested(buffer, settings.sample_rate as defs::Sample);
 
             portaudio::Continue
