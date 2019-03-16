@@ -32,8 +32,8 @@ impl Engine
             // Buffers
             adsr_buffer: Buffer::new(),
             // DSP Units
-            oscillator: Oscillator::new(event_buffer),
-            adsr: Adsr::new(event_buffer),
+            oscillator: Oscillator::new(),
+            adsr: Adsr::new(),
             gain: Gain::new(1.0),
             low_pass_filter: LowPassFilter::new(),
             waveshaper: Waveshaper::new(),
@@ -58,11 +58,16 @@ impl Engine
         let selected_note = self.note_selector.get_note();
 
         // Oscillator
-        self.oscillator.process_buffer(main_buffer, selected_note, sample_rate);
+        self.oscillator.process_buffer(main_buffer,
+                                       selected_note,
+                                       self.event_buffer.borrow().iter_midi(),
+                                       sample_rate);
 
         // ADSR buffer for Gain and Filter (shared for now)
         let adsr_buffer = self.adsr_buffer.get_sized_mut(frames_this_buffer);
-        self.adsr.process_buffer(adsr_buffer, sample_rate);
+        self.adsr.process_buffer(adsr_buffer,
+                                 self.event_buffer.borrow().iter_midi(),
+                                 sample_rate);
 
         // Gain
         self.gain.process_buffer(adsr_buffer, main_buffer);

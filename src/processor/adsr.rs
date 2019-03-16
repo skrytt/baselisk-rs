@@ -1,7 +1,6 @@
 use defs;
-use event::{Buffer, Event, MidiEvent};
-use std::rc::Rc;
-use std::cell::RefCell;
+use event::{Event, MidiEvent};
+use std::slice;
 
 /// States that ADSR can be in
 enum AdsrStages {
@@ -46,11 +45,10 @@ struct AdsrState {
 pub struct Adsr {
     params: AdsrParams,
     state: AdsrState,
-    event_buffer: Rc<RefCell<Buffer>>,
 }
 
 impl Adsr {
-    pub fn new(event_buffer: &Rc<RefCell<Buffer>>) -> Adsr {
+    pub fn new() -> Adsr {
         Adsr {
             params: AdsrParams::new(),
             state: AdsrState {
@@ -61,7 +59,6 @@ impl Adsr {
                 sample_duration: 1.0, // Needs to be set by update_sample_rate
                 phase_time: 0.0,
             },
-            event_buffer: Rc::clone(event_buffer),
         }
     }
 
@@ -180,8 +177,9 @@ impl Adsr {
     }
 
     pub fn process_buffer(&mut self,
-                      buffer: &mut defs::FrameBuffer,
-                      sample_rate: defs::Sample)
+                          buffer: &mut defs::FrameBuffer,
+                          midi_iter: slice::Iter<Event>,
+                          sample_rate: defs::Sample)
     {
         self.set_sample_rate(sample_rate);
 
@@ -189,8 +187,7 @@ impl Adsr {
         let mut notes_released: i32 = 0;
 
         {
-            let events = self.event_buffer.borrow();
-            for event in events.iter_midi() {
+            for event in midi_iter {
                 if let Event::Midi(midi_event) = event {
                     match midi_event {
                         MidiEvent::NoteOn { .. } => {

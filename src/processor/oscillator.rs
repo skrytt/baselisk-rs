@@ -1,9 +1,8 @@
 extern crate sample;
 
 use defs;
-use event::{Buffer, Event, MidiEvent};
-use std::rc::Rc;
-use std::cell::RefCell;
+use event::{Event, MidiEvent};
+use std::slice;
 
 
 /// Internal state used by oscillator types.
@@ -47,7 +46,7 @@ impl State {
 
     /// Process any events and update the internal state accordingly.
     fn update(&mut self,
-              event_buffer: &Rc<RefCell<Buffer>>,
+              midi_iter: slice::Iter<Event>,
               selected_note: Option<u8>,
               sample_rate: defs::Sample)
     {
@@ -58,8 +57,7 @@ impl State {
             self.update_frequency();
         }
 
-        let events = event_buffer.borrow();
-        for event in events.iter_midi() {
+        for event in midi_iter {
             if let Event::Midi(midi_event) = event {
                 match midi_event {
                     MidiEvent::PitchBend { value } => {
@@ -82,22 +80,18 @@ impl State {
 /// Oscillator type that will be used for audio processing.
 pub struct Oscillator {
     state: State,
-    event_buffer: Rc<RefCell<Buffer>>,
     generator_func: fn(&mut State) -> defs::Sample,
 }
 
 impl Oscillator {
 /// Function to construct new oscillators.
-    pub fn new(
-        event_buffer: &Rc<RefCell<Buffer>>,
-    ) -> Oscillator
+    pub fn new() -> Oscillator
     {
         let generator_func = sine_generator;
         let state = State::new();
 
         Oscillator {
             state: state.clone(),
-            event_buffer: Rc::clone(event_buffer),
             generator_func,
         }
     }
@@ -139,9 +133,10 @@ impl Oscillator {
     pub fn process_buffer(&mut self,
                buffer: &mut defs::FrameBuffer,
                selected_note: Option<u8>,
+               midi_iter: slice::Iter<Event>,
                sample_rate: defs::Sample,
     ) {
-        self.state.update(&self.event_buffer, selected_note, sample_rate);
+        self.state.update(midi_iter, selected_note, sample_rate);
 
         // Generate all the samples for this buffer
         for frame in buffer.iter_mut() {
