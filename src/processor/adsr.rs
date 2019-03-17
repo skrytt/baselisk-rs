@@ -39,6 +39,7 @@ struct AdsrState {
     relative_gain_at_stage_end: f32,
     sample_duration: f32,
     phase_time: f32,
+    last_current_note: Option<u8>,
 }
 
 /// An ADSR struct with all the bits plugged together:
@@ -58,6 +59,7 @@ impl Adsr {
                 relative_gain_at_stage_end: 0.0,
                 sample_duration: 1.0, // Needs to be set by update_sample_rate
                 phase_time: 0.0,
+                last_current_note: None,
             },
         }
     }
@@ -98,34 +100,12 @@ impl Adsr {
         self.state.sample_duration = 1.0 / sample_rate as f32;
     }
 
-    pub fn update_notes_held_count(&mut self, notes_pressed: i32, notes_released: i32) {
-        let old_notes_held_count = self.state.notes_held_count;
-        self.state.notes_held_count += notes_pressed - notes_released;
-
-        // Could happen during all notes/sound off events
-        // or if note on messages were missed somehow
-        if self.state.notes_held_count <= 0 {
-            self.state.notes_held_count = 0;
-        }
-
-        // Smooth algorithm
-        //if old_notes_held_count == 0 && self.notes_held_count > 0 {
-        //    // Transition to attack stage
-        //    match self.stage {
-        //        // If a note is pressed during an existing note, continue the existing A/D/S
-        //        AdsrStages::HeldAttack | AdsrStages::HeldDecay | AdsrStages::HeldSustain => (),
-        //        // Otherwise, avoid discontinuities
-        //        _ => {
-        //            self.gain_at_stage_start = self.get_gain();
-        //            self.relative_gain_at_stage_end = 1.0 - self.gain_at_stage_start;
-        //            self.phase_time = 0.0;
-        //        }
-        //    }
-        //    self.stage = AdsrStages::HeldAttack;
-        //}
-
+    pub fn update_state(&mut self,
+                        any_notes_held: bool,
+                        current_note_changed: bool)
+    {
         // Percussive algorithm
-        if notes_pressed > 0 && self.state.notes_held_count > 0 {
+        if any_notes_held && current_note_changed {
             // Transition to attack stage
             match self.state.stage {
                 // Otherwise, avoid discontinuities
@@ -136,7 +116,7 @@ impl Adsr {
                 }
             }
             self.state.stage = AdsrStages::HeldAttack;
-        } else if old_notes_held_count > 0 && self.state.notes_held_count == 0 {
+        } else if !any_notes_held {
             // Transition to release stage
             match self.state.stage {
                 // This case shouldn't generally happen and is ignored
@@ -178,24 +158,21 @@ impl Adsr {
 
     pub fn process_buffer(&mut self,
                           buffer: &mut defs::FrameBuffer,
+                          new_current_note: Option<u8>,
                           midi_iter: slice::Iter<Event>,
                           sample_rate: defs::Sample)
     {
         self.set_sample_rate(sample_rate);
 
-        let mut notes_pressed: i32 = 0;
-        let mut notes_released: i32 = 0;
+        let any_notes_held: bool = new_current_note.is_some();
+
+        let current_note_changed: bool = new_current_note != self.state.last_current_note;
+        self.state.last_current_note = new_current_note;
 
         {
             for event in midi_iter {
                 if let Event::Midi(midi_event) = event {
                     match midi_event {
-                        MidiEvent::NoteOn { .. } => {
-                            notes_pressed += 1;
-                        },
-                        MidiEvent::NoteOff { .. } => {
-                            notes_released += 1;
-                        },
                         MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
                             // Release all notes and reset state to "Off"
                             self.state.notes_held_count = 0;
@@ -207,9 +184,7 @@ impl Adsr {
                 }
             }
         }
-        if notes_pressed > 0 || notes_released > 0 {
-            self.update_notes_held_count(notes_pressed, notes_released);
-        }
+        self.update_state(any_notes_held, current_note_changed);
 
         for frame in buffer.iter_mut() {
             let value = self.next().unwrap();

@@ -122,6 +122,7 @@ impl Engine
         // ADSR buffer for Gain and Filter (shared for now)
         let adsr_buffer = self.adsr_buffer.get_sized_mut(frames_this_buffer);
         self.adsr.process_buffer(adsr_buffer,
+                                 selected_note,
                                  self.event_buffer.iter_midi(),
                                  sample_rate);
 
