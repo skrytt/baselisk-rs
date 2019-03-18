@@ -1,6 +1,5 @@
 
 use audio_thread::buffer::Buffer;
-use comms;
 use defs;
 use event;
 use processor::{Adsr, Gain, Oscillator, LowPassFilter, MonoNoteSelector, Waveshaper};
@@ -9,7 +8,6 @@ use sample::slice;
 pub struct Engine
 {
     // Misc
-    pub comms: comms::AudioThreadComms,
     pub event_buffer: event::Buffer,
     pub note_selector: MonoNoteSelector,
     // Buffers
@@ -24,12 +22,10 @@ pub struct Engine
 
 impl Engine
 {
-    pub fn new(comms: comms::AudioThreadComms,
-               portmidi: portmidi::PortMidi) -> Engine {
+    pub fn new() -> Engine {
         Engine{
             // Misc
-            comms,
-            event_buffer: event::Buffer::new(portmidi),
+            event_buffer: event::Buffer::new(),
             note_selector: MonoNoteSelector::new(),
             // Buffers
             adsr_buffer: Buffer::new(),
@@ -42,17 +38,18 @@ impl Engine
         }
     }
 
-    fn apply_patch_events(&mut self) {
+    pub fn apply_patch_events(&mut self,
+                              rx: &std::sync::mpsc::Receiver<event::Event>,
+                              tx: &std::sync::mpsc::SyncSender<Result<(), &'static str>>,
+    )
+    {
         // Handle patch events but don't block if none are available.
         // Where view updates are required, send events back
         // to the main thread to indicate success or failure.
-        while let Ok(event) = self.comms.rx.try_recv() {
+        while let Ok(event) = rx.try_recv() {
             if let event::Event::Patch(event) = event {
                 let result: Result<(), &'static str> = match event {
 
-                    event::PatchEvent::MidiDeviceSet { device_id } => {
-                        self.event_buffer.midi.set_port(device_id)
-                    },
                     event::PatchEvent::OscillatorTypeSet { type_name } => {
                         self.oscillator.set_type(&type_name)
                     },
@@ -87,7 +84,8 @@ impl Engine
                         self.waveshaper.set_output_gain(gain)
                     },
                 };
-                self.comms.tx.send(result)
+                // TODO: either fix this, or refactor it out
+                tx.send(result)
                     .expect("Failed to send response to main thread");
             }
         }
@@ -98,10 +96,10 @@ impl Engine
     /// where each frame is a slice containing a single sample.
     pub fn audio_requested(&mut self,
                            main_buffer: &mut defs::FrameBuffer,
+                           raw_midi_iter: jack::MidiIter,
                            sample_rate: defs::Sample)
     {
-        self.apply_patch_events();
-        self.event_buffer.update_midi();
+        self.event_buffer.update_midi(raw_midi_iter);
 
         let frames_this_buffer = main_buffer.len();
 

@@ -1,10 +1,8 @@
-extern crate portmidi;
-
-use std::slice::Iter;
-
 use defs;
 use event::Event;
 use event::midi;
+use jack::RawMidi;
+use std::slice::Iter;
 
 /// Enumeration of MIDI event types
 pub enum MidiEvent {
@@ -46,11 +44,13 @@ impl MidiEvent {
     /// Process a portmidi::MidiEvent into our format of midi event.
     /// If the event is recognised, return Some(MidiEventProcessed).
     /// Otherwise, return None.
-    pub fn parse(event: portmidi::MidiEvent, filter_by_channel: Option<u8>) -> Option<Event> {
-        let message = event.message;
-        let status = message.status;
+    pub fn parse(raw_event: RawMidi, filter_by_channel: Option<u8>) -> Option<Event> {
+        let status = raw_event.bytes[0];
         let status_category = status & 0xF0;
         let status_extra = status & 0x0F;
+
+        let data1 = raw_event.bytes[1];
+        let data2 = raw_event.bytes[2];
 
         // Suppress MIDI messages according to the filter_by_channel parameter.
         if let Some(channel_requested) = filter_by_channel {
@@ -62,36 +62,36 @@ impl MidiEvent {
 
         match status_category {
             0x80 => Some(Event::Midi(MidiEvent::NoteOff {
-                note: message.data1,
+                note: data1,
             })),
             0x90 => {
                 // Often MIDI devices send a Note On with velocity == 0 to indicate
                 // a Note Off event. Handle that here.
-                let velocity = message.data2;
+                let velocity = data2;
                 match velocity {
                     0 => Some(Event::Midi(MidiEvent::NoteOff {
-                        note: message.data1,
+                        note: data1,
                     })),
                     _ => Some(Event::Midi(MidiEvent::NoteOn {
-                        note: message.data1,
-                        velocity: message.data2,
+                        note: data1,
+                        velocity: data2,
                     })),
                 }
             },
             0xA0 => Some(Event::Midi(MidiEvent::PolyphonicAftertouch {
-                note: message.data1,
-                pressure: message.data2,
+                note: data1,
+                pressure: data2,
             })),
             0xB0 => {
-                match message.data1 {
+                match data1 {
                     0..=119 => Some(Event::Midi(MidiEvent::ControlChange {
-                        controller: message.data1,
-                        value: message.data2,
+                        controller: data1,
+                        value: data2,
                     })),
                     120 => Some(Event::Midi(MidiEvent::AllSoundOff)),
                     121 => Some(Event::Midi(MidiEvent::ResetAllControllers)),
                     122 => {
-                        match message.data2 {
+                        match data2 {
                             0 => Some(Event::Midi(MidiEvent::LocalControlOff)),
                             127 => Some(Event::Midi(MidiEvent::LocalControlOn)),
                             _ => None, // Undefined
@@ -106,30 +106,30 @@ impl MidiEvent {
                 }
             },
             0xC0 => Some(Event::Midi(MidiEvent::ProgramChange {
-                program: message.data1,
+                program: data1,
             })),
             0xD0 => Some(Event::Midi(MidiEvent::ChannelPressure {
-                pressure: message.data1,
+                pressure: data1,
             })),
             0xE0 => Some(Event::Midi(MidiEvent::PitchBend {
-                value: ((message.data2 as u16) << 7) + (message.data1 as u16),
+                value: ((data2 as u16) << 7) + (data1 as u16),
             })),
             0xF0 => {
                 // System message. Consider the second four bits
                 match status & 0x0F {
                     0x00 => Some(Event::Midi(MidiEvent::SystemExclusive {
-                        data1: message.data1,
-                        data2: message.data2,
+                        data1: data1,
+                        data2: data2,
                     })),
                     0x01 => Some(Event::Midi(MidiEvent::TimeCodeQuarterFrame {
-                        message_type: message.data1 >> 4,
-                        values: message.data1 & 0x0F,
+                        message_type: data1 >> 4,
+                        values: data1 & 0x0F,
                     })),
                     0x02 => Some(Event::Midi(MidiEvent::SongPositionPointer {
-                        beats: ((message.data2 as u16) << 7) + (message.data1 as u16),
+                        beats: ((data2 as u16) << 7) + (data1 as u16),
                     })),
                     0x03 => Some(Event::Midi(MidiEvent::SongSelect {
-                        value: message.data1,
+                        value: data1,
                     })),
                     0x06 => Some(Event::Midi(MidiEvent::TuneRequest)),
                     0x07 => Some(Event::Midi(MidiEvent::EndOfExclusive)),
@@ -149,57 +149,25 @@ impl MidiEvent {
 /// Buffer will contain midi events received in the last block.
 pub struct InputBuffer {
     events: Vec<Event>,
-    port: Option<portmidi::InputPort>,
-    context: portmidi::PortMidi,
 }
 
 impl InputBuffer {
     /// Create a new buffer for receiving MIDI from one input device.
-    pub fn new(portmidi: portmidi::PortMidi) -> InputBuffer {
+    pub fn new() -> InputBuffer {
         // Code based on "monitor-all" example of portmidi crate
         InputBuffer {
-            events: Vec::<Event>::with_capacity(0),
-            port: None,
-            context: portmidi,
-        }
-    }
-
-    /// Set the MIDI port we will receive input from.
-    pub fn set_port(&mut self, device_id: i32) -> Result<(), &'static str> {
-        let info = match self.context.device(device_id) {
-            Err(_) => return Err("PortMidi returned an error for this device ID"),
-            Ok(info) => info,
-        };
-        println!("Listening on MIDI input: {}) {}", info.id(), info.name());
-
-        match self.context.input_port(info, defs::MIDI_BUF_LEN) {
-            Err(_) => Err("PortMidi returned an error trying to use this device ID as input"),
-            Ok(port) => {
-                self.port = Some(port);
-                Ok(())
-            }
+            events: Vec::<Event>::with_capacity(defs::MIDI_BUF_LEN),
         }
     }
 
     /// Fill the buffer with MIDI events since the last buffer update.
-    pub fn update(&mut self) {
+    pub fn update(&mut self, raw_midi_iter: jack::MidiIter) {
         // First, clear any old MIDI events.
         self.events.clear();
 
-        if let Some(ref port) = self.port {
-            // If we have MIDI events to process, get those MIDI events.
-            // PortMidi doesn't have a blocking receive method, so use
-            // poll to check once if there are events.
-            if let Ok(_) = port.poll() {
-                // Yes, there are events, let's try to retrieve them.
-                // Then, convert them to our MidiEvent types, filtering out
-                // events that we don't know how to use.
-                if let Ok(Some(events)) = port.read_n(defs::MIDI_BUF_LEN) {
-                    self.events = events
-                        .into_iter()
-                        .filter_map(|raw_midi_event| midi::MidiEvent::parse(raw_midi_event, None))
-                        .collect()
-                }
+        for raw_midi_event in raw_midi_iter {
+            if let Some(event) = midi::MidiEvent::parse(raw_midi_event, None) {
+                self.events.push(event);
             }
         }
     }

@@ -1,8 +1,8 @@
 
+use event::Event;
 use std::collections::HashMap;
 use std::str::SplitWhitespace;
-use comms::MainThreadComms;
-use event::Event;
+use std::sync::mpsc;
 
 // Either a node has children, or it has a command
 pub enum Node
@@ -89,7 +89,11 @@ impl Tree {
         Ok(completion_options)
     }
 
-    pub fn execute_command(&self, line: String, comms: &mut MainThreadComms) {
+    pub fn execute_command(&self,
+                           line: String,
+                           tx: &mpsc::SyncSender<Event>,
+                           rx: &mpsc::Receiver<Result<(), &'static str>>,
+    ) {
         let mut tokens = line.trim().split_whitespace();
 
         // Identify the right node to generate the event
@@ -119,8 +123,8 @@ impl Tree {
                         Ok(event) => event,
                     };
                     // Send the event to the audio thread, then handle the response
-                    comms.tx.send(event).expect("Could not send event to audio thread");
-                    match comms.rx.recv() {
+                    tx.send(event).expect("Could not send event to audio thread");
+                    match rx.recv() {
                         Ok(_) => println!("OK"),
                         Err(e) => println!("Error: {}", e),
                     }

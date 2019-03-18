@@ -6,9 +6,9 @@ use cli::tree::{
     Node as Node,
 };
 use cli::completer::Cli as Cli;
-use comms::MainThreadComms;
 use event::{Event, PatchEvent};
 use std::str::{FromStr, SplitWhitespace};
+use std::sync::mpsc;
 
 use defs;
 
@@ -30,21 +30,6 @@ fn build_tree() -> Tree
 {
     let mut root = Node::new_with_children();
 
-    {
-        let midi = root.add_child("midi", Node::new_with_children());
-
-        midi.add_child("input", Node::new_dispatch_event(
-            |mut token_iter| {
-                let usage_str = "Syntax: midi input <device_id>";
-                let device_id: i32 = match parse_from_next_token(&mut token_iter) {
-                    Err(_) => return Err(String::from(usage_str)),
-                    Ok(value) => value,
-                };
-                Ok(Event::Patch(PatchEvent::MidiDeviceSet{ device_id }))
-            }
-
-        ));
-    }
     {
         let oscillator = root.add_child("oscillator", Node::new_with_children());
 
@@ -182,6 +167,8 @@ fn build_tree() -> Tree
     Tree::new(root)
 }
 
-pub fn new(comms: MainThreadComms) -> Cli {
-    Cli::new(build_tree(), comms)
+pub fn new(tx: mpsc::SyncSender<Event>,
+           rx: mpsc::Receiver<Result<(), &'static str>>,
+    ) -> Cli {
+    Cli::new(build_tree(), tx, rx)
 }

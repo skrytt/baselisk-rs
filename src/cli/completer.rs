@@ -10,7 +10,8 @@ use rustyline::hint::Hinter;
 use rustyline::{Cmd, CompletionType, Config, EditMode, Editor, Helper, KeyPress};
 
 use cli::tree::Tree;
-use comms::MainThreadComms;
+use event::Event;
+use std::sync::mpsc;
 
 static BREAK_CHARS: [u8; 1] = [b' '];
 
@@ -72,11 +73,15 @@ impl Helper for CliHelper {}
 
 pub struct Cli {
     rl: Editor<CliHelper>,
-    comms: MainThreadComms,
+    tx: mpsc::SyncSender<Event>,
+    rx: mpsc::Receiver<Result<(), &'static str>>,
 }
 
 impl Cli {
-    pub fn new(tree: Tree, comms: MainThreadComms) -> Cli {
+    pub fn new(tree: Tree,
+               tx: mpsc::SyncSender<Event>,
+               rx: mpsc::Receiver<Result<(), &'static str>>,
+    ) -> Cli {
         let config = Config::builder()
             .history_ignore_space(true)
             .completion_type(CompletionType::List)
@@ -95,7 +100,8 @@ impl Cli {
         }
         Cli {
             rl,
-            comms
+            tx,
+            rx
         }
     }
 
@@ -106,7 +112,7 @@ impl Cli {
                 Ok(line) => {
                     self.rl.add_history_entry(line.as_ref());
                     if let Some(helper) = self.rl.helper() {
-                        helper.tree.execute_command(line, &mut self.comms);
+                        helper.tree.execute_command(line, &self.tx, &self.rx);
                     }
                 }
                 Err(ReadlineError::Interrupted) => {

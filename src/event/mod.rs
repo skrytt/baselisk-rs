@@ -1,5 +1,3 @@
-extern crate portmidi;
-
 pub mod midi;
 pub mod patch;
 
@@ -20,17 +18,17 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    pub fn new(portmidi: portmidi::PortMidi) -> Buffer {
+    pub fn new() -> Buffer {
         Buffer {
-            midi: midi::InputBuffer::new(portmidi),
+            midi: midi::InputBuffer::new(),
         }
     }
 
     /// Update: should be called prior to audio processing each block.
     /// Will update the internal event vector, so that successive
     /// calls to .iter() will provide any new events.
-    pub fn update_midi(&mut self) {
-        self.midi.update();
+    pub fn update_midi(&mut self, raw_midi_iter: jack::MidiIter) {
+        self.midi.update(raw_midi_iter);
     }
 
     /// Get an iterator over MIDI events that were collected in the

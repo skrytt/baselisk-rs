@@ -1,104 +1,70 @@
-extern crate portaudio;
-extern crate portmidi;
+extern crate jack;
 
 use audio_thread;
-use comms;
 use defs;
-use sample::{slice, ToFrameSliceMut};
-use std::rc::Rc;
-use std::cell::RefCell;
-
-pub type Stream = portaudio::Stream<portaudio::NonBlocking, portaudio::Output<defs::Sample>>;
+use event::Event;
+use sample::ToFrameSliceMut;
+use std::sync::{Arc, RwLock, mpsc};
 
 pub struct Interface {
-    pa: portaudio::PortAudio,
-    stream: Option<Stream>,
-    engine: Rc<RefCell<audio_thread::Engine>>,
+    engine: Arc<RwLock<audio_thread::Engine>>,
 }
 
 impl Interface {
-    pub fn new(
-        portaudio: portaudio::PortAudio,
-        portmidi: portmidi::PortMidi,
-        comms: comms::AudioThreadComms,
-    ) -> Interface {
+    pub fn new() -> Interface {
         Interface {
-            pa: portaudio,
-            stream: None,
-            engine: Rc::new(RefCell::new(audio_thread::Engine::new(comms, portmidi))),
+            engine: Arc::new(RwLock::new(audio_thread::Engine::new())),
         }
     }
 
     /// Try to open an audio stream with the device corresponding to the
-    /// provided device_index.
     /// Return a Result indicating whether this was successful.
-    pub fn open_stream(&mut self, device_index: u32) -> Result<(), String> {
-        if let Some(_) = self.stream {
-            return Err(String::from("Stream is already open"));
-        }
+    pub fn connect_and_run<F>(&mut self, mut f: F)
+    where
+        F: FnMut(
+            mpsc::SyncSender<Event>,
+            mpsc::Receiver<Result<(), &'static str>>,
+        ),
+    {
+        let (client, _status) =
+            jack::Client::new(defs::JACK_CLIENT_NAME, jack::ClientOptions::NO_START_SERVER).unwrap();
 
-        let device_index = portaudio::DeviceIndex(device_index);
-        let device_info = match self.pa.device_info(device_index) {
-            Ok(result) => result,
-            Err(reason) => return Err(format!(
-                    "PortAudio failed to open specified device: {}", reason))
-        };
+        let mut output_port = client
+            .register_port("output", jack::AudioOut::default())
+            .unwrap();
 
-        let params: portaudio::stream::Parameters<defs::Sample> =
-            portaudio::stream::Parameters::new(
-                device_index,
-                defs::CHANNELS as i32,
-                true, // Interleaved audio
-                device_info.default_low_output_latency,
-            );
+        let midi_input_port = client
+            .register_port("midi_input", jack::MidiIn::default())
+            .unwrap();
 
-        let settings = portaudio::stream::OutputSettings::new(
-            params,
-            device_info.default_sample_rate,
-            defs::FRAMES,
-        );
+        let engine_callback = Arc::clone(&self.engine);
 
-        let engine_callback = Rc::clone(&self.engine);
+        let (tx_main_thread, rx_audio_thread) = mpsc::sync_channel(256);
+        let (tx_audio_thread, rx_main_thread) = mpsc::sync_channel(256);
 
         // We don't use the Result for event handling, but the main thread does.
-        let callback = move |portaudio::OutputStreamCallbackArgs { buffer, .. }| {
-            let buffer: &mut defs::FrameBuffer = buffer.to_frame_slice_mut().unwrap();
-            slice::equilibrium(buffer);
+        let process = jack::ClosureProcessHandler::new(
+            move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
+                let buffer = output_port.as_mut_slice(ps)
+                    .to_frame_slice_mut().unwrap();
 
-            engine_callback.borrow_mut()
-                .audio_requested(buffer, settings.sample_rate as defs::Sample);
+                let raw_midi_iter = midi_input_port.iter(ps);
 
-            portaudio::Continue
-        };
+                let mut engine_callback = engine_callback.write().unwrap();
+                engine_callback.apply_patch_events(&rx_audio_thread, &tx_audio_thread);
+                engine_callback.audio_requested(buffer,
+                                                raw_midi_iter,
+                                                client.sample_rate() as defs::Sample);
 
-        let stream = self.pa.open_non_blocking_stream(settings, callback).unwrap();
-
-        self.stream = Some(stream);
-
-        Ok(())
-    }
-
-    /// Start audio processing for a stream that has already been opened.
-    pub fn start_stream(&mut self) -> Result<(), &'static str> {
-        match &mut self.stream {
-            None => return Err("There is no stream open"),
-            Some(stream) => {
-                stream.start().unwrap();
-                println!("Stream started");
-                Ok(())
+                jack::Control::Continue
             }
-        }
-    }
+        );
 
-    /// Stop audio processing for a stream that is open, then drop the stream handle.
-    pub fn finish_stream(&mut self) -> Result<(), &'static str> {
-        if let Some(stream) = &mut self.stream {
-            if stream.is_active().unwrap() {
-                stream.stop().unwrap();
-            }
-        }
-        self.stream = None;
-        println!("Stream finished");
-        Ok(())
+        // active_client is not directly used, but must be kept in scope
+        let _active_client = client.activate_async((), process).unwrap();
+
+        f(tx_main_thread, rx_main_thread);
+
+        // active_client will be dropped here
     }
 }
