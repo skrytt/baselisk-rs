@@ -33,20 +33,25 @@ impl Interface {
             Ok((client, status)) => (client, status),
         };
 
-        let mut output_port = client
-            .register_port("output", jack::AudioOut::default())
-            .unwrap();
+        let mut output_port = match client.register_port("output",
+                                                         jack::AudioOut::default())
+        {
+            Err(_) => return Err("Failed to open output audio port"),
+            Ok(output_port) => output_port,
+        };
 
-        let midi_input_port = client
-            .register_port("midi_input", jack::MidiIn::default())
-            .unwrap();
+        let midi_input_port = match client.register_port("midi_input",
+                                                         jack::MidiIn::default())
+        {
+            Err(_) => return Err("Failed to open input midi port"),
+            Ok(midi_input_port) => midi_input_port,
+        };
 
         let engine_callback = Arc::clone(&self.engine);
 
         let (tx_main_thread, rx_audio_thread) = mpsc::sync_channel(256);
         let (tx_audio_thread, rx_main_thread) = mpsc::sync_channel(256);
 
-        // We don't use the Result for event handling, but the main thread does.
         let process = jack::ClosureProcessHandler::new(
             move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
                 let buffer = output_port.as_mut_slice(ps)
