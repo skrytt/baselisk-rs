@@ -34,7 +34,7 @@ impl Buffer {
     /// Get an iterator over MIDI events that were collected in the
     /// previous call to update_midi. This is intended to be called
     /// once per processor that uses MIDI events.
-    pub fn iter_midi(&self) -> slice::Iter<Event> {
+    pub fn iter_midi(&self) -> slice::Iter<(usize, Event)> {
         self.midi.iter()
     }
 }

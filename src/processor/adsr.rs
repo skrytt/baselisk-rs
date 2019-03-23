@@ -159,7 +159,7 @@ impl Adsr {
     pub fn process_buffer(&mut self,
                           buffer: &mut defs::FrameBuffer,
                           selected_note_iter: slice::Iter<Option<u8>>,
-                          midi_iter: slice::Iter<Event>,
+                          midi_iter: slice::Iter<(usize, Event)>,
                           sample_rate: defs::Sample)
     {
         self.set_sample_rate(sample_rate);
@@ -175,7 +175,7 @@ impl Adsr {
         self.state.last_current_note = selected_note;
 
         {
-            for event in midi_iter {
+            for (_frame_num, event) in midi_iter {
                 if let Event::Midi(midi_event) = event {
                     match midi_event {
                         MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {

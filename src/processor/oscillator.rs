@@ -46,7 +46,7 @@ impl State {
 
     /// Process any events and update the internal state accordingly.
     fn update(&mut self,
-              midi_iter: slice::Iter<Event>,
+              midi_iter: slice::Iter<(usize, Event)>,
               selected_note_iter: slice::Iter<Option<u8>>,
               sample_rate: defs::Sample)
     {
@@ -64,7 +64,7 @@ impl State {
             }
         }
 
-        for event in midi_iter {
+        for (_frame_num, event) in midi_iter {
             if let Event::Midi(midi_event) = event {
                 match midi_event {
                     MidiEvent::PitchBend { value } => {
@@ -140,7 +140,7 @@ impl Oscillator {
     pub fn process_buffer(&mut self,
                buffer: &mut defs::FrameBuffer,
                selected_note_iter: slice::Iter<Option<u8>>,
-               midi_iter: slice::Iter<Event>,
+               midi_iter: slice::Iter<(usize, Event)>,
                sample_rate: defs::Sample,
     ) {
         self.state.update(midi_iter, selected_note_iter, sample_rate);

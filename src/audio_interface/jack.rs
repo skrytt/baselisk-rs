@@ -43,11 +43,11 @@ where
     let (tx_audio_thread, rx_main_thread) = mpsc::sync_channel(256);
 
     let process = jack::ClosureProcessHandler::new(
-        move |client: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
-            let buffer = output_port.as_mut_slice(ps)
+        move |client: &jack::Client, process_scope: &jack::ProcessScope| -> jack::Control {
+            let buffer = output_port.as_mut_slice(process_scope)
                 .to_frame_slice_mut().unwrap();
 
-            let raw_midi_iter = midi_input_port.iter(ps);
+            let raw_midi_iter = midi_input_port.iter(process_scope);
 
             let mut engine_callback = engine_callback.write().unwrap();
             engine_callback.apply_patch_events(&rx_audio_thread, &tx_audio_thread);
