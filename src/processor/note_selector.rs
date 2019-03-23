@@ -11,7 +11,7 @@ pub struct MonoNoteSelector {
     notes_held: Vec<bool>,
     note_priority_stack: Vec<u8>,
     note_selected: Option<u8>,
-    note_changes_vec: Vec<Option<u8>>,
+    note_changes_vec: Vec<(usize, Option<u8>)>,
 }
 
 impl MonoNoteSelector {
@@ -27,11 +27,11 @@ impl MonoNoteSelector {
     /// Return an iterator of note changes from this callback
     /// based on the provided iterator of midi events.
     pub fn update_note_changes_vec(&mut self,
-                                      midi_iter: slice::Iter<(usize, Event)>)
+                                   midi_iter: slice::Iter<(usize, Event)>)
     {
         self.note_changes_vec.clear();
 
-        for (_frame_num, event) in midi_iter {
+        for (frame_num, event) in midi_iter {
             if let Event::Midi(midi_event) = event {
                 let note_change = match midi_event {
                     MidiEvent::NoteOn { note, .. } => {
@@ -51,7 +51,7 @@ impl MonoNoteSelector {
                 if let Some(note_selected) = note_change {
                     // note_selected is an Option<u8> indicating the Some(note) if there is a note,
                     // or otherwise, None.
-                    self.note_changes_vec.push(note_selected);
+                    self.note_changes_vec.push((*frame_num, note_selected));
                     if self.note_changes_vec.len() == self.note_changes_vec.capacity() {
                         // Buffer full - drop further MIDI events.
                         break
@@ -61,7 +61,7 @@ impl MonoNoteSelector {
         }
     }
 
-    pub fn iter_note_changes(&self) -> slice::Iter<Option<u8>> {
+    pub fn iter_note_changes(&self) -> slice::Iter<(usize, Option<u8>)> {
         self.note_changes_vec.iter()
     }
 

@@ -158,7 +158,7 @@ impl Adsr {
 
     pub fn process_buffer(&mut self,
                           buffer: &mut defs::FrameBuffer,
-                          selected_note_iter: slice::Iter<Option<u8>>,
+                          selected_note_iter: slice::Iter<(usize, Option<u8>)>,
                           midi_iter: slice::Iter<(usize, Event)>,
                           sample_rate: defs::Sample)
     {
@@ -167,7 +167,7 @@ impl Adsr {
         let mut selected_note = self.state.last_current_note;
 
         // TODO: needs to account for times of events.
-        for note in selected_note_iter {
+        for (_frame_num, note) in selected_note_iter {
             selected_note = *note;
         }
         let any_notes_held: bool = selected_note.is_some();
