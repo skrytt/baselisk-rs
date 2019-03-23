@@ -19,15 +19,19 @@ impl Interface {
 
     /// Try to open an audio stream with the device corresponding to the
     /// Return a Result indicating whether this was successful.
-    pub fn connect_and_run<F>(&mut self, mut f: F)
+    pub fn connect_and_run<F>(&mut self, mut f: F) -> Result<(), &'static str>
     where
         F: FnMut(
             mpsc::SyncSender<Event>,
             mpsc::Receiver<Result<(), &'static str>>,
         ),
     {
-        let (client, _status) =
-            jack::Client::new(defs::JACK_CLIENT_NAME, jack::ClientOptions::NO_START_SERVER).unwrap();
+        let (client, _status) = match jack::Client::new(defs::JACK_CLIENT_NAME,
+                                                        jack::ClientOptions::NO_START_SERVER)
+        {
+            Err(_) => return Err("Failed to connect to JACK server"),
+            Ok((client, status)) => (client, status),
+        };
 
         let mut output_port = client
             .register_port("output", jack::AudioOut::default())
@@ -66,5 +70,6 @@ impl Interface {
         f(tx_main_thread, rx_main_thread);
 
         // active_client will be dropped here
+        Ok(())
     }
 }

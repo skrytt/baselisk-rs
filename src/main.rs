@@ -12,18 +12,14 @@ mod defs;
 mod event;
 mod processor;
 
-fn run() -> Result<(), &'static str> {
+fn main() {
     // Initialize the audio interface
     let mut audio_thread_interface = audio_thread::Interface::new();
 
     audio_thread_interface.connect_and_run(|tx, rx| {
         // Process lines of text input until told to quit or interrupted.
         cli::new(tx, rx).read_until_interrupted();
+    }).unwrap_or_else(|error_reason| {
+        println!("{}", error_reason);
     });
-
-    Ok(())
-}
-
-fn main() {
-    run().unwrap()
 }
