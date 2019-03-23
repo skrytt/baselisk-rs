@@ -12,11 +12,13 @@ mod defs;
 mod event;
 mod processor;
 
-fn main() {
-    // Initialize the audio interface
-    let mut audio_thread_interface = audio_thread::Interface::new();
+use std::sync::{Arc, RwLock};
 
-    audio_thread_interface.connect_and_run(|tx, rx| {
+fn main() {
+    let mut engine = Arc::new(RwLock::new(audio_thread::Engine::new()));
+
+    // Initialize the audio interface
+    audio_thread::connect_and_run(&mut engine, |tx, rx| {
         // Process lines of text input until told to quit or interrupted.
         cli::new(tx, rx).read_until_interrupted();
     }).unwrap_or_else(|error_reason| {

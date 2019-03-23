@@ -5,4 +5,4 @@ pub mod interface;
 
 pub use audio_thread::buffer::Buffer as Buffer;
 pub use audio_thread::engine::Engine as Engine;
-pub use audio_thread::interface::Interface as Interface;
+pub use audio_thread::interface::connect_and_run as connect_and_run;
