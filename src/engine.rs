@@ -111,17 +111,15 @@ impl Engine
             self.event_buffer.iter_midi());
 
         // Oscillator
-        let selected_note_iter = self.note_selector.get_note_change_iter();
         self.oscillator.process_buffer(main_buffer,
-                                       selected_note_iter,
+                                       self.note_selector.iter_note_changes(),
                                        self.event_buffer.iter_midi(),
                                        sample_rate);
 
         // ADSR buffer for Gain and Filter (shared for now)
         let adsr_buffer = self.adsr_buffer.get_sized_mut(frames_this_buffer);
-        let selected_note_iter = self.note_selector.get_note_change_iter();
         self.adsr.process_buffer(adsr_buffer,
-                                 selected_note_iter,
+                                 self.note_selector.iter_note_changes(),
                                  self.event_buffer.iter_midi(),
                                  sample_rate);
 

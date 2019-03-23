@@ -61,7 +61,7 @@ impl MonoNoteSelector {
         }
     }
 
-    pub fn get_note_change_iter(&self) -> slice::Iter<Option<u8>> {
+    pub fn iter_note_changes(&self) -> slice::Iter<Option<u8>> {
         self.note_changes_vec.iter()
     }
 
