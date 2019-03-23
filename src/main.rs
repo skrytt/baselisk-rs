@@ -6,7 +6,7 @@ extern crate jack;
 extern crate sample;
 extern crate rustyline;
 
-mod audio_thread;
+mod audio_interface;
 mod buffer;
 mod cli;
 mod engine;
@@ -20,7 +20,7 @@ fn main() {
     let mut engine = Arc::new(RwLock::new(engine::Engine::new()));
 
     // Initialize the audio interface
-    audio_thread::connect_and_run(&mut engine, |tx, rx| {
+    audio_interface::jack::connect_and_run(&mut engine, |tx, rx| {
         // Process lines of text input until told to quit or interrupted.
         cli::new(tx, rx).read_until_interrupted();
     }).unwrap_or_else(|error_reason| {
