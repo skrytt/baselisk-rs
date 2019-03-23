@@ -1,14 +1,14 @@
 extern crate jack;
 
-use audio_thread;
 use defs;
+use engine;
 use event::Event;
 use sample::ToFrameSliceMut;
 use std::sync::{Arc, RwLock, mpsc};
 
 /// Try to open an audio stream with the device corresponding to the
 /// Return a Result indicating whether this was successful.
-pub fn connect_and_run<F>(engine: &mut Arc<RwLock<audio_thread::Engine>>,
+pub fn connect_and_run<F>(engine: &mut Arc<RwLock<engine::Engine>>,
                           mut f: F) -> Result<(), &'static str>
 where
     F: FnMut(

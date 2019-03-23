@@ -1,5 +1,5 @@
 
-use audio_thread::buffer::Buffer;
+use buffer::Buffer;
 use defs;
 use event;
 use processor::{Adsr, Gain, Oscillator, LowPassFilter, MonoNoteSelector, Waveshaper};

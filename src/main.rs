@@ -7,7 +7,9 @@ extern crate sample;
 extern crate rustyline;
 
 mod audio_thread;
+mod buffer;
 mod cli;
+mod engine;
 mod defs;
 mod event;
 mod processor;
@@ -15,7 +17,7 @@ mod processor;
 use std::sync::{Arc, RwLock};
 
 fn main() {
-    let mut engine = Arc::new(RwLock::new(audio_thread::Engine::new()));
+    let mut engine = Arc::new(RwLock::new(engine::Engine::new()));
 
     // Initialize the audio interface
     audio_thread::connect_and_run(&mut engine, |tx, rx| {
