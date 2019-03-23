@@ -47,14 +47,21 @@ impl State {
     /// Process any events and update the internal state accordingly.
     fn update(&mut self,
               midi_iter: slice::Iter<Event>,
-              selected_note: Option<u8>,
+              selected_note_iter: slice::Iter<Option<u8>>,
               sample_rate: defs::Sample)
     {
         // Iterate over any midi events and mutate the frequency accordingly
         self.sample_rate = sample_rate;
-        if let Some(note) = selected_note {
-            self.note = note;
-            self.update_frequency();
+
+        // TODO: needs to account for times of events.
+        for selected_note in selected_note_iter {
+            match selected_note {
+                Some(note) => {
+                    self.note = *note;
+                    self.update_frequency();
+                },
+                None => (),
+            }
         }
 
         for event in midi_iter {
@@ -132,11 +139,11 @@ impl Oscillator {
 
     pub fn process_buffer(&mut self,
                buffer: &mut defs::FrameBuffer,
-               selected_note: Option<u8>,
+               selected_note_iter: slice::Iter<Option<u8>>,
                midi_iter: slice::Iter<Event>,
                sample_rate: defs::Sample,
     ) {
-        self.state.update(midi_iter, selected_note, sample_rate);
+        self.state.update(midi_iter, selected_note_iter, sample_rate);
 
         // Generate all the samples for this buffer
         for frame in buffer.iter_mut() {

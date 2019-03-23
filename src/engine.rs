@@ -107,20 +107,21 @@ impl Engine
         slice::equilibrium(main_buffer);
 
         // Note Selector
-        self.note_selector.process_midi_events(
+        self.note_selector.update_note_changes_vec(
             self.event_buffer.iter_midi());
-        let selected_note = self.note_selector.get_note();
 
         // Oscillator
+        let selected_note_iter = self.note_selector.get_note_change_iter();
         self.oscillator.process_buffer(main_buffer,
-                                       selected_note,
+                                       selected_note_iter,
                                        self.event_buffer.iter_midi(),
                                        sample_rate);
 
         // ADSR buffer for Gain and Filter (shared for now)
         let adsr_buffer = self.adsr_buffer.get_sized_mut(frames_this_buffer);
+        let selected_note_iter = self.note_selector.get_note_change_iter();
         self.adsr.process_buffer(adsr_buffer,
-                                 selected_note,
+                                 selected_note_iter,
                                  self.event_buffer.iter_midi(),
                                  sample_rate);
 

@@ -158,16 +158,21 @@ impl Adsr {
 
     pub fn process_buffer(&mut self,
                           buffer: &mut defs::FrameBuffer,
-                          new_current_note: Option<u8>,
+                          selected_note_iter: slice::Iter<Option<u8>>,
                           midi_iter: slice::Iter<Event>,
                           sample_rate: defs::Sample)
     {
         self.set_sample_rate(sample_rate);
 
-        let any_notes_held: bool = new_current_note.is_some();
+        let mut selected_note = self.state.last_current_note;
 
-        let current_note_changed: bool = new_current_note != self.state.last_current_note;
-        self.state.last_current_note = new_current_note;
+        // TODO: needs to account for times of events.
+        for note in selected_note_iter {
+            selected_note = *note;
+        }
+        let any_notes_held: bool = selected_note.is_some();
+        let current_note_changed: bool = selected_note != self.state.last_current_note;
+        self.state.last_current_note = selected_note;
 
         {
             for event in midi_iter {

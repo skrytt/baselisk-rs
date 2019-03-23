@@ -2,11 +2,16 @@
 use event::{Event, MidiEvent};
 use std::slice;
 
+// Number of note changes we can buffer per callback.
+// If the note changes more times than this, the behaviour is to drop note change events.
+const NOTE_CHANGE_VEC_SIZE: usize = 64;
+
 /// A note selector with high-note-priority selection.
 pub struct MonoNoteSelector {
     notes_held: Vec<bool>,
     note_priority_stack: Vec<u8>,
     note_selected: Option<u8>,
+    note_changes_vec: Vec<Option<u8>>,
 }
 
 impl MonoNoteSelector {
@@ -15,27 +20,54 @@ impl MonoNoteSelector {
             notes_held: vec![false; 128],
             note_priority_stack: Vec::with_capacity(128),
             note_selected: None,
+            note_changes_vec: Vec::with_capacity(NOTE_CHANGE_VEC_SIZE),
         }
     }
 
-    pub fn get_note(&self) -> Option<u8> {
-        self.note_selected
-    }
+    /// Return an iterator of note changes from this callback
+    /// based on the provided iterator of midi events.
+    pub fn update_note_changes_vec(&mut self,
+                                      midi_iter: slice::Iter<Event>)
+    {
+        self.note_changes_vec.clear();
 
-    pub fn process_midi_events(&mut self, midi_iter: slice::Iter<Event>) {
         for event in midi_iter {
             if let Event::Midi(midi_event) = event {
-                match midi_event {
-                    MidiEvent::NoteOn { note, .. } => self.note_on(*note),
-                    MidiEvent::NoteOff { note } => self.note_off(*note),
-                    MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => self.all_notes_off(),
-                    _ => (),
+                let note_change = match midi_event {
+                    MidiEvent::NoteOn { note, .. } => {
+                        self.note_on(*note)
+                    }
+                    MidiEvent::NoteOff { note } => {
+                        self.note_off(*note)
+                    }
+                    MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
+                        self.all_notes_off()
+                    }
+                    _ => None,
+                };
+
+                // note_change is an Option<Option<u8>> indicating whether the note changed as a
+                // result of the MIDI event.
+                if let Some(note_selected) = note_change {
+                    // note_selected is an Option<u8> indicating the Some(note) if there is a note,
+                    // or otherwise, None.
+                    self.note_changes_vec.push(note_selected);
+                    if self.note_changes_vec.len() == self.note_changes_vec.capacity() {
+                        // Buffer full - drop further MIDI events.
+                        break
+                    };
                 }
             }
         }
     }
 
-    fn note_on(&mut self, note: u8) {
+    pub fn get_note_change_iter(&self) -> slice::Iter<Option<u8>> {
+        self.note_changes_vec.iter()
+    }
+
+    /// Return Some(Option<u8>) if the note changed as a result of this event.
+    /// Otherwise, return None.
+    fn note_on(&mut self, note: u8) -> Option<Option<u8>> {
         if let Some(note_held_ref) = self.notes_held.get_mut(note as usize) {
             // It's possible (due to dropped note events)
             // that the note was not actually off. Check for that here.
@@ -49,11 +81,17 @@ impl MonoNoteSelector {
                 // After inserting to the note priority stack, it should never
                 // be the case that the unwrap call here fails
                 self.note_selected = Some(*self.note_priority_stack.last().unwrap());
+
+                // Indicate that the note held changed.
+                return Some(self.note_selected)
             }
         }
+        None
     }
 
-    fn note_off(&mut self, note: u8) {
+    /// Return Some(Option<u8>) if the note changed as a result of this event.
+    /// Otherwise, return None.
+    fn note_off(&mut self, note: u8) -> Option<Option<u8>> {
         if let Some(note_held_ref) = self.notes_held.get_mut(note as usize) {
             // It's possible (due to dropped note events or midi panics)
             // that the note was not actually on. Check for that here.
@@ -67,12 +105,17 @@ impl MonoNoteSelector {
                 self.note_selected = match self.note_priority_stack.last() {
                     Some(note) => Some(*note),
                     None => None,
-                }
+                };
+                // Indicate that the note held changed.
+                return Some(self.note_selected)
             }
         }
+        None
     }
 
-    fn all_notes_off(&mut self) {
+    /// Return Some(Option<u8>) if the note changed as a result of this event.
+    /// Otherwise, return None.
+    fn all_notes_off(&mut self) -> Option<Option<u8>> {
         // Small optimization: if no notes are on, there's nothing to do.
         if let Some(_) = self.note_selected {
             for mut note in self.notes_held.iter_mut() {
@@ -80,6 +123,10 @@ impl MonoNoteSelector {
             }
             self.note_priority_stack.clear();
             self.note_selected = None;
+
+            // Indicate that the note held changed, and now no note is held.
+            return Some(None);
         }
+        None
     }
 }
