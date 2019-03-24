@@ -6,7 +6,6 @@ use std::slice;
 
 
 /// Internal state used by oscillator types.
-#[derive(Clone)]
 pub struct State {
     note: u8,
     pitch_offset: defs::Sample, // Semitones
@@ -87,19 +86,16 @@ impl State {
 /// Oscillator type that will be used for audio processing.
 pub struct Oscillator {
     state: State,
-    generator_func: fn(&mut State) -> defs::Sample,
+    generator_func: fn(&mut State, &mut defs::FrameBuffer),
 }
 
 impl Oscillator {
 /// Function to construct new oscillators.
     pub fn new() -> Oscillator
     {
-        let generator_func = sine_generator;
-        let state = State::new();
-
         Oscillator {
-            state: state.clone(),
-            generator_func,
+            state: State::new(),
+            generator_func: sine_generator,
         }
     }
 
@@ -146,114 +142,115 @@ impl Oscillator {
         self.state.update(midi_iter, selected_note_iter, sample_rate);
 
         // Generate all the samples for this buffer
-        for frame in buffer.iter_mut() {
-            let sample: defs::Sample = (self.generator_func)(&mut self.state);
-            let this_frame: defs::Frame = [sample];
-            *frame = this_frame;
-        }
+        (self.generator_func)(&mut self.state, buffer);
     }
 }
 
 /// Generator function that produces a sine wave.
-fn sine_generator(state: &mut State) -> defs::Sample
+fn sine_generator(state: &mut State, buffer: &mut defs::FrameBuffer)
 {
-    let res = state.phase.sin();
+    for frame in buffer.iter_mut() {
+        // Advance phase
+        // Enforce range 0.0 <= phase < 1.0
+        let step = state.frequency / state.sample_rate;
+        let mut phase = state.phase + step;
+        while phase >= 1.0 {
+            phase -= 1.0;
+        }
+        // Store the phase for next iteration
+        state.phase = phase;
 
-    state.phase += 2.0 as defs::Sample * defs::PI * state.frequency / state.sample_rate;
-    while state.phase >= defs::PI {
-        state.phase -= defs::PI * 2.0;
+        let res = defs::Sample::sin(2.0 as defs::Sample * defs::PI * phase);
+        *frame = [res];
     }
-
-    res
 }
 
 /// Generator function that produces a pulse wave.
 /// Uses PolyBLEP smoothing to reduce aliasing.
-fn pulse_generator(state: &mut State) -> defs::Sample
+fn pulse_generator(state: &mut State, buffer: &mut defs::FrameBuffer)
 {
-    let step = state.frequency / state.sample_rate;
+    for frame in buffer.iter_mut() {
+        // Advance phase
+        // Enforce range 0.0 <= phase < 1.0
+        let step = state.frequency / state.sample_rate;
+        let mut phase = state.phase + step;
+        while phase >= 1.0 {
+            phase -= 1.0;
+        }
+        // Store the phase for next iteration
+        state.phase = phase;
 
-    // Advance phase
-    // Enforce range 0.0 <= phase < 1.0
-    let mut phase = state.phase + step;
-    while phase >= 1.0 {
-        phase -= 1.0;
+        // Get the aliasing pulse value
+        let mut res = if phase < state.pulse_width {
+            1.0
+        } else {
+            -1.0
+        };
+
+        // PolyBLEP smoothing algorithm to reduce aliasing by smoothing discontinuities.
+        let polyblep = |phase: defs::Sample, step: defs::Sample| -> defs::Sample {
+            // Apply PolyBLEP Smoothing for 0 < phase < (freq / sample_rate)
+            //   phase == 0:    x = 0.0
+            //   phase == step: x = 1.0
+            if phase < step {
+                let x = phase / step;
+                return 2.0 * x - x * x - 1.0;
+            }
+            // Apply PolyBLEP Smoothing for (1.0 - (freq / sample_rate)) < phase < 1.0:
+            //   phase == (1.0 - step): x = 1.0
+            //   phase == 1.0:          x = 0.0
+            else if phase > (1.0 - step) {
+                let x = (phase - 1.0) / step;
+                return 2.0 * x + x * x + 1.0;
+            } else {
+                0.0
+            }
+        };
+        // Apply PolyBLEP to the first (upward) discontinuity
+        res += polyblep(phase, step);
+        // Apply PolyBLEP to the second (downward) discontinuity
+        res -= polyblep((phase + 1.0 - state.pulse_width) % 1.0, step);
+
+        // Done
+        *frame = [res as defs::Sample];
     }
+}
 
-    let mut res = if phase < state.pulse_width {
-        1.0
-    } else {
-        -1.0
-    };
+/// Generator function that produces a sawtooth wave.
+/// Uses PolyBLEP smoothing to reduce aliasing.
+fn sawtooth_generator(state: &mut State, buffer: &mut defs::FrameBuffer)
+{
+    for frame in buffer.iter_mut() {
+        // Advance phase
+        // Enforce range 0.0 <= phase < 1.0
+        let step = state.frequency / state.sample_rate;
+        let mut phase = state.phase + step;
+        while phase >= 1.0 {
+            phase -= 1.0;
+        }
+        // Store the phase for next iteration
+        state.phase = phase;
 
-    // PolyBLEP smoothing to reduce aliasing by smoothing discontinuities,
-    let polyblep = |phase: defs::Sample, step: defs::Sample| -> defs::Sample {
+        // Get the aliasing saw value
+        let mut res = 1.0 - 2.0 * phase;
+
+        // PolyBLEP smoothing to reduce aliasing by smoothing discontinuities,
+        // which always occur at phase == 0.0.
         // Apply PolyBLEP Smoothing for 0 < phase < (freq / sample_rate)
         //   phase == 0:    x = 0.0
         //   phase == step: x = 1.0
         if phase < step {
             let x = phase / step;
-            return 2.0 * x - x * x - 1.0;
+            res += 2.0 * x - x * x - 1.0;
         }
         // Apply PolyBLEP Smoothing for (1.0 - (freq / sample_rate)) < phase < 1.0:
         //   phase == (1.0 - step): x = 1.0
         //   phase == 1.0:          x = 0.0
         else if phase > (1.0 - step) {
             let x = (phase - 1.0) / step;
-            return 2.0 * x + x * x + 1.0;
-        } else {
-            0.0
+            res += 2.0 * x + x * x + 1.0;
         }
-    };
-    // PolyBLEP for the first (upward) discontinuity
-    res += polyblep(phase, step);
-    // PolyBLEP for the second (downward) discontinuity
-    res -= polyblep((phase + 1.0 - state.pulse_width) % 1.0, step);
 
-    // Store the phase for next iteration
-    state.phase = phase;
-
-    res as f32
-}
-
-/// Generator function that produces a sawtooth wave.
-/// Uses PolyBLEP smoothing to reduce aliasing.
-fn sawtooth_generator(state: &mut State) -> defs::Sample
-{
-    let step = state.frequency / state.sample_rate;
-
-    // Advance phase
-    // Enforce range 0.0 <= phase < 1.0
-    let mut phase = state.phase + step;
-    while phase >= 1.0 {
-        phase -= 1.0;
+        *frame = [res as defs::Sample]
     }
-
-    // Naive sawtooth is:
-    //   phase == 0:   res = 1.0
-    //   phase == 0.5: res = 0.0
-    //   phase == 1.0: res = -1.0
-    let mut res = 1.0 - 2.0 * phase;
-
-    // PolyBLEP smoothing to reduce aliasing by smoothing discontinuities,
-    // which always occur at phase == 0.0.
-    // Apply PolyBLEP Smoothing for 0 < phase < (freq / sample_rate)
-    //   phase == 0:    x = 0.0
-    //   phase == step: x = 1.0
-    if phase < step {
-        let x = phase / step;
-        res += 2.0 * x - x * x - 1.0;
-    }
-    // Apply PolyBLEP Smoothing for (1.0 - (freq / sample_rate)) < phase < 1.0:
-    //   phase == (1.0 - step): x = 1.0
-    //   phase == 1.0:          x = 0.0
-    else if phase > (1.0 - step) {
-        let x = (phase - 1.0) / step;
-        res += 2.0 * x + x * x + 1.0;
-    }
-
-    // Store the phase for next iteration
-    state.phase = phase;
-
-    res as defs::Sample
 }
