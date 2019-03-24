@@ -1,32 +1,46 @@
 extern crate sample;
 
+use buffer::Buffer;
 use defs;
 use event::{Event, MidiEvent};
 use std::slice;
 
 
+/// Convert a u8 note number to a corresponding frequency,
+/// using 440 Hz as the pitch of the A above middle C.
+fn get_frequency(note: defs::Sample) -> defs::Sample {
+    440.0 * ((note - 69.0) / 12.0).exp2()
+}
+
 /// Internal state used by oscillator types.
 pub struct State {
-    note: u8,
+    frequency_current: defs::Sample,
     pitch_offset: defs::Sample, // Semitones
     pitch_bend: defs::Sample,   // Semitones
     pulse_width: defs::Sample,  // 0.001 <= pulse_width <= 0.999
     phase: defs::Sample,        // 0 <= phase <= 1
-    frequency: defs::Sample,
     sample_rate: defs::Sample,
+    frequency_buffer: Buffer,
 }
 
 impl State {
     pub fn new() -> State {
         State {
-            note: 69,
+            frequency_current: 0.0,
             pitch_offset: 0.0,
             pitch_bend: 0.0,
             pulse_width: 0.5,
             phase: 0.0,
-            frequency: 0.0,
             sample_rate: 0.0,
+            frequency_buffer: Buffer::new(),
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.frequency_current = 0.0;
+        self.phase = 0.0;
+        self.pitch_bend = 0.0;
+        self.sample_rate = 0.0;
     }
 
     pub fn set_pitch_bend(&mut self, value: u16, range: defs::Sample) {
@@ -37,49 +51,83 @@ impl State {
         self.pitch_bend = range * (value as defs::Sample - 8192.0) / 8192.0;
     }
 
-    /// Convert a u8 note number to a corresponding frequency,
-    /// using 440 Hz as the pitch of the A above middle C.
-    fn update_frequency(&mut self) {
-        self.frequency = 440.0 * ((self.note as defs::Sample + self.pitch_offset + self.pitch_bend - 69.0) / 12.0).exp2()
-    }
-
     /// Process any events and update the internal state accordingly.
     fn update(&mut self,
               midi_iter: slice::Iter<(usize, Event)>,
-              selected_note_iter: slice::Iter<(usize, Option<u8>)>,
-              sample_rate: defs::Sample)
+              mut selected_note_iter: slice::Iter<(usize, Option<u8>)>,
+              sample_rate: defs::Sample,
+              buffer_size: usize)
     {
-        // Iterate over any midi events and mutate the frequency accordingly
-        self.sample_rate = sample_rate;
-
-        // TODO: needs to account for times of events.
-        for (_frame_num, selected_note) in selected_note_iter {
-            match selected_note {
-                Some(note) => {
-                    self.note = *note;
-                    self.update_frequency();
-                },
-                None => (),
-            }
-        }
-
+        // Process MIDI events first.
+        // We only handle note/sound off events, and silence everything for this buffer
+        // if one is handled.
         for (_frame_num, event) in midi_iter {
             if let Event::Midi(midi_event) = event {
                 match midi_event {
-                    MidiEvent::PitchBend { value } => {
-                        self.set_pitch_bend(*value, 2.0);
-                        self.update_frequency();
-                    },
-
                     MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
-                        self.frequency = 0.0;
-                        self.phase = 0.0;
+                        // Reset state, silence buffers and don't process anything
+                        // further this buffer.
+                        self.reset();
+                        let frequency_buffer = self.frequency_buffer.get_sized_mut(buffer_size);
+                        for frame in frequency_buffer.iter_mut() {
+                            for sample in frame {
+                                *sample = 0.0;
+                            }
+                        }
+                        return
                     },
-
                     _ => (),
                 }
             }
         }
+
+        // Sample rate used by the generator functions
+        self.sample_rate = sample_rate;
+
+        // Calculate the frequencies per-frame
+        let frequency_buffer = self.frequency_buffer.get_sized_mut(buffer_size);
+        let mut frame_num_current: usize = 0;
+        let mut frequency_current: defs::Sample = self.frequency_current;
+        let mut frame_num_next: usize;
+        let mut frequency_next: defs::Sample = frequency_current;
+        loop {
+            // Get next selected note, if there is one.
+            match selected_note_iter.next() {
+                Some((frame_num, note_change)) => {
+                    // Ignore note-offs so that Release ADSR stages work as intended.
+                    match note_change {
+                        None => continue,
+                        Some(note) => {
+                            frame_num_next = *frame_num;
+                            frequency_next = get_frequency(*note as defs::Sample);
+                        },
+                    }
+                },
+                None => {
+                    // No more note change events.
+                    frame_num_next = buffer_size;
+                },
+            };
+
+            // Apply the current frequency up until the next change
+            if let Some(frequency_buffer_slice) = frequency_buffer.get_mut(frame_num_current..frame_num_next) {
+                for frequency_frame in frequency_buffer_slice {
+                    for frequency_sample in frequency_frame {
+                        *frequency_sample = frequency_current;
+                    }
+                }
+            }
+
+            // Exit condition: reached the end of the buffer.
+            if frame_num_next == buffer_size {
+                break
+            }
+
+            // Update the current frequency and frame num for next iteration.
+            frequency_current = frequency_next;
+            frame_num_current = frame_num_next;
+        }
+        self.frequency_current = frequency_current;
     }
 }
 
@@ -139,7 +187,7 @@ impl Oscillator {
                midi_iter: slice::Iter<(usize, Event)>,
                sample_rate: defs::Sample,
     ) {
-        self.state.update(midi_iter, selected_note_iter, sample_rate);
+        self.state.update(midi_iter, selected_note_iter, sample_rate, buffer.len());
 
         // Generate all the samples for this buffer
         (self.generator_func)(&mut self.state, buffer);
@@ -149,10 +197,12 @@ impl Oscillator {
 /// Generator function that produces a sine wave.
 fn sine_generator(state: &mut State, buffer: &mut defs::FrameBuffer)
 {
-    for frame in buffer.iter_mut() {
+    let frequency_buffer = state.frequency_buffer.get_sized_mut(buffer.len());
+
+    for (frame_num, frame) in buffer.iter_mut().enumerate() {
         // Advance phase
         // Enforce range 0.0 <= phase < 1.0
-        let step = state.frequency / state.sample_rate;
+        let step = frequency_buffer.get(frame_num).unwrap()[0] / state.sample_rate;
         let mut phase = state.phase + step;
         while phase >= 1.0 {
             phase -= 1.0;
@@ -169,10 +219,12 @@ fn sine_generator(state: &mut State, buffer: &mut defs::FrameBuffer)
 /// Uses PolyBLEP smoothing to reduce aliasing.
 fn pulse_generator(state: &mut State, buffer: &mut defs::FrameBuffer)
 {
-    for frame in buffer.iter_mut() {
+    let frequency_buffer = state.frequency_buffer.get_sized_mut(buffer.len());
+
+    for (frame_num, frame) in buffer.iter_mut().enumerate() {
         // Advance phase
         // Enforce range 0.0 <= phase < 1.0
-        let step = state.frequency / state.sample_rate;
+        let step = frequency_buffer.get(frame_num).unwrap()[0] / state.sample_rate;
         let mut phase = state.phase + step;
         while phase >= 1.0 {
             phase -= 1.0;
@@ -220,10 +272,12 @@ fn pulse_generator(state: &mut State, buffer: &mut defs::FrameBuffer)
 /// Uses PolyBLEP smoothing to reduce aliasing.
 fn sawtooth_generator(state: &mut State, buffer: &mut defs::FrameBuffer)
 {
-    for frame in buffer.iter_mut() {
+    let frequency_buffer = state.frequency_buffer.get_sized_mut(buffer.len());
+
+    for (frame_num, frame) in buffer.iter_mut().enumerate() {
         // Advance phase
         // Enforce range 0.0 <= phase < 1.0
-        let step = state.frequency / state.sample_rate;
+        let step = frequency_buffer.get(frame_num).unwrap()[0] / state.sample_rate;
         let mut phase = state.phase + step;
         while phase >= 1.0 {
             phase -= 1.0;
