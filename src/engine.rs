@@ -1,5 +1,5 @@
 
-use buffer::Buffer;
+use buffer::ResizableFrameBuffer;
 use defs;
 use event;
 use processor::{Adsr, Gain, Oscillator, LowPassFilter, MonoNoteSelector, Waveshaper};
@@ -11,7 +11,7 @@ pub struct Engine
     pub event_buffer: event::Buffer,
     pub note_selector: MonoNoteSelector,
     // Buffers
-    pub adsr_buffer: Buffer,
+    pub adsr_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     // DSP Units
     pub oscillator: Oscillator,
     pub adsr: Adsr,
@@ -28,7 +28,7 @@ impl Engine
             event_buffer: event::Buffer::new(),
             note_selector: MonoNoteSelector::new(),
             // Buffers
-            adsr_buffer: Buffer::new(),
+            adsr_buffer: ResizableFrameBuffer::new(),
             // DSP Units
             oscillator: Oscillator::new(),
             adsr: Adsr::new(),
@@ -95,7 +95,7 @@ impl Engine
     /// Buffer is a mutable slice of frames,
     /// where each frame is a slice containing a single sample.
     pub fn audio_requested(&mut self,
-                           main_buffer: &mut defs::FrameBuffer,
+                           main_buffer: &mut defs::MonoFrameBufferSlice,
                            raw_midi_iter: jack::MidiIter,
                            sample_rate: defs::Sample)
     {

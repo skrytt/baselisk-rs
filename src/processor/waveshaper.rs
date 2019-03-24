@@ -32,7 +32,7 @@ impl Waveshaper {
         Ok(())
     }
 
-    pub fn process_buffer(&mut self, output_buffer: &mut defs::FrameBuffer)
+    pub fn process_buffer(&mut self, output_buffer: &mut defs::MonoFrameBufferSlice)
     {
         slice::map_in_place(output_buffer, |output_frame| {
             output_frame.map(|output_sample| {

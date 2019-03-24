@@ -79,8 +79,8 @@ impl LowPassFilter
     }
 
     pub fn process_buffer(&mut self,
-                          adsr_input_buffer: &defs::FrameBuffer,
-                          output_buffer: &mut defs::FrameBuffer,
+                          adsr_input_buffer: &defs::MonoFrameBufferSlice,
+                          output_buffer: &mut defs::MonoFrameBufferSlice,
                           sample_rate: defs::Sample) {
         self.sample_rate = sample_rate;
 

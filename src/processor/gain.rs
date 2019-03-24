@@ -18,8 +18,8 @@ impl Gain
     }
 
     pub fn process_buffer(&mut self,
-                          adsr_input_buffer: &defs::FrameBuffer,
-                          output_buffer: &mut defs::FrameBuffer,
+                          adsr_input_buffer: &defs::MonoFrameBufferSlice,
+                          output_buffer: &mut defs::MonoFrameBufferSlice,
     )
     {
         // Iterate over two buffers at once using a zip method

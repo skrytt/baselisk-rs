@@ -1,12 +1,14 @@
 extern crate sample;
 
-use defs;
 use sample::Frame;
 
 /// Buffer: a container for a buffer needed for processing,
 /// and a means to manage its size.
-pub struct Buffer {
-    data: Vec<defs::Frame>,
+pub struct ResizableFrameBuffer<F>
+where
+    F: Frame,
+{
+    data: Vec<F>,
 }
 
 // If the frames per callback exceed this value,
@@ -26,9 +28,12 @@ where
     }
 }
 
-impl Buffer {
-    pub fn new() -> Buffer {
-        Buffer {
+impl<F> ResizableFrameBuffer<F>
+where
+    F: Frame,
+{
+    pub fn new() -> ResizableFrameBuffer<F> {
+        ResizableFrameBuffer {
             data: Vec::with_capacity(BUFFER_DEFAULT_CAPACITY),
         }
     }
@@ -43,7 +48,7 @@ impl Buffer {
 
     /// get_mut: Returns a mutable reference to a buffer of size expected_frames.
     /// The buffer will be resized if necessary.
-    pub fn get_sized_mut(&mut self, expected_frames: usize) -> &mut Vec<defs::Frame> {
+    pub fn get_sized_mut(&mut self, expected_frames: usize) -> &mut Vec<F> {
         self.ensure_size(expected_frames);
         &mut self.data
     }

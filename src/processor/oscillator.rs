@@ -1,6 +1,6 @@
 extern crate sample;
 
-use buffer::Buffer;
+use buffer::ResizableFrameBuffer;
 use defs;
 use event::{Event, MidiEvent};
 use std::slice;
@@ -20,7 +20,7 @@ pub struct State {
     pulse_width: defs::Sample,  // 0.001 <= pulse_width <= 0.999
     phase: defs::Sample,        // 0 <= phase <= 1
     sample_rate: defs::Sample,
-    frequency_buffer: Buffer,
+    frequency_buffer: ResizableFrameBuffer<defs::MonoFrame>,
 }
 
 impl State {
@@ -32,7 +32,7 @@ impl State {
             pulse_width: 0.5,
             phase: 0.0,
             sample_rate: 0.0,
-            frequency_buffer: Buffer::new(),
+            frequency_buffer: ResizableFrameBuffer::new(),
         }
     }
 
@@ -134,7 +134,7 @@ impl State {
 /// Oscillator type that will be used for audio processing.
 pub struct Oscillator {
     state: State,
-    generator_func: fn(&mut State, &mut defs::FrameBuffer),
+    generator_func: fn(&mut State, &mut defs::MonoFrameBufferSlice),
 }
 
 impl Oscillator {
@@ -182,7 +182,7 @@ impl Oscillator {
     }
 
     pub fn process_buffer(&mut self,
-               buffer: &mut defs::FrameBuffer,
+               buffer: &mut defs::MonoFrameBufferSlice,
                selected_note_iter: slice::Iter<(usize, Option<u8>)>,
                midi_iter: slice::Iter<(usize, Event)>,
                sample_rate: defs::Sample,
@@ -195,7 +195,7 @@ impl Oscillator {
 }
 
 /// Generator function that produces a sine wave.
-fn sine_generator(state: &mut State, buffer: &mut defs::FrameBuffer)
+fn sine_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
 {
     let frequency_buffer = state.frequency_buffer.get_sized_mut(buffer.len());
 
@@ -217,7 +217,7 @@ fn sine_generator(state: &mut State, buffer: &mut defs::FrameBuffer)
 
 /// Generator function that produces a pulse wave.
 /// Uses PolyBLEP smoothing to reduce aliasing.
-fn pulse_generator(state: &mut State, buffer: &mut defs::FrameBuffer)
+fn pulse_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
 {
     let frequency_buffer = state.frequency_buffer.get_sized_mut(buffer.len());
 
@@ -270,7 +270,7 @@ fn pulse_generator(state: &mut State, buffer: &mut defs::FrameBuffer)
 
 /// Generator function that produces a sawtooth wave.
 /// Uses PolyBLEP smoothing to reduce aliasing.
-fn sawtooth_generator(state: &mut State, buffer: &mut defs::FrameBuffer)
+fn sawtooth_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
 {
     let frequency_buffer = state.frequency_buffer.get_sized_mut(buffer.len());
 

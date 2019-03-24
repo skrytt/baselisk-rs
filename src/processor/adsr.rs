@@ -157,7 +157,7 @@ impl Adsr {
     }
 
     pub fn process_buffer(&mut self,
-                          buffer: &mut defs::FrameBuffer,
+                          buffer: &mut defs::MonoFrameBufferSlice,
                           selected_note_iter: slice::Iter<(usize, Option<u8>)>,
                           midi_iter: slice::Iter<(usize, Event)>,
                           sample_rate: defs::Sample)
