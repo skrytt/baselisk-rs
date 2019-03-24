@@ -1,5 +1,4 @@
 use defs;
-use event::{Event, MidiEvent};
 use std::slice;
 
 /// States that ADSR can be in
@@ -156,10 +155,15 @@ impl Adsr {
         }
     }
 
+    pub fn midi_panic(&mut self) {
+        // Release all notes and reset state to "Off"
+        self.state.notes_held_count = 0;
+        self.state.stage = AdsrStages::Off;
+    }
+
     pub fn process_buffer(&mut self,
                           buffer: &mut defs::MonoFrameBufferSlice,
                           selected_note_iter: slice::Iter<(usize, Option<u8>)>,
-                          midi_iter: slice::Iter<(usize, Event)>,
                           sample_rate: defs::Sample)
     {
         self.set_sample_rate(sample_rate);
@@ -173,22 +177,6 @@ impl Adsr {
         let any_notes_held: bool = selected_note.is_some();
         let current_note_changed: bool = selected_note != self.state.last_current_note;
         self.state.last_current_note = selected_note;
-
-        {
-            for (_frame_num, event) in midi_iter {
-                if let Event::Midi(midi_event) = event {
-                    match midi_event {
-                        MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
-                            // Release all notes and reset state to "Off"
-                            self.state.notes_held_count = 0;
-                            self.state.stage = AdsrStages::Off;
-                        },
-
-                        _ => (),
-                    }
-                }
-            }
-        }
         self.update_state(any_notes_held, current_note_changed);
 
         for frame in buffer.iter_mut() {

@@ -38,8 +38,8 @@ impl State {
 
     pub fn reset(&mut self) {
         self.frequency_current = 0.0;
-        self.phase = 0.0;
         self.pitch_bend = 0.0;
+        self.phase = 0.0;
         self.sample_rate = 0.0;
     }
 
@@ -145,6 +145,10 @@ impl Oscillator {
             state: State::new(),
             generator_func: sine_generator,
         }
+    }
+
+    pub fn midi_panic(&mut self) {
+        self.state.reset();
     }
 
     pub fn set_type(&mut self, type_name: &str) -> Result<(), &'static str>

@@ -2,6 +2,8 @@
 use buffer::ResizableFrameBuffer;
 use defs;
 use event;
+use event::Event;
+use event::midi::MidiEvent;
 use processor::{Adsr, Gain, Oscillator, LowPassFilter, MonoNoteSelector, Waveshaper};
 use sample::slice;
 
@@ -99,12 +101,29 @@ impl Engine
                            raw_midi_iter: jack::MidiIter,
                            sample_rate: defs::Sample)
     {
-        self.event_buffer.update_midi(raw_midi_iter);
-
-        let frames_this_buffer = main_buffer.len();
-
         // Zero the buffer
         slice::equilibrium(main_buffer);
+
+        self.event_buffer.update_midi(raw_midi_iter);
+        // Check for MIDI note/sound off events.
+        // If we find any, we'll tell all processors to reset state this callback
+        // instead of doing their regular work.
+        let mut midi_panic = false;
+        for (_frame_num, event) in self.event_buffer.iter_midi() {
+            if let Event::Midi(midi_event) = event {
+                match midi_event {
+                    MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
+                        midi_panic = true;
+                        break
+                    },
+                    _ => (),
+                }
+            }
+        }
+        if midi_panic {
+            self.handle_midi_panic();
+            return
+        }
 
         // Note Selector
         self.note_selector.update_note_changes_vec(
@@ -117,10 +136,10 @@ impl Engine
                                        sample_rate);
 
         // ADSR buffer for Gain and Filter (shared for now)
+        let frames_this_buffer = main_buffer.len();
         let adsr_buffer = self.adsr_buffer.get_sized_mut(frames_this_buffer);
         self.adsr.process_buffer(adsr_buffer,
                                  self.note_selector.iter_note_changes(),
-                                 self.event_buffer.iter_midi(),
                                  sample_rate);
 
         // Gain
@@ -135,5 +154,12 @@ impl Engine
         // Waveshaper
         self.waveshaper.process_buffer(main_buffer);
 
+    }
+
+    fn handle_midi_panic(&mut self) {
+        self.note_selector.midi_panic();
+        self.oscillator.midi_panic();
+        self.adsr.midi_panic();
+        self.low_pass_filter.midi_panic();
     }
 }

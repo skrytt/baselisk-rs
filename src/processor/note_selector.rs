@@ -24,6 +24,18 @@ impl MonoNoteSelector {
         }
     }
 
+    pub fn midi_panic(&mut self) {
+        // Small optimization: if no notes are on, there's nothing to do.
+        if let Some(_) = self.note_selected {
+            for mut note in self.notes_held.iter_mut() {
+                *note = false;
+            }
+            self.note_priority_stack.clear();
+            self.note_selected = None;
+            self.note_changes_vec.clear();
+        }
+    }
+
     /// Return an iterator of note changes from this callback
     /// based on the provided iterator of midi events.
     pub fn update_note_changes_vec(&mut self,
@@ -39,9 +51,6 @@ impl MonoNoteSelector {
                     }
                     MidiEvent::NoteOff { note } => {
                         self.note_off(*note)
-                    }
-                    MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
-                        self.all_notes_off()
                     }
                     _ => None,
                 };
@@ -109,23 +118,6 @@ impl MonoNoteSelector {
                 // Indicate that the note held changed.
                 return Some(self.note_selected)
             }
-        }
-        None
-    }
-
-    /// Return Some(Option<u8>) if the note changed as a result of this event.
-    /// Otherwise, return None.
-    fn all_notes_off(&mut self) -> Option<Option<u8>> {
-        // Small optimization: if no notes are on, there's nothing to do.
-        if let Some(_) = self.note_selected {
-            for mut note in self.notes_held.iter_mut() {
-                *note = false;
-            }
-            self.note_priority_stack.clear();
-            self.note_selected = None;
-
-            // Indicate that the note held changed, and now no note is held.
-            return Some(None);
         }
         None
     }

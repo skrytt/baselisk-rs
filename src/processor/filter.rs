@@ -58,6 +58,18 @@ impl LowPassFilter
         result
     }
 
+    pub fn midi_panic(&mut self) {
+        // Prepopulate the buffers
+        for _ in 1..=3 {
+            self.ringbuffer_input.pop_back().unwrap();
+            self.ringbuffer_input.push_front(0.0).unwrap();
+        }
+        for _ in 1..=2 {
+            self.ringbuffer_output.pop_back().unwrap();
+            self.ringbuffer_output.push_front(0.0).unwrap();
+        }
+    }
+
     /// Set frequency (Hz) for this filter.
     /// Note: frequency will always be limited to the Nyquist frequency,
     /// a function of the sample rate, even if this parameter is higher.
