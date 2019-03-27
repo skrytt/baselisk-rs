@@ -6,7 +6,7 @@ use cli::tree::{
     Node as Node,
 };
 use cli::completer::Cli as Cli;
-use event::{Event, PatchEvent};
+use event::PatchEvent;
 use std::str::{FromStr, SplitWhitespace};
 use std::sync::mpsc;
 
@@ -40,7 +40,7 @@ fn build_tree() -> Tree
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(type_name) => type_name,
                 };
-                Ok(Event::Patch(PatchEvent::OscillatorTypeSet{ type_name }))
+                Ok(PatchEvent::OscillatorTypeSet{ type_name })
             }
         ));
 
@@ -51,7 +51,7 @@ fn build_tree() -> Tree
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
                 };
-                Ok(Event::Patch(PatchEvent::OscillatorPitchSet{ semitones }))
+                Ok(PatchEvent::OscillatorPitchSet{ semitones })
             }
         ));
 
@@ -62,7 +62,7 @@ fn build_tree() -> Tree
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
                 };
-                Ok(Event::Patch(PatchEvent::OscillatorPulseWidthSet{ width }))
+                Ok(PatchEvent::OscillatorPulseWidthSet{ width })
             }
         ));
     }
@@ -76,7 +76,7 @@ fn build_tree() -> Tree
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
                 };
-                Ok(Event::Patch(PatchEvent::AdsrAttackSet{ duration }))
+                Ok(PatchEvent::AdsrAttackSet{ duration })
             }
         ));
 
@@ -87,7 +87,7 @@ fn build_tree() -> Tree
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
                 };
-                Ok(Event::Patch(PatchEvent::AdsrDecaySet{ duration }))
+                Ok(PatchEvent::AdsrDecaySet{ duration })
             }
         ));
 
@@ -98,7 +98,7 @@ fn build_tree() -> Tree
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
                 };
-                Ok(Event::Patch(PatchEvent::AdsrSustainSet{ level }))
+                Ok(PatchEvent::AdsrSustainSet{ level })
             }
         ));
 
@@ -109,7 +109,7 @@ fn build_tree() -> Tree
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
                 };
-                Ok(Event::Patch(PatchEvent::AdsrReleaseSet{ duration }))
+                Ok(PatchEvent::AdsrReleaseSet{ duration })
             }
         ));
 
@@ -124,7 +124,7 @@ fn build_tree() -> Tree
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
                 };
-                Ok(Event::Patch(PatchEvent::FilterFrequencySet{ hz }))
+                Ok(PatchEvent::FilterFrequencySet{ hz })
             }
         ));
 
@@ -135,7 +135,7 @@ fn build_tree() -> Tree
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
                 };
-                Ok(Event::Patch(PatchEvent::FilterQualitySet{ q }))
+                Ok(PatchEvent::FilterQualitySet{ q })
             }
         ));
     }
@@ -149,7 +149,7 @@ fn build_tree() -> Tree
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
                 };
-                Ok(Event::Patch(PatchEvent::WaveshaperInputGainSet{ gain }))
+                Ok(PatchEvent::WaveshaperInputGainSet{ gain })
             }
         ));
 
@@ -160,14 +160,14 @@ fn build_tree() -> Tree
                     Err(_) => return Err(String::from(usage_str)),
                     Ok(value) => value,
                 };
-                Ok(Event::Patch(PatchEvent::WaveshaperOutputGainSet{ gain }))
+                Ok(PatchEvent::WaveshaperOutputGainSet{ gain })
             }
         ));
     }
     Tree::new(root)
 }
 
-pub fn new(tx: mpsc::SyncSender<Event>,
+pub fn new(tx: mpsc::SyncSender<PatchEvent>,
            rx: mpsc::Receiver<Result<(), &'static str>>,
     ) -> Cli {
     Cli::new(build_tree(), tx, rx)

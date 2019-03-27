@@ -1,5 +1,5 @@
 
-use event::{Event, MidiEvent};
+use event::MidiEvent;
 use std::slice;
 
 // Number of note changes we can buffer per callback.
@@ -39,33 +39,31 @@ impl MonoNoteSelector {
     /// Return an iterator of note changes from this callback
     /// based on the provided iterator of midi events.
     pub fn update_note_changes_vec(&mut self,
-                                   midi_iter: slice::Iter<(usize, Event)>)
+                                   midi_iter: slice::Iter<(usize, MidiEvent)>)
     {
         self.note_changes_vec.clear();
 
-        for (frame_num, event) in midi_iter {
-            if let Event::Midi(midi_event) = event {
-                let note_change = match midi_event {
-                    MidiEvent::NoteOn { note, .. } => {
-                        self.note_on(*note)
-                    }
-                    MidiEvent::NoteOff { note } => {
-                        self.note_off(*note)
-                    }
-                    _ => None,
-                };
-
-                // note_change is an Option<Option<u8>> indicating whether the note changed as a
-                // result of the MIDI event.
-                if let Some(note_selected) = note_change {
-                    // note_selected is an Option<u8> indicating the Some(note) if there is a note,
-                    // or otherwise, None.
-                    self.note_changes_vec.push((*frame_num, note_selected));
-                    if self.note_changes_vec.len() == self.note_changes_vec.capacity() {
-                        // Buffer full - drop further MIDI events.
-                        break
-                    };
+        for (frame_num, midi_event) in midi_iter {
+            let note_change = match midi_event {
+                MidiEvent::NoteOn { note, .. } => {
+                    self.note_on(*note)
                 }
+                MidiEvent::NoteOff { note } => {
+                    self.note_off(*note)
+                }
+                _ => None,
+            };
+
+            // note_change is an Option<Option<u8>> indicating whether the note changed as a
+            // result of the MIDI event.
+            if let Some(note_selected) = note_change {
+                // note_selected is an Option<u8> indicating the Some(note) if there is a note,
+                // or otherwise, None.
+                self.note_changes_vec.push((*frame_num, note_selected));
+                if self.note_changes_vec.len() == self.note_changes_vec.capacity() {
+                    // Buffer full - drop further MIDI events.
+                    break
+                };
             }
         }
     }

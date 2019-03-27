@@ -1,6 +1,4 @@
 use defs;
-use event::Event;
-use event::midi;
 use jack;
 use std::slice::Iter;
 
@@ -45,7 +43,7 @@ impl MidiEvent {
     /// If the event is recognised, return Some((usize, Event)).
     /// Otherwise, return None.
     pub fn parse(raw_event: jack::RawMidi,
-                 filter_by_channel: Option<u8>) -> Option<(usize, Event)> {
+                 filter_by_channel: Option<u8>) -> Option<(usize, MidiEvent)> {
         let time = raw_event.time as usize;
 
         let status = raw_event.bytes[0];
@@ -64,84 +62,84 @@ impl MidiEvent {
         }
 
         match status_category {
-            0x80 => Some((time, Event::Midi(MidiEvent::NoteOff {
+            0x80 => Some((time, MidiEvent::NoteOff {
                 note: data1,
-            }))),
+            })),
             0x90 => {
                 // Often MIDI devices send a Note On with velocity == 0 to indicate
                 // a Note Off event. Handle that here.
                 let velocity = data2;
                 match velocity {
-                    0 => Some((time, Event::Midi(MidiEvent::NoteOff {
+                    0 => Some((time, MidiEvent::NoteOff {
                         note: data1,
-                    }))),
-                    _ => Some((time, Event::Midi(MidiEvent::NoteOn {
+                    })),
+                    _ => Some((time, MidiEvent::NoteOn {
                         note: data1,
                         velocity: data2,
-                    }))),
+                    })),
                 }
             },
-            0xA0 => Some((time, Event::Midi(MidiEvent::PolyphonicAftertouch {
+            0xA0 => Some((time, MidiEvent::PolyphonicAftertouch {
                 note: data1,
                 pressure: data2,
-            }))),
+            })),
             0xB0 => {
                 match data1 {
-                    0..=119 => Some((time, Event::Midi(MidiEvent::ControlChange {
+                    0..=119 => Some((time, MidiEvent::ControlChange {
                         controller: data1,
                         value: data2,
-                    }))),
-                    120 => Some((time, Event::Midi(MidiEvent::AllSoundOff))),
-                    121 => Some((time, Event::Midi(MidiEvent::ResetAllControllers))),
+                    })),
+                    120 => Some((time, MidiEvent::AllSoundOff)),
+                    121 => Some((time, MidiEvent::ResetAllControllers)),
                     122 => {
                         match data2 {
-                            0 => Some((time, Event::Midi(MidiEvent::LocalControlOff))),
-                            127 => Some((time, Event::Midi(MidiEvent::LocalControlOn))),
+                            0 => Some((time, MidiEvent::LocalControlOff)),
+                            127 => Some((time, MidiEvent::LocalControlOn)),
                             _ => None, // Undefined
                         }
                     }
-                    123 => Some((time, Event::Midi(MidiEvent::AllNotesOff))),
-                    124 => Some((time, Event::Midi(MidiEvent::OmniModeOff))),
-                    125 => Some((time, Event::Midi(MidiEvent::OmniModeOn))),
-                    126 => Some((time, Event::Midi(MidiEvent::MonoModeOn))),
-                    127 => Some((time, Event::Midi(MidiEvent::PolyModeOn))),
+                    123 => Some((time, MidiEvent::AllNotesOff)),
+                    124 => Some((time, MidiEvent::OmniModeOff)),
+                    125 => Some((time, MidiEvent::OmniModeOn)),
+                    126 => Some((time, MidiEvent::MonoModeOn)),
+                    127 => Some((time, MidiEvent::PolyModeOn)),
                     _ => None, // Undefined
                 }
             },
-            0xC0 => Some((time, Event::Midi(MidiEvent::ProgramChange {
+            0xC0 => Some((time, MidiEvent::ProgramChange {
                 program: data1,
-            }))),
-            0xD0 => Some((time, Event::Midi(MidiEvent::ChannelPressure {
+            })),
+            0xD0 => Some((time, MidiEvent::ChannelPressure {
                 pressure: data1,
-            }))),
-            0xE0 => Some((time, Event::Midi(MidiEvent::PitchBend {
+            })),
+            0xE0 => Some((time, MidiEvent::PitchBend {
                 value: ((data2 as u16) << 7) + (data1 as u16),
-            }))),
+            })),
             0xF0 => {
                 // System message. Consider the second four bits
                 match status & 0x0F {
-                    0x00 => Some((time, Event::Midi(MidiEvent::SystemExclusive {
+                    0x00 => Some((time, MidiEvent::SystemExclusive {
                         data1: data1,
                         data2: data2,
-                    }))),
-                    0x01 => Some((time, Event::Midi(MidiEvent::TimeCodeQuarterFrame {
+                    })),
+                    0x01 => Some((time, MidiEvent::TimeCodeQuarterFrame {
                         message_type: data1 >> 4,
                         values: data1 & 0x0F,
-                    }))),
-                    0x02 => Some((time, Event::Midi(MidiEvent::SongPositionPointer {
+                    })),
+                    0x02 => Some((time, MidiEvent::SongPositionPointer {
                         beats: ((data2 as u16) << 7) + (data1 as u16),
-                    }))),
-                    0x03 => Some((time, Event::Midi(MidiEvent::SongSelect {
+                    })),
+                    0x03 => Some((time, MidiEvent::SongSelect {
                         value: data1,
-                    }))),
-                    0x06 => Some((time, Event::Midi(MidiEvent::TuneRequest))),
-                    0x07 => Some((time, Event::Midi(MidiEvent::EndOfExclusive))),
-                    0x08 => Some((time, Event::Midi(MidiEvent::TimingClock))),
-                    0x10 => Some((time, Event::Midi(MidiEvent::Start))),
-                    0x11 => Some((time, Event::Midi(MidiEvent::Continue))),
-                    0x12 => Some((time, Event::Midi(MidiEvent::Stop))),
-                    0x14 => Some((time, Event::Midi(MidiEvent::ActiveSensing))),
-                    0x15 => Some((time, Event::Midi(MidiEvent::Reset))),
+                    })),
+                    0x06 => Some((time, MidiEvent::TuneRequest)),
+                    0x07 => Some((time, MidiEvent::EndOfExclusive)),
+                    0x08 => Some((time, MidiEvent::TimingClock)),
+                    0x10 => Some((time, MidiEvent::Start)),
+                    0x11 => Some((time, MidiEvent::Continue)),
+                    0x12 => Some((time, MidiEvent::Stop)),
+                    0x14 => Some((time, MidiEvent::ActiveSensing)),
+                    0x15 => Some((time, MidiEvent::Reset)),
                     _ => None,
                 }
             },
@@ -150,33 +148,31 @@ impl MidiEvent {
     }
 }
 /// Buffer will contain midi events received in the last block.
-pub struct InputBuffer {
-    events: Vec<(usize, Event)>,
+pub struct MidiBuffer {
+    events: Vec<(usize, MidiEvent)>,
 }
 
-impl InputBuffer {
+impl MidiBuffer {
     /// Create a new buffer for receiving MIDI from one input device.
-    pub fn new() -> InputBuffer {
-        // Code based on "monitor-all" example of portmidi crate
-        InputBuffer {
-            events: Vec::<(usize, Event)>::with_capacity(defs::MIDI_BUF_LEN),
+    pub fn new() -> MidiBuffer {
+        MidiBuffer {
+            events: Vec::<(usize, MidiEvent)>::with_capacity(defs::MIDI_BUF_LEN),
         }
     }
 
     /// Fill the buffer with MIDI events since the last buffer update.
     pub fn update(&mut self, raw_midi_iter: jack::MidiIter) {
-        // First, clear any old MIDI events.
         self.events.clear();
 
         for raw_midi_event in raw_midi_iter {
-            if let Some(event) = midi::MidiEvent::parse(raw_midi_event, None) {
+            if let Some(event) = MidiEvent::parse(raw_midi_event, None) {
                 self.events.push(event);
             }
         }
     }
 
     /// Get an iterator over the MIDI events in the buffer.
-    pub fn iter(&self) -> Iter<(usize, Event)> {
+    pub fn iter(&self) -> Iter<(usize, MidiEvent)> {
         self.events.iter()
     }
 }

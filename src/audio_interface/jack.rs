@@ -2,7 +2,7 @@ extern crate jack;
 
 use defs;
 use engine;
-use event::Event;
+use event::PatchEvent;
 use sample::ToFrameSliceMut;
 use std::sync::{Arc, RwLock, mpsc};
 
@@ -12,7 +12,7 @@ pub fn connect_and_run<F>(engine: &mut Arc<RwLock<engine::Engine>>,
                           mut f: F) -> Result<(), &'static str>
 where
     F: FnMut(
-        mpsc::SyncSender<Event>,
+        mpsc::SyncSender<PatchEvent>,
         mpsc::Receiver<Result<(), &'static str>>,
     ),
 {

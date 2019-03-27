@@ -10,7 +10,7 @@ use rustyline::hint::Hinter;
 use rustyline::{Cmd, CompletionType, Config, EditMode, Editor, Helper, KeyPress};
 
 use cli::tree::Tree;
-use event::Event;
+use event::PatchEvent;
 use std::sync::mpsc;
 
 static BREAK_CHARS: [u8; 1] = [b' '];
@@ -73,13 +73,13 @@ impl Helper for CliHelper {}
 
 pub struct Cli {
     rl: Editor<CliHelper>,
-    tx: mpsc::SyncSender<Event>,
+    tx: mpsc::SyncSender<PatchEvent>,
     rx: mpsc::Receiver<Result<(), &'static str>>,
 }
 
 impl Cli {
     pub fn new(tree: Tree,
-               tx: mpsc::SyncSender<Event>,
+               tx: mpsc::SyncSender<PatchEvent>,
                rx: mpsc::Receiver<Result<(), &'static str>>,
     ) -> Cli {
         let config = Config::builder()

@@ -1,16 +1,14 @@
 
 use buffer::ResizableFrameBuffer;
 use defs;
-use event;
-use event::Event;
-use event::midi::MidiEvent;
+use event::{MidiBuffer, MidiEvent, PatchEvent};
 use processor::{Adsr, Gain, Oscillator, LowPassFilter, MonoNoteSelector, Waveshaper};
 use sample::slice;
 
 pub struct Engine
 {
     // Misc
-    pub event_buffer: event::Buffer,
+    pub midi_buffer: MidiBuffer,
     pub note_selector: MonoNoteSelector,
     // Buffers
     pub adsr_buffer: ResizableFrameBuffer<defs::MonoFrame>,
@@ -27,7 +25,7 @@ impl Engine
     pub fn new() -> Engine {
         Engine{
             // Misc
-            event_buffer: event::Buffer::new(),
+            midi_buffer: MidiBuffer::new(),
             note_selector: MonoNoteSelector::new(),
             // Buffers
             adsr_buffer: ResizableFrameBuffer::new(),
@@ -41,55 +39,53 @@ impl Engine
     }
 
     pub fn apply_patch_events(&mut self,
-                              rx: &std::sync::mpsc::Receiver<event::Event>,
+                              rx: &std::sync::mpsc::Receiver<PatchEvent>,
                               tx: &std::sync::mpsc::SyncSender<Result<(), &'static str>>,
     )
     {
         // Handle patch events but don't block if none are available.
         // Where view updates are required, send events back
         // to the main thread to indicate success or failure.
-        while let Ok(event) = rx.try_recv() {
-            if let event::Event::Patch(event) = event {
-                let result: Result<(), &'static str> = match event {
+        while let Ok(patch_event) = rx.try_recv() {
+            let result: Result<(), &'static str> = match patch_event {
 
-                    event::PatchEvent::OscillatorTypeSet { type_name } => {
-                        self.oscillator.set_type(&type_name)
-                    },
-                    event::PatchEvent::OscillatorPitchSet { semitones } => {
-                        self.oscillator.set_pitch(semitones)
-                    },
-                    event::PatchEvent::OscillatorPulseWidthSet { width } => {
-                        self.oscillator.set_pulse_width(width)
-                    },
-                    event::PatchEvent::FilterFrequencySet { hz } => {
-                        self.low_pass_filter.set_frequency(hz)
-                    },
-                    event::PatchEvent::FilterQualitySet { q } => {
-                        self.low_pass_filter.set_quality(q)
-                    },
-                    event::PatchEvent::AdsrAttackSet { duration } => {
-                        self.adsr.set_attack(duration)
-                    },
-                    event::PatchEvent::AdsrDecaySet { duration } => {
-                        self.adsr.set_decay(duration)
-                    },
-                    event::PatchEvent::AdsrSustainSet { level } => {
-                        self.adsr.set_sustain(level)
-                    },
-                    event::PatchEvent::AdsrReleaseSet { duration } => {
-                        self.adsr.set_release(duration)
-                    },
-                    event::PatchEvent::WaveshaperInputGainSet { gain } => {
-                        self.waveshaper.set_input_gain(gain)
-                    },
-                    event::PatchEvent::WaveshaperOutputGainSet { gain } => {
-                        self.waveshaper.set_output_gain(gain)
-                    },
-                };
-                // TODO: either fix this, or refactor it out
-                tx.send(result)
-                    .expect("Failed to send response to main thread");
-            }
+                PatchEvent::OscillatorTypeSet { type_name } => {
+                    self.oscillator.set_type(&type_name)
+                },
+                PatchEvent::OscillatorPitchSet { semitones } => {
+                    self.oscillator.set_pitch(semitones)
+                },
+                PatchEvent::OscillatorPulseWidthSet { width } => {
+                    self.oscillator.set_pulse_width(width)
+                },
+                PatchEvent::FilterFrequencySet { hz } => {
+                    self.low_pass_filter.set_frequency(hz)
+                },
+                PatchEvent::FilterQualitySet { q } => {
+                    self.low_pass_filter.set_quality(q)
+                },
+                PatchEvent::AdsrAttackSet { duration } => {
+                    self.adsr.set_attack(duration)
+                },
+                PatchEvent::AdsrDecaySet { duration } => {
+                    self.adsr.set_decay(duration)
+                },
+                PatchEvent::AdsrSustainSet { level } => {
+                    self.adsr.set_sustain(level)
+                },
+                PatchEvent::AdsrReleaseSet { duration } => {
+                    self.adsr.set_release(duration)
+                },
+                PatchEvent::WaveshaperInputGainSet { gain } => {
+                    self.waveshaper.set_input_gain(gain)
+                },
+                PatchEvent::WaveshaperOutputGainSet { gain } => {
+                    self.waveshaper.set_output_gain(gain)
+                },
+            };
+            // TODO: either fix this, or refactor it out
+            tx.send(result)
+                .expect("Failed to send response to main thread");
         }
     }
 
@@ -104,20 +100,18 @@ impl Engine
         // Zero the buffer
         slice::equilibrium(main_buffer);
 
-        self.event_buffer.update_midi(raw_midi_iter);
+        self.midi_buffer.update(raw_midi_iter);
         // Check for MIDI note/sound off events.
         // If we find any, we'll tell all processors to reset state this callback
         // instead of doing their regular work.
         let mut midi_panic = false;
-        for (_frame_num, event) in self.event_buffer.iter_midi() {
-            if let Event::Midi(midi_event) = event {
-                match midi_event {
-                    MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
-                        midi_panic = true;
-                        break
-                    },
-                    _ => (),
-                }
+        for (_frame_num, midi_event) in self.midi_buffer.iter() {
+            match midi_event {
+                MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
+                    midi_panic = true;
+                    break
+                },
+                _ => (),
             }
         }
         if midi_panic {
@@ -127,12 +121,12 @@ impl Engine
 
         // Note Selector
         self.note_selector.update_note_changes_vec(
-            self.event_buffer.iter_midi());
+            self.midi_buffer.iter());
 
         // Oscillator
         self.oscillator.process_buffer(main_buffer,
                                        self.note_selector.iter_note_changes(),
-                                       self.event_buffer.iter_midi(),
+                                       self.midi_buffer.iter(),
                                        sample_rate);
 
         // ADSR buffer for Gain and Filter (shared for now)

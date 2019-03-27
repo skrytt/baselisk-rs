@@ -1,5 +1,5 @@
 
-use event::Event;
+use event::PatchEvent;
 use std::collections::HashMap;
 use std::str::SplitWhitespace;
 use std::sync::mpsc;
@@ -8,7 +8,7 @@ use std::sync::mpsc;
 pub enum Node
 {
     WithChildren(HashMap<String, Node>),
-    DispatchEvent(fn(&mut SplitWhitespace) -> Result<Event, String>),
+    DispatchEvent(fn(&mut SplitWhitespace) -> Result<PatchEvent, String>),
 }
 
 impl Node {
@@ -19,7 +19,7 @@ impl Node {
 
     /// Build a new node with a function to process
     /// any remaining tokens and return an event
-    pub fn new_dispatch_event(f: fn(&mut SplitWhitespace) -> Result<Event, String>) -> Node
+    pub fn new_dispatch_event(f: fn(&mut SplitWhitespace) -> Result<PatchEvent, String>) -> Node
     {
         Node::DispatchEvent(f)
     }
@@ -91,7 +91,7 @@ impl Tree {
 
     pub fn execute_command(&self,
                            line: String,
-                           tx: &mpsc::SyncSender<Event>,
+                           tx: &mpsc::SyncSender<PatchEvent>,
                            rx: &mpsc::Receiver<Result<(), &'static str>>,
     ) {
         let mut tokens = line.trim().split_whitespace();

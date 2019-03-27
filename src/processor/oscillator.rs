@@ -2,7 +2,7 @@ extern crate sample;
 
 use buffer::ResizableFrameBuffer;
 use defs;
-use event::{Event, MidiEvent};
+use event::MidiEvent;
 use std::slice;
 
 
@@ -53,7 +53,7 @@ impl State {
 
     /// Process any events and update the internal state accordingly.
     fn update(&mut self,
-              midi_iter: slice::Iter<(usize, Event)>,
+              midi_iter: slice::Iter<(usize, MidiEvent)>,
               mut selected_note_iter: slice::Iter<(usize, Option<u8>)>,
               sample_rate: defs::Sample,
               buffer_size: usize)
@@ -61,23 +61,21 @@ impl State {
         // Process MIDI events first.
         // We only handle note/sound off events, and silence everything for this buffer
         // if one is handled.
-        for (_frame_num, event) in midi_iter {
-            if let Event::Midi(midi_event) = event {
-                match midi_event {
-                    MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
-                        // Reset state, silence buffers and don't process anything
-                        // further this buffer.
-                        self.reset();
-                        let frequency_buffer = self.frequency_buffer.get_sized_mut(buffer_size);
-                        for frame in frequency_buffer.iter_mut() {
-                            for sample in frame {
-                                *sample = 0.0;
-                            }
+        for (_frame_num, midi_event) in midi_iter {
+            match midi_event {
+                MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
+                    // Reset state, silence buffers and don't process anything
+                    // further this buffer.
+                    self.reset();
+                    let frequency_buffer = self.frequency_buffer.get_sized_mut(buffer_size);
+                    for frame in frequency_buffer.iter_mut() {
+                        for sample in frame {
+                            *sample = 0.0;
                         }
-                        return
-                    },
-                    _ => (),
-                }
+                    }
+                    return
+                },
+                _ => (),
             }
         }
 
@@ -188,7 +186,7 @@ impl Oscillator {
     pub fn process_buffer(&mut self,
                buffer: &mut defs::MonoFrameBufferSlice,
                selected_note_iter: slice::Iter<(usize, Option<u8>)>,
-               midi_iter: slice::Iter<(usize, Event)>,
+               midi_iter: slice::Iter<(usize, MidiEvent)>,
                sample_rate: defs::Sample,
     ) {
         self.state.update(midi_iter, selected_note_iter, sample_rate, buffer.len());
