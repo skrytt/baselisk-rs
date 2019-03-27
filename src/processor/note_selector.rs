@@ -30,15 +30,15 @@ impl MonoNoteSelector {
 
     /// Return an Option<EngineEvent> representing a possible engine event
     /// based on the provided MIDI event.
-    pub fn process_event(&mut self, midi_event: MidiEvent) -> Option<EngineEvent> {
+    pub fn process_event(&mut self, midi_event: &MidiEvent) -> Option<EngineEvent> {
         // result is an Option<Option<u8>> indicating whether the note changed as a
         // result of the MIDI event.
         let result = match midi_event {
             MidiEvent::NoteOn { note, .. } => {
-                self.note_on(note)
+                self.note_on(*note)
             }
             MidiEvent::NoteOff { note } => {
-                self.note_off(note)
+                self.note_off(*note)
             }
             _ => None,
         };

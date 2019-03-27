@@ -2,7 +2,7 @@
 use buffer::ResizableFrameBuffer;
 use defs;
 use event::{EngineEvent, MidiEvent, PatchEvent};
-use processor::{Adsr, Gain, Oscillator, LowPassFilter, MonoNoteSelector, Waveshaper};
+use processor::{Adsr, Gain, Oscillator, LowPassFilter, MonoNoteSelector, PitchBend, Waveshaper};
 use sample::slice;
 
 pub struct Engine
@@ -10,6 +10,7 @@ pub struct Engine
     // Misc
     pub engine_event_buffer: Vec<(usize, EngineEvent)>,
     pub note_selector: MonoNoteSelector,
+    pub pitch_bend: PitchBend,
     // Buffers
     pub adsr_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     // DSP Units
@@ -27,6 +28,7 @@ impl Engine
             // Misc
             engine_event_buffer: Vec::with_capacity(defs::ENGINE_EVENT_BUF_LEN),
             note_selector: MonoNoteSelector::new(),
+            pitch_bend: PitchBend::new(),
             // Buffers
             adsr_buffer: ResizableFrameBuffer::new(),
             // DSP Units
@@ -112,7 +114,10 @@ impl Engine
                     },
                     _ => (),
                 }
-                if let Some(engine_event) = self.note_selector.process_event(midi_event) {
+                if let Some(engine_event) = self.note_selector.process_event(&midi_event) {
+                    self.engine_event_buffer.push((frame_num, engine_event));
+                }
+                if let Some(engine_event) = self.pitch_bend.process_event(&midi_event) {
                     self.engine_event_buffer.push((frame_num, engine_event));
                 }
             }

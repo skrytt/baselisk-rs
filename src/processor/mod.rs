@@ -5,6 +5,7 @@ pub mod gain;
 pub mod oscillator;
 pub mod filter;
 pub mod note_selector;
+pub mod pitch_bend;
 pub mod waveshaper;
 
 pub use processor::{
@@ -13,5 +14,6 @@ pub use processor::{
     oscillator::Oscillator as Oscillator,
     filter::LowPassFilter as LowPassFilter,
     note_selector::MonoNoteSelector as MonoNoteSelector,
+    pitch_bend::PitchBend as PitchBend,
     waveshaper::Waveshaper as Waveshaper,
 };

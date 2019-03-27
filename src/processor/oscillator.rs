@@ -43,14 +43,6 @@ impl State {
         self.sample_rate = 0.0;
     }
 
-    pub fn set_pitch_bend(&mut self, value: u16, range: defs::Sample) {
-        // Value is 14-bit (range 0 <= value <= 16383)
-        // 0 => -2
-        // 8192 => 0
-        // 16383 => ~= +2
-        self.pitch_bend = range * (value as defs::Sample - 8192.0) / 8192.0;
-    }
-
     /// Process any events and update the internal state accordingly.
     fn update(&mut self,
               mut engine_event_iter: slice::Iter<(usize, EngineEvent)>,
@@ -78,6 +70,7 @@ impl State {
                             },
                             None => continue,
                         },
+                        _ => continue,
                     }
                 },
                 None => {

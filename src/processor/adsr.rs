@@ -173,8 +173,9 @@ impl Adsr {
 
         // TODO: needs to account for times of events.
         for (_frame_num, engine_event) in engine_event_iter {
-            let EngineEvent::NoteChange{ note } = engine_event;
-            selected_note = *note;
+            if let EngineEvent::NoteChange{ note } = engine_event {
+                selected_note = *note;
+            }
         }
 
         let any_notes_held: bool = selected_note.is_some();
