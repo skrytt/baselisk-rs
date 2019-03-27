@@ -1,5 +1,5 @@
 
-use event::MidiEvent;
+use event::{EngineEvent, MidiEvent};
 
 /// A note selector with high-note-priority selection.
 pub struct MonoNoteSelector {
@@ -28,12 +28,12 @@ impl MonoNoteSelector {
         }
     }
 
-    /// Return an iterator of note changes from this callback
-    /// based on the provided iterator of midi events.
-    pub fn process_event(&mut self, midi_event: MidiEvent) -> Option<Option<u8>> {
+    /// Return an Option<EngineEvent> representing a possible engine event
+    /// based on the provided MIDI event.
+    pub fn process_event(&mut self, midi_event: MidiEvent) -> Option<EngineEvent> {
         // result is an Option<Option<u8>> indicating whether the note changed as a
         // result of the MIDI event.
-        match midi_event {
+        let result = match midi_event {
             MidiEvent::NoteOn { note, .. } => {
                 self.note_on(note)
             }
@@ -41,6 +41,10 @@ impl MonoNoteSelector {
                 self.note_off(note)
             }
             _ => None,
+        };
+        match result {
+            Some(note_change) => Some(EngineEvent::NoteChange{ note: note_change }),
+            None => None,
         }
     }
 

@@ -112,12 +112,8 @@ impl Engine
                     },
                     _ => (),
                 }
-                // Try to convert this to an EngineEvent.
-                if let Some(note_change) = self.note_selector.process_event(midi_event) {
-                    self.engine_event_buffer.push((
-                            frame_num,
-                            EngineEvent::NoteChange { note: note_change },
-                    ));
+                if let Some(engine_event) = self.note_selector.process_event(midi_event) {
+                    self.engine_event_buffer.push((frame_num, engine_event));
                 }
             }
         }
