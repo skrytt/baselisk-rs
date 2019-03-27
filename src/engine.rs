@@ -1,14 +1,14 @@
 
 use buffer::ResizableFrameBuffer;
 use defs;
-use event::{MidiBuffer, MidiEvent, PatchEvent};
+use event::{EngineEvent, MidiEvent, PatchEvent};
 use processor::{Adsr, Gain, Oscillator, LowPassFilter, MonoNoteSelector, Waveshaper};
 use sample::slice;
 
 pub struct Engine
 {
     // Misc
-    pub midi_buffer: MidiBuffer,
+    pub engine_event_buffer: Vec<(usize, EngineEvent)>,
     pub note_selector: MonoNoteSelector,
     // Buffers
     pub adsr_buffer: ResizableFrameBuffer<defs::MonoFrame>,
@@ -25,7 +25,7 @@ impl Engine
     pub fn new() -> Engine {
         Engine{
             // Misc
-            midi_buffer: MidiBuffer::new(),
+            engine_event_buffer: Vec::with_capacity(defs::ENGINE_EVENT_BUF_LEN),
             note_selector: MonoNoteSelector::new(),
             // Buffers
             adsr_buffer: ResizableFrameBuffer::new(),
@@ -100,40 +100,45 @@ impl Engine
         // Zero the buffer
         slice::equilibrium(main_buffer);
 
-        self.midi_buffer.update(raw_midi_iter);
-        // Check for MIDI note/sound off events.
-        // If we find any, we'll tell all processors to reset state this callback
-        // instead of doing their regular work.
+        self.engine_event_buffer.clear();
         let mut midi_panic = false;
-        for (_frame_num, midi_event) in self.midi_buffer.iter() {
-            match midi_event {
-                MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
-                    midi_panic = true;
-                    break
-                },
-                _ => (),
+        for raw_midi_event in raw_midi_iter {
+            if let Some((frame_num, midi_event)) = MidiEvent::parse(raw_midi_event, None) {
+                // Check for MIDI panics.
+                match midi_event {
+                    MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
+                        midi_panic = true;
+                        break
+                    },
+                    _ => (),
+                }
+                // Try to convert this to an EngineEvent.
+                if let Some(note_change) = self.note_selector.process_event(midi_event) {
+                    self.engine_event_buffer.push((
+                            frame_num,
+                            EngineEvent::NoteChange { note: note_change },
+                    ));
+                }
             }
         }
+
+        // If we are panicking, we run this alternate code to reset state
+        // and do not process audio this buffer.
         if midi_panic {
             self.handle_midi_panic();
             return
         }
 
-        // Note Selector
-        self.note_selector.update_note_changes_vec(
-            self.midi_buffer.iter());
-
         // Oscillator
         self.oscillator.process_buffer(main_buffer,
-                                       self.note_selector.iter_note_changes(),
-                                       self.midi_buffer.iter(),
+                                       self.engine_event_buffer.iter(),
                                        sample_rate);
 
         // ADSR buffer for Gain and Filter (shared for now)
         let frames_this_buffer = main_buffer.len();
         let adsr_buffer = self.adsr_buffer.get_sized_mut(frames_this_buffer);
         self.adsr.process_buffer(adsr_buffer,
-                                 self.note_selector.iter_note_changes(),
+                                 self.engine_event_buffer.iter(),
                                  sample_rate);
 
         // Gain

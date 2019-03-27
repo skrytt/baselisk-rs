@@ -2,7 +2,7 @@ extern crate sample;
 
 use buffer::ResizableFrameBuffer;
 use defs;
-use event::MidiEvent;
+use event::EngineEvent;
 use std::slice;
 
 
@@ -53,32 +53,10 @@ impl State {
 
     /// Process any events and update the internal state accordingly.
     fn update(&mut self,
-              midi_iter: slice::Iter<(usize, MidiEvent)>,
-              mut selected_note_iter: slice::Iter<(usize, Option<u8>)>,
+              mut engine_event_iter: slice::Iter<(usize, EngineEvent)>,
               sample_rate: defs::Sample,
               buffer_size: usize)
     {
-        // Process MIDI events first.
-        // We only handle note/sound off events, and silence everything for this buffer
-        // if one is handled.
-        for (_frame_num, midi_event) in midi_iter {
-            match midi_event {
-                MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
-                    // Reset state, silence buffers and don't process anything
-                    // further this buffer.
-                    self.reset();
-                    let frequency_buffer = self.frequency_buffer.get_sized_mut(buffer_size);
-                    for frame in frequency_buffer.iter_mut() {
-                        for sample in frame {
-                            *sample = 0.0;
-                        }
-                    }
-                    return
-                },
-                _ => (),
-            }
-        }
-
         // Sample rate used by the generator functions
         self.sample_rate = sample_rate;
 
@@ -90,14 +68,15 @@ impl State {
         let mut frequency_next: defs::Sample = frequency_current;
         loop {
             // Get next selected note, if there is one.
-            match selected_note_iter.next() {
-                Some((frame_num, note_change)) => {
-                    // Ignore note-offs so that Release ADSR stages work as intended.
-                    match note_change {
-                        None => continue,
-                        Some(note) => {
-                            frame_num_next = *frame_num;
-                            frequency_next = get_frequency(*note as defs::Sample + self.pitch_offset);
+            match engine_event_iter.next() {
+                Some((frame_num, engine_event)) => {
+                    match engine_event {
+                        EngineEvent::NoteChange{ note } => match note {
+                            Some(note) => {
+                                frame_num_next = *frame_num;
+                                frequency_next = get_frequency(*note as defs::Sample + self.pitch_offset);
+                            },
+                            None => continue,
                         },
                     }
                 },
@@ -185,11 +164,10 @@ impl Oscillator {
 
     pub fn process_buffer(&mut self,
                buffer: &mut defs::MonoFrameBufferSlice,
-               selected_note_iter: slice::Iter<(usize, Option<u8>)>,
-               midi_iter: slice::Iter<(usize, MidiEvent)>,
+               engine_event_iter: slice::Iter<(usize, EngineEvent)>,
                sample_rate: defs::Sample,
     ) {
-        self.state.update(midi_iter, selected_note_iter, sample_rate, buffer.len());
+        self.state.update(engine_event_iter, sample_rate, buffer.len());
 
         // Generate all the samples for this buffer
         (self.generator_func)(&mut self.state, buffer);

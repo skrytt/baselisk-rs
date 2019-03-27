@@ -1,7 +1,7 @@
 use std::f64;
 use sample::frame;
 
-pub const MIDI_BUF_LEN: usize = 1024;
+pub const ENGINE_EVENT_BUF_LEN: usize = 1024;
 pub const JACK_CLIENT_NAME: &'static str = "baselisk";
 pub const PROMPT: &'static str = "baselisk> ";
 

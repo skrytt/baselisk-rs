@@ -1,4 +1,5 @@
 use defs;
+use event::EngineEvent;
 use std::slice;
 
 /// States that ADSR can be in
@@ -163,7 +164,7 @@ impl Adsr {
 
     pub fn process_buffer(&mut self,
                           buffer: &mut defs::MonoFrameBufferSlice,
-                          selected_note_iter: slice::Iter<(usize, Option<u8>)>,
+                          engine_event_iter: slice::Iter<(usize, EngineEvent)>,
                           sample_rate: defs::Sample)
     {
         self.set_sample_rate(sample_rate);
@@ -171,9 +172,11 @@ impl Adsr {
         let mut selected_note = self.state.last_current_note;
 
         // TODO: needs to account for times of events.
-        for (_frame_num, note) in selected_note_iter {
+        for (_frame_num, engine_event) in engine_event_iter {
+            let EngineEvent::NoteChange{ note } = engine_event;
             selected_note = *note;
         }
+
         let any_notes_held: bool = selected_note.is_some();
         let current_note_changed: bool = selected_note != self.state.last_current_note;
         self.state.last_current_note = selected_note;

@@ -1,6 +1,4 @@
-use defs;
 use jack;
-use std::slice::Iter;
 
 /// Enumeration of MIDI event types
 pub enum MidiEvent {
@@ -145,34 +143,5 @@ impl MidiEvent {
             },
             _ => None
         }
-    }
-}
-/// Buffer will contain midi events received in the last block.
-pub struct MidiBuffer {
-    events: Vec<(usize, MidiEvent)>,
-}
-
-impl MidiBuffer {
-    /// Create a new buffer for receiving MIDI from one input device.
-    pub fn new() -> MidiBuffer {
-        MidiBuffer {
-            events: Vec::<(usize, MidiEvent)>::with_capacity(defs::MIDI_BUF_LEN),
-        }
-    }
-
-    /// Fill the buffer with MIDI events since the last buffer update.
-    pub fn update(&mut self, raw_midi_iter: jack::MidiIter) {
-        self.events.clear();
-
-        for raw_midi_event in raw_midi_iter {
-            if let Some(event) = MidiEvent::parse(raw_midi_event, None) {
-                self.events.push(event);
-            }
-        }
-    }
-
-    /// Get an iterator over the MIDI events in the buffer.
-    pub fn iter(&self) -> Iter<(usize, MidiEvent)> {
-        self.events.iter()
     }
 }

@@ -1,17 +1,11 @@
 
 use event::MidiEvent;
-use std::slice;
-
-// Number of note changes we can buffer per callback.
-// If the note changes more times than this, the behaviour is to drop note change events.
-const NOTE_CHANGE_VEC_SIZE: usize = 64;
 
 /// A note selector with high-note-priority selection.
 pub struct MonoNoteSelector {
     notes_held: Vec<bool>,
     note_priority_stack: Vec<u8>,
     note_selected: Option<u8>,
-    note_changes_vec: Vec<(usize, Option<u8>)>,
 }
 
 impl MonoNoteSelector {
@@ -20,7 +14,6 @@ impl MonoNoteSelector {
             notes_held: vec![false; 128],
             note_priority_stack: Vec::with_capacity(128),
             note_selected: None,
-            note_changes_vec: Vec::with_capacity(NOTE_CHANGE_VEC_SIZE),
         }
     }
 
@@ -32,44 +25,23 @@ impl MonoNoteSelector {
             }
             self.note_priority_stack.clear();
             self.note_selected = None;
-            self.note_changes_vec.clear();
         }
     }
 
     /// Return an iterator of note changes from this callback
     /// based on the provided iterator of midi events.
-    pub fn update_note_changes_vec(&mut self,
-                                   midi_iter: slice::Iter<(usize, MidiEvent)>)
-    {
-        self.note_changes_vec.clear();
-
-        for (frame_num, midi_event) in midi_iter {
-            let note_change = match midi_event {
-                MidiEvent::NoteOn { note, .. } => {
-                    self.note_on(*note)
-                }
-                MidiEvent::NoteOff { note } => {
-                    self.note_off(*note)
-                }
-                _ => None,
-            };
-
-            // note_change is an Option<Option<u8>> indicating whether the note changed as a
-            // result of the MIDI event.
-            if let Some(note_selected) = note_change {
-                // note_selected is an Option<u8> indicating the Some(note) if there is a note,
-                // or otherwise, None.
-                self.note_changes_vec.push((*frame_num, note_selected));
-                if self.note_changes_vec.len() == self.note_changes_vec.capacity() {
-                    // Buffer full - drop further MIDI events.
-                    break
-                };
+    pub fn process_event(&mut self, midi_event: MidiEvent) -> Option<Option<u8>> {
+        // result is an Option<Option<u8>> indicating whether the note changed as a
+        // result of the MIDI event.
+        match midi_event {
+            MidiEvent::NoteOn { note, .. } => {
+                self.note_on(note)
             }
+            MidiEvent::NoteOff { note } => {
+                self.note_off(note)
+            }
+            _ => None,
         }
-    }
-
-    pub fn iter_note_changes(&self) -> slice::Iter<(usize, Option<u8>)> {
-        self.note_changes_vec.iter()
     }
 
     /// Return Some(Option<u8>) if the note changed as a result of this event.
