@@ -99,7 +99,7 @@ impl State {
                         None => continue,
                         Some(note) => {
                             frame_num_next = *frame_num;
-                            frequency_next = get_frequency(*note as defs::Sample);
+                            frequency_next = get_frequency(*note as defs::Sample + self.pitch_offset);
                         },
                     }
                 },
