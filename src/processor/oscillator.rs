@@ -14,9 +14,11 @@ fn get_frequency(note: defs::Sample) -> defs::Sample {
 
 /// Internal state used by oscillator types.
 pub struct State {
+    note: u8,
+    pitch_bend: defs::Sample,   // Semitones
+
     frequency_current: defs::Sample,
     pitch_offset: defs::Sample, // Semitones
-    pitch_bend: defs::Sample,   // Semitones
     pulse_width: defs::Sample,  // 0.001 <= pulse_width <= 0.999
     phase: defs::Sample,        // 0 <= phase <= 1
     sample_rate: defs::Sample,
@@ -26,8 +28,9 @@ pub struct State {
 impl State {
     pub fn new() -> State {
         State {
-            frequency_current: 0.0,
+            note: 69,
             pitch_offset: 0.0,
+            frequency_current: 0.0,
             pitch_bend: 0.0,
             pulse_width: 0.5,
             phase: 0.0,
@@ -65,12 +68,19 @@ impl State {
                     match engine_event {
                         EngineEvent::NoteChange{ note } => match note {
                             Some(note) => {
+                                self.note = *note;
                                 frame_num_next = *frame_num;
-                                frequency_next = get_frequency(*note as defs::Sample + self.pitch_offset);
+                                frequency_next = get_frequency(
+                                    self.note as defs::Sample + self.pitch_offset + self.pitch_bend);
                             },
                             None => continue,
                         },
-                        _ => continue,
+                        EngineEvent::PitchBend{ semitones } => {
+                            self.pitch_bend = *semitones;
+                            frame_num_next = *frame_num;
+                            frequency_next = get_frequency(
+                                self.note as defs::Sample + self.pitch_offset + self.pitch_bend);
+                        },
                     }
                 },
                 None => {
