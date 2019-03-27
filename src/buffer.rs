@@ -16,18 +16,6 @@ where
 // and not desirable for realtime audio processing.
 const BUFFER_DEFAULT_CAPACITY: usize = 4096;
 
-fn resize_buffer<F>(buffer: &mut Vec<F>, frames: usize)
-where
-    F: Frame,
-{
-    let current_len = buffer.len();
-    if current_len < frames {
-        buffer.extend((current_len..frames).map(|_| F::equilibrium()));
-    } else if current_len > frames {
-        buffer.truncate(frames);
-    }
-}
-
 impl<F> ResizableFrameBuffer<F>
 where
     F: Frame,
@@ -42,7 +30,12 @@ where
     /// Otherwise, resize it.
     fn ensure_size(&mut self, frames: usize) {
         if self.data.len() != frames {
-            resize_buffer(&mut self.data, frames)
+            let current_len = self.data.len();
+            if current_len < frames {
+                self.data.extend((current_len..frames).map(|_| F::equilibrium()));
+            } else if current_len > frames {
+                self.data.truncate(frames);
+            }
         }
     }
 
