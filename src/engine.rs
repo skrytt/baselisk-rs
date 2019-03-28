@@ -63,6 +63,9 @@ impl Engine
                 PatchEvent::FilterFrequencySet { hz } => {
                     self.low_pass_filter.set_frequency(hz)
                 },
+                PatchEvent::FilterSweepRangeSet { octaves } => {
+                    self.low_pass_filter.set_sweep(octaves)
+                },
                 PatchEvent::FilterQualitySet { q } => {
                     self.low_pass_filter.set_quality(q)
                 },

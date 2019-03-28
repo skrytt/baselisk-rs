@@ -81,6 +81,12 @@ impl LowPassFilter
         Ok(())
     }
 
+    /// Set sweep range (octaves) for this filter.
+    pub fn set_sweep(&mut self, octaves: defs::Sample) -> Result<(), &'static str> {
+        self.params.adsr_sweep_octaves = octaves;
+        Ok(())
+    }
+
     /// Set quality for this filter.
     pub fn set_quality(&mut self, value: defs::Sample) -> Result<(), &'static str> {
         if value < 0.5 || value > 10.0 {

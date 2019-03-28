@@ -12,6 +12,7 @@ pub enum PatchEvent {
     AdsrReleaseSet { duration: defs::Sample },
     FilterFrequencySet { hz: defs::Sample },
     FilterQualitySet { q: defs::Sample },
+    FilterSweepRangeSet { octaves: defs::Sample },
     WaveshaperInputGainSet { gain: defs::Sample },
     WaveshaperOutputGainSet { gain: defs::Sample },
 }

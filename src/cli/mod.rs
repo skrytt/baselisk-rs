@@ -128,6 +128,17 @@ fn build_tree() -> Tree
             }
         ));
 
+        filter.add_child("sweeprange", Node::new_dispatch_event(
+            |mut token_iter| {
+                let usage_str = "Syntax: filter sweeprange <octaves>";
+                let octaves: defs::Sample = match parse_from_next_token(&mut token_iter) {
+                    Err(_) => return Err(String::from(usage_str)),
+                    Ok(value) => value,
+                };
+                Ok(PatchEvent::FilterSweepRangeSet{ octaves })
+            }
+        ));
+
         filter.add_child("quality", Node::new_dispatch_event(
             |mut token_iter| {
                 let usage_str = "Syntax: filter quality <q>";
