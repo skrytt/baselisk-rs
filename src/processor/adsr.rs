@@ -96,10 +96,6 @@ impl Adsr {
         Ok(())
     }
 
-    fn set_sample_rate(&mut self, sample_rate: defs::Sample) {
-        self.state.sample_duration = 1.0 / sample_rate as f32;
-    }
-
     pub fn update_state(&mut self,
                         any_notes_held: bool,
                         current_note_changed: bool)
@@ -164,42 +160,62 @@ impl Adsr {
 
     pub fn process_buffer(&mut self,
                           buffer: &mut defs::MonoFrameBufferSlice,
-                          engine_event_iter: slice::Iter<(usize, EngineEvent)>,
+                          mut engine_event_iter: slice::Iter<(usize, EngineEvent)>,
                           sample_rate: defs::Sample)
     {
-        self.set_sample_rate(sample_rate);
+        self.state.sample_duration = 1.0 / sample_rate as f32;
 
-        let mut selected_note = self.state.last_current_note;
 
-        // TODO: needs to account for times of events.
-        for (_frame_num, engine_event) in engine_event_iter {
-            if let EngineEvent::NoteChange{ note } = engine_event {
-                selected_note = *note;
+        // Calculate the values per-frame
+        let mut frame_num_current: usize = 0;
+        let mut selected_note_current: Option<u8> = self.state.last_current_note;
+
+        let mut frame_num_next: usize;
+        let mut selected_note_next: Option<u8> = selected_note_current;
+
+        loop {
+            // Get next selected note, if there is one.
+            match engine_event_iter.next() {
+                Some((frame_num, engine_event)) => {
+                    match engine_event {
+                        EngineEvent::NoteChange{ note } => {
+                            frame_num_next = *frame_num;
+                            selected_note_next = *note;
+                        },
+                        _ => continue,
+                    }
+                },
+                None => {
+                    // No more note change events.
+                    frame_num_next = buffer.len();
+                },
+            };
+
+            // Compute values up until the next change
+            if let Some(buffer_slice) = buffer.get_mut(frame_num_current..frame_num_next) {
+                for frame in buffer_slice {
+                    for sample in frame {
+                        *sample = self.advance();
+                    }
+                }
             }
-        }
 
-        let any_notes_held: bool = selected_note.is_some();
-        let current_note_changed: bool = selected_note != self.state.last_current_note;
-        self.state.last_current_note = selected_note;
-        self.update_state(any_notes_held, current_note_changed);
-
-        for frame in buffer.iter_mut() {
-            let value = self.next().unwrap();
-
-            assert!(value >= 0.0);
-            assert!(value <= 1.0);
-
-            for sample in frame.iter_mut() {
-                *sample = value;
+            // Exit condition: reached the end of the buffer.
+            if frame_num_next == buffer.len() {
+                break
             }
+
+            // Update the state for next iteration.
+            let any_notes_held_next = selected_note_next.is_some();
+            let current_note_changed_next = selected_note_current != selected_note_next;
+            self.update_state(any_notes_held_next, current_note_changed_next);
+            selected_note_current = selected_note_next;
+            frame_num_current = frame_num_next;
         }
+        self.state.last_current_note = selected_note_current;
     }
-}
 
-impl Iterator for Adsr {
-    type Item = f32;
-
-    fn next(&mut self) -> Option<f32> {
+    fn advance(&mut self) -> defs::Sample {
         self.state.phase_time += self.state.sample_duration;
         // Handle phase advancing
         match self.state.stage {
@@ -217,7 +233,7 @@ impl Iterator for Adsr {
                     self.state.stage = AdsrStages::HeldSustain;
                 }
             }
-            AdsrStages::HeldSustain => return Some(self.params.sustain_level),
+            AdsrStages::HeldSustain => return self.params.sustain_level,
             AdsrStages::Released => {
                 if self.state.phase_time >= self.params.release_duration {
                     self.state.stage = AdsrStages::Off;
@@ -225,6 +241,6 @@ impl Iterator for Adsr {
             }
             _ => (),
         }
-        return Some(self.get_gain());
+        return self.get_gain();
     }
 }
