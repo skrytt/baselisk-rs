@@ -3,6 +3,7 @@ extern crate sample;
 use buffer::ResizableFrameBuffer;
 use defs;
 use event::EngineEvent;
+use parameter::{Parameter, LinearParameter};
 use std::slice;
 
 
@@ -18,8 +19,8 @@ pub struct State {
     pitch_bend: defs::Sample,   // Semitones
 
     frequency_current: defs::Sample,
-    pitch_offset: defs::Sample, // Semitones
-    pulse_width: defs::Sample,  // 0.001 <= pulse_width <= 0.999
+    pitch_offset: LinearParameter, // Semitones
+    pulse_width: LinearParameter,  // 0.001 <= pulse_width <= 0.999
     phase: defs::Sample,        // 0 <= phase <= 1
     sample_rate: defs::Sample,
     frequency_buffer: ResizableFrameBuffer<defs::MonoFrame>,
@@ -29,10 +30,10 @@ impl State {
     pub fn new() -> State {
         State {
             note: 69,
-            pitch_offset: 0.0,
+            pitch_offset: LinearParameter::new(0.0),
             frequency_current: 0.0,
             pitch_bend: 0.0,
-            pulse_width: 0.5,
+            pulse_width: LinearParameter::new(0.5),
             phase: 0.0,
             sample_rate: 0.0,
             frequency_buffer: ResizableFrameBuffer::new(),
@@ -71,7 +72,9 @@ impl State {
                                 self.note = *note;
                                 frame_num_next = *frame_num;
                                 frequency_next = get_frequency(
-                                    self.note as defs::Sample + self.pitch_offset + self.pitch_bend);
+                                    self.note as defs::Sample
+                                    + self.pitch_offset.get()
+                                    + self.pitch_bend);
                             },
                             None => continue,
                         },
@@ -79,7 +82,9 @@ impl State {
                             self.pitch_bend = *semitones;
                             frame_num_next = *frame_num;
                             frequency_next = get_frequency(
-                                self.note as defs::Sample + self.pitch_offset + self.pitch_bend);
+                                self.note as defs::Sample
+                                + self.pitch_offset.get()
+                                + self.pitch_bend);
                         },
                         _ => continue,
                     }
@@ -151,7 +156,7 @@ impl Oscillator {
         } else if semitones > 36.0 {
             Err("Pitch offset must be <= 36.0 semitones")
         } else {
-            self.state.pitch_offset = semitones;
+            self.state.pitch_offset.set_base(semitones);
             Ok(())
         }
     }
@@ -161,7 +166,7 @@ impl Oscillator {
         if width < 0.001 || width > 0.999 {
             Err("Pulse width must be in range 0.001 <= width <= 0.999")
         } else {
-            self.state.pulse_width = width;
+            self.state.pulse_width.set_base(width);
             Ok(())
         }
     }
@@ -217,7 +222,7 @@ fn pulse_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
         state.phase = phase;
 
         // Get the aliasing pulse value
-        let mut res = if phase < state.pulse_width {
+        let mut res = if phase < state.pulse_width.get() {
             1.0
         } else {
             -1.0
@@ -245,7 +250,7 @@ fn pulse_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
         // Apply PolyBLEP to the first (upward) discontinuity
         res += polyblep(phase, step);
         // Apply PolyBLEP to the second (downward) discontinuity
-        res -= polyblep((phase + 1.0 - state.pulse_width) % 1.0, step);
+        res -= polyblep((phase + 1.0 - state.pulse_width.get()) % 1.0, step);
 
         // Done
         *frame = [res as defs::Sample];
