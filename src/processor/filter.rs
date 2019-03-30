@@ -3,28 +3,28 @@ extern crate sample;
 use arraydeque::ArrayDeque;
 use defs;
 use event::{EngineEvent, ModulatableParameter};
-use parameter::FrequencyParameter;
+use parameter::{Parameter, FrequencyParameter, LinearParameter};
 use sample::{Frame, slice};
 
 /// Parameters available for filters.
 struct FilterParams {
     frequency: FrequencyParameter,
-    adsr_sweep_octaves: defs::Sample,
-    quality_factor: defs::Sample,
+    adsr_sweep_octaves: LinearParameter,
+    quality_factor: LinearParameter,
 }
 
 impl FilterParams {
     /// Constructor for FilterParams instances
     fn new() -> FilterParams {
+        // Temporarily do this here so we can test out the modulation until
+        // it's added to the CLI
         let mut frequency = FrequencyParameter::new(10.0);
         frequency.set_range(4.0);
 
         FilterParams {
             frequency,
-            adsr_sweep_octaves: 6.5, // Note: filter will become unstable if
-                                     // base_frequency_hz * 2.0 ^ adsr_sweep_octaves
-                                     // >= sample_rate/2.0 (the Nyquist frequency).
-            quality_factor: 3.0,
+            adsr_sweep_octaves: LinearParameter::new(6.5),
+            quality_factor: LinearParameter::new(0.7),
         }
     }
 }
@@ -87,7 +87,7 @@ impl LowPassFilter
 
     /// Set sweep range (octaves) for this filter.
     pub fn set_sweep(&mut self, octaves: defs::Sample) -> Result<(), &'static str> {
-        self.params.adsr_sweep_octaves = octaves;
+        self.params.adsr_sweep_octaves.set_base(octaves);
         Ok(())
     }
 
@@ -96,7 +96,7 @@ impl LowPassFilter
         if value < 0.5 || value > 10.0 {
             return Err("Filter resonance must be 0.5 >= r >= 10.0")
         }
-        self.params.quality_factor = value;
+        self.params.quality_factor.set_base(value);
         Ok(())
     }
 
@@ -152,11 +152,11 @@ impl LowPassFilter
         // Use adsr_input (0 <= x <= 1) to determine the influence
         // of self.params.adsr_sweep_octaves on the filter frequency.
         let mut frequency_hz = self.params.frequency.get()
-                               * defs::Sample::exp2(self.params.adsr_sweep_octaves * adsr_input);
+                               * defs::Sample::exp2(self.params.adsr_sweep_octaves.get()
+                               * adsr_input);
 
         // Limit frequency_hz to just under half of the sample rate for stability.
         frequency_hz = frequency_hz.min(0.495 * self.sample_rate);
-
 
         // We implement a biquad section with coefficients selected to achieve
         // a low-pass filter.
@@ -173,7 +173,7 @@ impl LowPassFilter
         let theta_c = 2.0 * defs::PI * frequency_hz / self.sample_rate as defs::Sample;
         let cos_theta_c = theta_c.cos();
         let sin_theta_c = theta_c.sin();
-        let alpha = sin_theta_c / (2.0 * self.params.quality_factor);
+        let alpha = sin_theta_c / (2.0 * self.params.quality_factor.get());
 
         // Calculate the coefficients.
         // We'll just divide off a_0 from each one to save on computation.
