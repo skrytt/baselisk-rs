@@ -1,15 +1,15 @@
-
 use defs;
 use event::{EngineEvent, MidiEvent};
+use parameter::{Parameter, LinearParameter};
 
 pub struct PitchBend {
-    range_semitones: defs::Sample,
+    range_semitones: LinearParameter,
 }
 
 impl PitchBend {
     pub fn new() -> PitchBend {
         PitchBend {
-            range_semitones: 2.0,
+            range_semitones: LinearParameter::new(2.0),
         }
     }
 
@@ -20,7 +20,7 @@ impl PitchBend {
                 // 0 => -2
                 // 8192 => 0
                 // 16383 => ~= +2
-                let semitones = self.range_semitones * (
+                let semitones = self.range_semitones.get() * (
                         *value as defs::Sample - 8192.0) / 8192.0;
                 Some(EngineEvent::PitchBend{ semitones })
             },
