@@ -1,18 +1,19 @@
 extern crate sample;
 
 use defs;
+use parameter::{Parameter, LinearParameter};
 use sample::{Frame, slice};
 
 pub struct Waveshaper {
-    input_gain: defs::Sample,
-    output_gain: defs::Sample,
+    input_gain: LinearParameter,
+    output_gain: LinearParameter,
 }
 
 impl Waveshaper {
     pub fn new() -> Waveshaper {
         Waveshaper{
-            input_gain: 0.333,
-            output_gain: 0.667,
+            input_gain: LinearParameter::new(0.333),
+            output_gain: LinearParameter::new(0.667),
         }
     }
 
@@ -20,7 +21,7 @@ impl Waveshaper {
         if gain <= 0.0 || gain >= 1.0 {
             return Err("Gain must be in the range 0.0 <= gain <= 1.0")
         }
-        self.input_gain = gain;
+        self.input_gain.set_base(gain);
         Ok(())
     }
 
@@ -28,7 +29,7 @@ impl Waveshaper {
         if gain <= 0.0 || gain >= 1.0 {
             return Err("Gain must be in the range 0.0 <= gain <= 1.0")
         }
-        self.output_gain = gain;
+        self.output_gain.set_base(gain);
         Ok(())
     }
 
@@ -38,8 +39,8 @@ impl Waveshaper {
             output_frame.map(|output_sample| {
                 // Polynomial: -x^3 + x^2 + x
                 // With input and output gain scaling
-                let x = output_sample.abs() * self.input_gain;
-                self.output_gain * output_sample.signum() * (
+                let x = output_sample.abs() * self.input_gain.get();
+                self.output_gain.get() * output_sample.signum() * (
                     -x.powi(3) + x.powi(2) + x)
             })
         })
