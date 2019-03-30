@@ -1,5 +1,6 @@
 use defs;
 use event::EngineEvent;
+use parameter::{Parameter, LinearParameter};
 use std::slice;
 
 /// States that ADSR can be in
@@ -12,21 +13,20 @@ enum AdsrStages {
 }
 
 /// Struct to hold user configurable parameters for an ADSR processor
-#[derive(Clone)]
 pub struct AdsrParams {
-    attack_duration: f32,
-    decay_duration: f32,
-    sustain_level: f32,
-    release_duration: f32,
+    attack_duration: LinearParameter,
+    decay_duration: LinearParameter,
+    sustain_level: LinearParameter,
+    release_duration: LinearParameter,
 }
 
 impl AdsrParams {
     pub fn new() -> AdsrParams {
         AdsrParams {
-            attack_duration: 0.02,
-            decay_duration: 0.707,
-            sustain_level: 0.0,
-            release_duration: 0.707,
+            attack_duration: LinearParameter::new(0.02),
+            decay_duration: LinearParameter::new(0.707),
+            sustain_level: LinearParameter::new(0.0),
+            release_duration: LinearParameter::new(0.707),
         }
     }
 }
@@ -68,7 +68,7 @@ impl Adsr {
         if duration < 0.0 {
             return Err("attack duration must be >= 0.0");
         }
-        self.params.attack_duration = duration;
+        self.params.attack_duration.set_base(duration);
         Ok(())
     }
 
@@ -76,7 +76,7 @@ impl Adsr {
         if duration < 0.0 {
             return Err("decay duration must be >= 0.0");
         }
-        self.params.decay_duration = duration;
+        self.params.decay_duration.set_base(duration);
         Ok(())
     }
 
@@ -84,7 +84,7 @@ impl Adsr {
         if level < 0.0 || level > 1.0 {
             return Err("sustain level must be 0.0 >= level >= 1.0");
         }
-        self.params.sustain_level = level;
+        self.params.sustain_level.set_base(level);
         Ok(())
     }
 
@@ -92,7 +92,7 @@ impl Adsr {
         if duration < 0.0 {
             return Err("release duration must be >= 0.0");
         }
-        self.params.release_duration = duration;
+        self.params.release_duration.set_base(duration);
         Ok(())
     }
 
@@ -135,18 +135,18 @@ impl Adsr {
                 AdsrStages::HeldAttack => {
                     return self.state.gain_at_stage_start
                         + self.state.relative_gain_at_stage_end
-                            * (self.state.phase_time / self.params.attack_duration)
+                            * (self.state.phase_time / self.params.attack_duration.get())
                 }
                 AdsrStages::HeldDecay => {
                     return self.state.gain_at_stage_start
                         + self.state.relative_gain_at_stage_end
-                            * (self.state.phase_time / self.params.decay_duration)
+                            * (self.state.phase_time / self.params.decay_duration.get())
                 }
-                AdsrStages::HeldSustain => return self.params.sustain_level,
+                AdsrStages::HeldSustain => return self.params.sustain_level.get(),
                 AdsrStages::Released => {
                     return self.state.gain_at_stage_start
                         + self.state.relative_gain_at_stage_end
-                            * (self.state.phase_time / self.params.release_duration)
+                            * (self.state.phase_time / self.params.release_duration.get())
                 }
             }
         }
@@ -220,22 +220,22 @@ impl Adsr {
         // Handle phase advancing
         match self.state.stage {
             AdsrStages::HeldAttack => {
-                if self.state.phase_time >= self.params.attack_duration {
+                if self.state.phase_time >= self.params.attack_duration.get() {
                     self.state.stage = AdsrStages::HeldDecay;
                     self.state.gain_at_stage_start = 1.0;
                     self.state.relative_gain_at_stage_end =
-                        self.params.sustain_level - self.state.gain_at_stage_start;
-                    self.state.phase_time -= self.params.attack_duration;
+                        self.params.sustain_level.get() - self.state.gain_at_stage_start;
+                    self.state.phase_time -= self.params.attack_duration.get();
                 }
             }
             AdsrStages::HeldDecay => {
-                if self.state.phase_time >= self.params.decay_duration {
+                if self.state.phase_time >= self.params.decay_duration.get() {
                     self.state.stage = AdsrStages::HeldSustain;
                 }
             }
-            AdsrStages::HeldSustain => return self.params.sustain_level,
+            AdsrStages::HeldSustain => return self.params.sustain_level.get(),
             AdsrStages::Released => {
-                if self.state.phase_time >= self.params.release_duration {
+                if self.state.phase_time >= self.params.release_duration.get() {
                     self.state.stage = AdsrStages::Off;
                 }
             }
