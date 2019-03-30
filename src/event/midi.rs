@@ -7,7 +7,7 @@ pub enum MidiEvent {
     NoteOn { note: u8, velocity: u8 },
     PitchBend { value: u16 },
     PolyphonicAftertouch { note: u8, pressure: u8 },
-    ControlChange { controller: u8, value: u8 },
+    ControlChange { number: u8, value: u8 },
     ProgramChange { program: u8 },
     ChannelPressure { pressure: u8 },
     // Channel Mode Messages
@@ -84,7 +84,7 @@ impl MidiEvent {
             0xB0 => {
                 match data1 {
                     0..=119 => Some((time, MidiEvent::ControlChange {
-                        controller: data1,
+                        number: data1,
                         value: data2,
                     })),
                     120 => Some((time, MidiEvent::AllSoundOff)),

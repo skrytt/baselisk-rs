@@ -2,12 +2,13 @@ extern crate sample;
 
 use arraydeque::ArrayDeque;
 use defs;
+use event::{EngineEvent, ModulatableParameter};
+use parameter::FrequencyParameter;
 use sample::{Frame, slice};
 
 /// Parameters available for filters.
-#[derive(Clone)]
 struct FilterParams {
-    base_frequency_hz: defs::Sample,
+    frequency: FrequencyParameter,
     adsr_sweep_octaves: defs::Sample,
     quality_factor: defs::Sample,
 }
@@ -15,8 +16,11 @@ struct FilterParams {
 impl FilterParams {
     /// Constructor for FilterParams instances
     fn new() -> FilterParams {
+        let mut frequency = FrequencyParameter::new(10.0);
+        frequency.set_range(4.0);
+
         FilterParams {
-            base_frequency_hz: 100.0,
+            frequency,
             adsr_sweep_octaves: 6.5, // Note: filter will become unstable if
                                      // base_frequency_hz * 2.0 ^ adsr_sweep_octaves
                                      // >= sample_rate/2.0 (the Nyquist frequency).
@@ -77,7 +81,7 @@ impl LowPassFilter
         if value <= 0.0 {
             return Err("Filter frequency must be 0.0 > f > sample_rate/2.0")
         }
-        self.params.base_frequency_hz = value;
+        self.params.frequency.set_base(value);
         Ok(())
     }
 
@@ -99,8 +103,20 @@ impl LowPassFilter
     pub fn process_buffer(&mut self,
                           adsr_input_buffer: &defs::MonoFrameBufferSlice,
                           output_buffer: &mut defs::MonoFrameBufferSlice,
+                          engine_event_iter: std::slice::Iter<(usize, EngineEvent)>,
                           sample_rate: defs::Sample) {
         self.sample_rate = sample_rate;
+
+        // TODO: per-sample modulation
+        for (_frame_num, engine_event) in engine_event_iter {
+            if let EngineEvent::ModulateParameter { parameter, value } = engine_event {
+                match parameter {
+                    ModulatableParameter::FilterFrequency => {
+                        self.params.frequency.update_from_cc(*value);
+                    },
+                }
+            }
+        }
 
         // Iterate over two buffers at once using a zip method
         slice::zip_map_in_place(output_buffer, adsr_input_buffer,
@@ -135,7 +151,7 @@ impl LowPassFilter
 
         // Use adsr_input (0 <= x <= 1) to determine the influence
         // of self.params.adsr_sweep_octaves on the filter frequency.
-        let mut frequency_hz = self.params.base_frequency_hz
+        let mut frequency_hz = self.params.frequency.get()
                                * defs::Sample::exp2(self.params.adsr_sweep_octaves * adsr_input);
 
         // Limit frequency_hz to just under half of the sample rate for stability.

@@ -17,3 +17,8 @@ pub enum PatchEvent {
     WaveshaperOutputGainSet { gain: defs::Sample },
 }
 
+/// Enum of modulatable parameters.
+#[derive(Clone)]
+pub enum ModulatableParameter {
+    FilterFrequency,
+}

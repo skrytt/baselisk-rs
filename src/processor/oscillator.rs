@@ -81,6 +81,7 @@ impl State {
                             frequency_next = get_frequency(
                                 self.note as defs::Sample + self.pitch_offset + self.pitch_bend);
                         },
+                        _ => continue,
                     }
                 },
                 None => {

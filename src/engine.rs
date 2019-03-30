@@ -1,8 +1,9 @@
 
 use buffer::ResizableFrameBuffer;
 use defs;
-use event::{EngineEvent, MidiEvent, PatchEvent};
-use processor::{Adsr, Gain, Oscillator, LowPassFilter, MonoNoteSelector, PitchBend, Waveshaper};
+use event::{EngineEvent, MidiEvent, ModulatableParameter, PatchEvent};
+use processor::{Adsr, Gain, Oscillator, LowPassFilter,
+                ModulationMatrix, MonoNoteSelector, PitchBend, Waveshaper};
 use sample::slice;
 
 pub struct Engine
@@ -11,6 +12,7 @@ pub struct Engine
     pub engine_event_buffer: Vec<(usize, EngineEvent)>,
     pub note_selector: MonoNoteSelector,
     pub pitch_bend: PitchBend,
+    pub modulation_matrix: ModulationMatrix,
     // Buffers
     pub adsr_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     // DSP Units
@@ -24,11 +26,16 @@ pub struct Engine
 impl Engine
 {
     pub fn new() -> Engine {
-        Engine{
-            // Misc
+        // Temporary code to test binding of parameter
+        // TODO: remove this
+        let mut modulation_matrix = ModulationMatrix::new();
+        modulation_matrix.bind_cc(1, ModulatableParameter::FilterFrequency);
+        Engine {
+            // Engine Event Processing
             engine_event_buffer: Vec::with_capacity(defs::ENGINE_EVENT_BUF_LEN),
             note_selector: MonoNoteSelector::new(),
             pitch_bend: PitchBend::new(),
+            modulation_matrix,
             // Buffers
             adsr_buffer: ResizableFrameBuffer::new(),
             // DSP Units
@@ -123,6 +130,9 @@ impl Engine
                 if let Some(engine_event) = self.pitch_bend.process_event(&midi_event) {
                     self.engine_event_buffer.push((frame_num, engine_event));
                 }
+                if let Some(engine_event) = self.modulation_matrix.process_event(&midi_event) {
+                    self.engine_event_buffer.push((frame_num, engine_event));
+                }
             }
         }
 
@@ -152,6 +162,7 @@ impl Engine
         // Filter
         self.low_pass_filter.process_buffer(adsr_buffer,
                                             main_buffer,
+                                            self.engine_event_buffer.iter(),
                                             sample_rate);
 
         // Waveshaper

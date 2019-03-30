@@ -12,6 +12,7 @@ mod cli;
 mod engine;
 mod defs;
 mod event;
+mod parameter;
 mod processor;
 
 use std::sync::{Arc, RwLock};
