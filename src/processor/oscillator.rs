@@ -143,7 +143,7 @@ impl Oscillator {
             "sine" => sine_generator,
             "saw" => sawtooth_generator,
             "pulse" => pulse_generator,
-            _ => return Err("Unknown oscillator name"),
+            _ => return Err("Unknown oscillator type specified"),
         };
         self.generator_func = generator_func;
         Ok(())

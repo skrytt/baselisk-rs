@@ -166,7 +166,12 @@ impl Tree {
                     // Send the event to the audio thread, then handle the response
                     tx.send(event).unwrap();
                     match rx.recv() {
-                        Ok(_) => println!("OK"),
+                        Ok(result) => {
+                            match result {
+                                Ok(()) => println!("Ok"),
+                                Err(e) => println!("Error: {}", e),
+                            }
+                        },
                         Err(e) => println!("Error: {}", e),
                     }
 
