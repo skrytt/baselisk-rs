@@ -58,6 +58,9 @@ impl Engine
         while let Ok(patch_event) = rx.try_recv() {
             let result: Result<(), &'static str> = match patch_event {
 
+                PatchEvent::PitchBendRangeSet { semitones } => {
+                    self.pitch_bend.set_range(semitones)
+                },
                 PatchEvent::OscillatorTypeSet { type_name } => {
                     self.oscillator.set_type(&type_name)
                 },

@@ -3,6 +3,7 @@ use defs;
 /// These events represent things the audio thread will do for us while it is running,
 /// to avoid unsafe data access.
 pub enum PatchEvent {
+    PitchBendRangeSet { semitones: defs::Sample },
     OscillatorTypeSet { type_name: String },
     OscillatorPitchSet { semitones: defs::Sample },
     OscillatorPulseWidthSet { width: defs::Sample },

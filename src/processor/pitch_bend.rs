@@ -13,6 +13,17 @@ impl PitchBend {
         }
     }
 
+    pub fn set_range(&mut self, semitones: defs::Sample) -> Result<(), &'static str> {
+        if semitones < 0.0 {
+            Err("Pitch bend must be >= 0.0 semitones")
+        } else if semitones > 36.0 {
+            Err("Pitch bend must be <= 36.0 semitones")
+        } else {
+            self.range_semitones.set_base(semitones);
+            Ok(())
+        }
+    }
+
     pub fn process_event(&self, midi_event: &MidiEvent) -> Option<EngineEvent> {
         match midi_event {
             MidiEvent::PitchBend { value } => {

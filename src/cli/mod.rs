@@ -31,6 +31,15 @@ fn build_tree() -> Tree
     let mut root = Node::new_with_children();
 
     {
+        root.add_child("pitchbend", Node::new_dispatch_event(
+            |mut token_iter| {
+                let semitones: defs::Sample = parse_from_next_token(&mut token_iter)?;
+                Ok(PatchEvent::PitchBendRangeSet{ semitones })
+            },
+            Some(String::from("<semitones>")),
+        ));
+    }
+    {
         let oscillator = root.add_child("oscillator", Node::new_with_children());
 
         oscillator.add_child("type", Node::new_dispatch_event(

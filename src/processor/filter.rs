@@ -112,7 +112,7 @@ impl LowPassFilter
             if let EngineEvent::ModulateParameter { parameter, value } = engine_event {
                 match parameter {
                     ModulatableParameter::FilterFrequency => {
-                        self.params.frequency.update_from_cc(*value);
+                        self.params.frequency.set_cc(*value);
                     },
                 }
             }
