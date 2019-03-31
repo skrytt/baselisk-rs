@@ -120,6 +120,13 @@ impl Tree {
                            tx: &mpsc::SyncSender<PatchEvent>,
                            rx: &mpsc::Receiver<Result<(), &'static str>>,
     ) {
+        let line = line.trim();
+
+        // If nothing was typed, don't bother printing an error message
+        if line.len() == 0 {
+            return
+        }
+
         let mut tokens = line.trim().split_whitespace();
 
         // Identify the right node to generate the event
@@ -128,11 +135,18 @@ impl Tree {
             match current_node {
                 Node::WithChildren(child_map) => {
                     let token = match tokens.next() {
-                        None => return, // Can't proceed, would need more tokens
+                        None => {
+                            println!("Error: Expected more tokens in command!");
+                            return
+                        }
                         Some(token) => token,
                     };
+
                     match child_map.get(token) {
-                        None => return, // Can't proceed, invalid command
+                        None => {
+                            println!("Error: unrecognised token '{}'!", token);
+                            return
+                        }
                         Some(child) => {
                             // assign this child as the current node and continue looping
                             current_node = &child;
@@ -143,17 +157,19 @@ impl Tree {
                     // The final node. Get the event
                     let event = match f(&mut tokens) {
                         Err(usage_msg) => {
-                            println!("{}", usage_msg);
+                            println!("Error: {}", usage_msg);
                             return
                         }
                         Ok(event) => event,
                     };
+
                     // Send the event to the audio thread, then handle the response
-                    tx.send(event).expect("Could not send event to audio thread");
+                    tx.send(event).unwrap();
                     match rx.recv() {
                         Ok(_) => println!("OK"),
                         Err(e) => println!("Error: {}", e),
                     }
+
                     // And finally
                     break
                 },

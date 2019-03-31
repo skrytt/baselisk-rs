@@ -12,16 +12,16 @@ use std::sync::mpsc;
 
 use defs;
 
-fn parse_from_next_token<T>(token_iter: &mut SplitWhitespace) -> Result<T, ()>
+fn parse_from_next_token<T>(token_iter: &mut SplitWhitespace) -> Result<T, String>
 where
     T: FromStr,
 {
     let token: &str = match token_iter.next() {
-        None => return Err(()),
+        None => return Err(String::from("Expected more tokens in command!")),
         Some(token) => token,
     };
     match token.trim().parse::<T>() {
-        Err(_) => Err(()),
+        Err(_) => Err(format!("Couldn't parse token '{}'!", token)),
         Ok(value) => Ok(value),
     }
 }
@@ -35,11 +35,7 @@ fn build_tree() -> Tree
 
         oscillator.add_child("type", Node::new_dispatch_event(
             |token_iter| {
-                let usage_str = "Syntax: oscillator type <type_name>";
-                let type_name: String = match parse_from_next_token(token_iter) {
-                    Err(_) => return Err(String::from(usage_str)),
-                    Ok(type_name) => type_name,
-                };
+                let type_name: String = parse_from_next_token(token_iter)?;
                 Ok(PatchEvent::OscillatorTypeSet{ type_name })
             },
             Some(String::from("[sine|saw|pulse]")),
@@ -47,11 +43,7 @@ fn build_tree() -> Tree
 
         oscillator.add_child("pitch", Node::new_dispatch_event(
             |mut token_iter| {
-                let usage_str = "Syntax: oscillator pitch <pitch_octaves>";
-                let semitones: defs::Sample = match parse_from_next_token(&mut token_iter) {
-                    Err(_) => return Err(String::from(usage_str)),
-                    Ok(value) => value,
-                };
+                let semitones: defs::Sample = parse_from_next_token(&mut token_iter)?;
                 Ok(PatchEvent::OscillatorPitchSet{ semitones })
             },
             Some(String::from("<octaves>")),
@@ -59,11 +51,7 @@ fn build_tree() -> Tree
 
         oscillator.add_child("pulsewidth", Node::new_dispatch_event(
             |mut token_iter| {
-                let usage_str = "Syntax: oscillator pulsewidth <width>";
-                let width: defs::Sample = match parse_from_next_token(&mut token_iter) {
-                    Err(_) => return Err(String::from(usage_str)),
-                    Ok(value) => value,
-                };
+                let width: defs::Sample = parse_from_next_token(&mut token_iter)?;
                 Ok(PatchEvent::OscillatorPulseWidthSet{ width })
             },
             Some(String::from("<width>")),
@@ -74,11 +62,7 @@ fn build_tree() -> Tree
 
         adsr.add_child("attack", Node::new_dispatch_event(
             |mut token_iter| {
-                let usage_str = "Syntax: adsr attack <duration>";
-                let duration: defs::Sample = match parse_from_next_token(&mut token_iter) {
-                    Err(_) => return Err(String::from(usage_str)),
-                    Ok(value) => value,
-                };
+                let duration: defs::Sample = parse_from_next_token(&mut token_iter)?;
                 Ok(PatchEvent::AdsrAttackSet{ duration })
             },
             Some(String::from("<duration>")),
@@ -86,11 +70,7 @@ fn build_tree() -> Tree
 
         adsr.add_child("decay", Node::new_dispatch_event(
             |mut token_iter| {
-                let usage_str = "Syntax: adsr decay <duration>";
-                let duration: defs::Sample = match parse_from_next_token(&mut token_iter) {
-                    Err(_) => return Err(String::from(usage_str)),
-                    Ok(value) => value,
-                };
+                let duration: defs::Sample = parse_from_next_token(&mut token_iter)?;
                 Ok(PatchEvent::AdsrDecaySet{ duration })
             },
             Some(String::from("<duration>")),
@@ -98,11 +78,7 @@ fn build_tree() -> Tree
 
         adsr.add_child("sustain", Node::new_dispatch_event(
             |mut token_iter| {
-                let usage_str = "Syntax: adsr sustain <level>";
-                let level: defs::Sample = match parse_from_next_token(&mut token_iter) {
-                    Err(_) => return Err(String::from(usage_str)),
-                    Ok(value) => value,
-                };
+                let level: defs::Sample = parse_from_next_token(&mut token_iter)?;
                 Ok(PatchEvent::AdsrSustainSet{ level })
             },
             Some(String::from("<level>")),
@@ -110,11 +86,7 @@ fn build_tree() -> Tree
 
         adsr.add_child("release", Node::new_dispatch_event(
             |mut token_iter| {
-                let usage_str = "Syntax: adsr release <duration>";
-                let duration: defs::Sample = match parse_from_next_token(&mut token_iter) {
-                    Err(_) => return Err(String::from(usage_str)),
-                    Ok(value) => value,
-                };
+                let duration: defs::Sample = parse_from_next_token(&mut token_iter)?;
                 Ok(PatchEvent::AdsrReleaseSet{ duration })
             },
             Some(String::from("<duration>")),
@@ -126,11 +98,7 @@ fn build_tree() -> Tree
 
         filter.add_child("frequency", Node::new_dispatch_event(
             |mut token_iter| {
-                let usage_str = "Syntax: filter frequency <hz>";
-                let hz: defs::Sample = match parse_from_next_token(&mut token_iter) {
-                    Err(_) => return Err(String::from(usage_str)),
-                    Ok(value) => value,
-                };
+                let hz: defs::Sample = parse_from_next_token(&mut token_iter)?;
                 Ok(PatchEvent::FilterFrequencySet{ hz })
             },
             Some(String::from("<Hz>")),
@@ -138,11 +106,7 @@ fn build_tree() -> Tree
 
         filter.add_child("sweeprange", Node::new_dispatch_event(
             |mut token_iter| {
-                let usage_str = "Syntax: filter sweeprange <octaves>";
-                let octaves: defs::Sample = match parse_from_next_token(&mut token_iter) {
-                    Err(_) => return Err(String::from(usage_str)),
-                    Ok(value) => value,
-                };
+                let octaves: defs::Sample = parse_from_next_token(&mut token_iter)?;
                 Ok(PatchEvent::FilterSweepRangeSet{ octaves })
             },
             Some(String::from("<octaves>")),
@@ -150,11 +114,7 @@ fn build_tree() -> Tree
 
         filter.add_child("quality", Node::new_dispatch_event(
             |mut token_iter| {
-                let usage_str = "Syntax: filter quality <q>";
-                let q: defs::Sample = match parse_from_next_token(&mut token_iter) {
-                    Err(_) => return Err(String::from(usage_str)),
-                    Ok(value) => value,
-                };
+                let q: defs::Sample = parse_from_next_token(&mut token_iter)?;
                 Ok(PatchEvent::FilterQualitySet{ q })
             },
             Some(String::from("<q>")),
@@ -165,11 +125,7 @@ fn build_tree() -> Tree
 
         waveshaper.add_child("inputgain", Node::new_dispatch_event(
             |mut token_iter| {
-                let usage_str = "Syntax: waveshaper inputgain <gain>";
-                let gain: defs::Sample = match parse_from_next_token(&mut token_iter) {
-                    Err(_) => return Err(String::from(usage_str)),
-                    Ok(value) => value,
-                };
+                let gain: defs::Sample = parse_from_next_token(&mut token_iter)?;
                 Ok(PatchEvent::WaveshaperInputGainSet{ gain })
             },
             Some(String::from("<gain>")),
@@ -177,11 +133,7 @@ fn build_tree() -> Tree
 
         waveshaper.add_child("outputgain", Node::new_dispatch_event(
             |mut token_iter| {
-                let usage_str = "Syntax: waveshaper outputgain <gain>";
-                let gain: defs::Sample = match parse_from_next_token(&mut token_iter) {
-                    Err(_) => return Err(String::from(usage_str)),
-                    Ok(value) => value,
-                };
+                let gain: defs::Sample = parse_from_next_token(&mut token_iter)?;
                 Ok(PatchEvent::WaveshaperOutputGainSet{ gain })
             },
             Some(String::from("<gain>")),
