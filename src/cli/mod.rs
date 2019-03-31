@@ -41,7 +41,8 @@ fn build_tree() -> Tree
                     Ok(type_name) => type_name,
                 };
                 Ok(PatchEvent::OscillatorTypeSet{ type_name })
-            }
+            },
+            Some(String::from("[sine|saw|pulse]")),
         ));
 
         oscillator.add_child("pitch", Node::new_dispatch_event(
@@ -52,7 +53,8 @@ fn build_tree() -> Tree
                     Ok(value) => value,
                 };
                 Ok(PatchEvent::OscillatorPitchSet{ semitones })
-            }
+            },
+            Some(String::from("<octaves>")),
         ));
 
         oscillator.add_child("pulsewidth", Node::new_dispatch_event(
@@ -63,7 +65,8 @@ fn build_tree() -> Tree
                     Ok(value) => value,
                 };
                 Ok(PatchEvent::OscillatorPulseWidthSet{ width })
-            }
+            },
+            Some(String::from("<width>")),
         ));
     }
     {
@@ -77,7 +80,8 @@ fn build_tree() -> Tree
                     Ok(value) => value,
                 };
                 Ok(PatchEvent::AdsrAttackSet{ duration })
-            }
+            },
+            Some(String::from("<duration>")),
         ));
 
         adsr.add_child("decay", Node::new_dispatch_event(
@@ -88,7 +92,8 @@ fn build_tree() -> Tree
                     Ok(value) => value,
                 };
                 Ok(PatchEvent::AdsrDecaySet{ duration })
-            }
+            },
+            Some(String::from("<duration>")),
         ));
 
         adsr.add_child("sustain", Node::new_dispatch_event(
@@ -99,7 +104,8 @@ fn build_tree() -> Tree
                     Ok(value) => value,
                 };
                 Ok(PatchEvent::AdsrSustainSet{ level })
-            }
+            },
+            Some(String::from("<level>")),
         ));
 
         adsr.add_child("release", Node::new_dispatch_event(
@@ -110,7 +116,8 @@ fn build_tree() -> Tree
                     Ok(value) => value,
                 };
                 Ok(PatchEvent::AdsrReleaseSet{ duration })
-            }
+            },
+            Some(String::from("<duration>")),
         ));
 
     }
@@ -125,7 +132,8 @@ fn build_tree() -> Tree
                     Ok(value) => value,
                 };
                 Ok(PatchEvent::FilterFrequencySet{ hz })
-            }
+            },
+            Some(String::from("<Hz>")),
         ));
 
         filter.add_child("sweeprange", Node::new_dispatch_event(
@@ -136,7 +144,8 @@ fn build_tree() -> Tree
                     Ok(value) => value,
                 };
                 Ok(PatchEvent::FilterSweepRangeSet{ octaves })
-            }
+            },
+            Some(String::from("<octaves>")),
         ));
 
         filter.add_child("quality", Node::new_dispatch_event(
@@ -147,7 +156,8 @@ fn build_tree() -> Tree
                     Ok(value) => value,
                 };
                 Ok(PatchEvent::FilterQualitySet{ q })
-            }
+            },
+            Some(String::from("<q>")),
         ));
     }
     {
@@ -161,7 +171,8 @@ fn build_tree() -> Tree
                     Ok(value) => value,
                 };
                 Ok(PatchEvent::WaveshaperInputGainSet{ gain })
-            }
+            },
+            Some(String::from("<gain>")),
         ));
 
         waveshaper.add_child("outputgain", Node::new_dispatch_event(
@@ -172,7 +183,8 @@ fn build_tree() -> Tree
                     Ok(value) => value,
                 };
                 Ok(PatchEvent::WaveshaperOutputGainSet{ gain })
-            }
+            },
+            Some(String::from("<gain>")),
         ));
     }
     Tree::new(root)

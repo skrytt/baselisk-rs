@@ -1,5 +1,6 @@
 
 use event::PatchEvent;
+use rustyline::completion::Pair;
 use std::collections::HashMap;
 use std::str::SplitWhitespace;
 use std::sync::mpsc;
@@ -8,7 +9,8 @@ use std::sync::mpsc;
 pub enum Node
 {
     WithChildren(HashMap<String, Node>),
-    DispatchEvent(fn(&mut SplitWhitespace) -> Result<PatchEvent, String>),
+    DispatchEvent(fn(&mut SplitWhitespace) -> Result<PatchEvent, String>,
+                  Option<String>),
 }
 
 impl Node {
@@ -19,9 +21,10 @@ impl Node {
 
     /// Build a new node with a function to process
     /// any remaining tokens and return an event
-    pub fn new_dispatch_event(f: fn(&mut SplitWhitespace) -> Result<PatchEvent, String>) -> Node
+    pub fn new_dispatch_event(f: fn(&mut SplitWhitespace) -> Result<PatchEvent, String>,
+                              argument_hint: Option<String>) -> Node
     {
-        Node::DispatchEvent(f)
+        Node::DispatchEvent(f, argument_hint)
     }
 
     /// Add a child node and return a reference to it
@@ -32,6 +35,13 @@ impl Node {
         };
         child_map.insert(name.to_string(), child);
         child_map.get_mut(name).unwrap()
+    }
+
+    pub fn get_argument_hint(&self) -> Option<String> {
+        match self {
+            Node::DispatchEvent(_f, hint) => hint.clone(),
+            _ => None,
+        }
     }
 }
 
@@ -64,7 +74,7 @@ impl Tree {
                         None => break,
                     }
                 },
-                Node::DispatchEvent(_) => {
+                Node::DispatchEvent(_, _) => {
                     // The final node
                     break;
                 },
@@ -74,7 +84,7 @@ impl Tree {
 
     }
 
-    pub fn get_completion_options(&self, line: &str) -> Result<Vec<String>, ()> {
+    pub fn get_completion_options(&self, line: &str) -> Result<Vec<Pair>, ()> {
         let current_node = self.get_current_node(line);
 
         let child_map = match current_node {
@@ -83,8 +93,24 @@ impl Tree {
         };
 
         let mut completion_options = Vec::new();
-        for key in child_map.keys() {
-            completion_options.push(key.clone());
+        for (key, child_node) in child_map.iter() {
+            // Push a space to the end of the replacement, so that autocompleting this token
+            // in full allows the user to then begin autocompleting the next token
+            let mut replacement = key.clone();
+            replacement.push(' ');
+
+            // Display should start with the replacement string and then hint at
+            // what to type next
+            let mut display = replacement.clone();
+            if let Some(hint) = child_node.get_argument_hint() {
+                display.push_str(&hint);
+            }
+            let pair = Pair {
+                display,
+                replacement,
+            };
+
+            completion_options.push(pair);
         }
         Ok(completion_options)
     }
@@ -113,7 +139,7 @@ impl Tree {
                         }
                     }
                 },
-                Node::DispatchEvent(f) => {
+                Node::DispatchEvent(f, _hint) => {
                     // The final node. Get the event
                     let event = match f(&mut tokens) {
                         Err(usage_msg) => {

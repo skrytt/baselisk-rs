@@ -2,7 +2,7 @@ extern crate rustyline;
 
 use defs;
 
-use rustyline::completion::{Completer, extract_word};
+use rustyline::completion::{Completer, extract_word, Pair};
 use rustyline::config::OutputStreamType;
 use rustyline::error::ReadlineError;
 use rustyline::highlight::Highlighter;
@@ -34,25 +34,22 @@ impl CliHelper {
 }
 
 impl Completer for CliHelper {
-    type Candidate = String;
+    type Candidate = Pair;
 
     fn complete(
         &self,
         line: &str,
         pos: usize,
-    ) -> Result<(usize, Vec<String>), ReadlineError> {
+    ) -> Result<(usize, Vec<Pair>), ReadlineError> {
         let (start, partial) = extract_word(line, pos, ESCAPE_CHAR, &BREAK_CHARS);
 
-        let mut result_vec = Vec::new();
+        let mut result_vec: Vec<Pair> = Vec::new();
 
         if let Ok(options) = self.tree.get_completion_options(line) {
             let matches = options
                 .into_iter()
-                .filter(|s| { s.starts_with(partial) });
+                .filter(|s| { s.replacement.starts_with(partial) });
             for mut item in matches {
-                // Push a space to the end, so that autocompleting this token in full
-                // allows the user to then begin autocompleting the next token
-                item.push(' ');
                 result_vec.push(item);
             }
         }
