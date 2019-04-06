@@ -95,32 +95,85 @@ impl LowPassFilter
     pub fn process_buffer(&mut self,
                           adsr_input_buffer: &defs::MonoFrameBufferSlice,
                           output_buffer: &mut defs::MonoFrameBufferSlice,
-                          engine_event_iter: std::slice::Iter<(usize, EngineEvent)>,
+                          mut engine_event_iter: std::slice::Iter<(usize, EngineEvent)>,
                           sample_rate: defs::Sample) {
         self.sample_rate = sample_rate;
 
-        // TODO: per-sample modulation
-        for (_frame_num, engine_event) in engine_event_iter {
-            if let EngineEvent::ModulateParameter { parameter, value } = engine_event {
-                match parameter {
-                    ModulatableParameter::FilterFrequency => {
-                        self.params.frequency.update_cc(*value);
+        // Calculate the output values per-frame
+        let mut this_keyframe: usize = 0;
+        let mut next_keyframe: usize;
+        loop {
+            // Get next selected note, if there is one.
+            let next_event = engine_event_iter.next();
+
+            // This match block continues on events that are unimportant to this processor.
+            match next_event {
+                Some((frame_num, engine_event)) => {
+                    match engine_event {
+                        EngineEvent::ModulateParameter { parameter, .. } => match parameter {
+                            ModulatableParameter::FilterFrequency => (),
+                            ModulatableParameter::FilterQuality => (),
+                            ModulatableParameter::FilterSweepRange => (),
+                            _ => continue,
+                        },
+                        _ => continue,
+                    }
+                    next_keyframe = *frame_num;
+                },
+                None => {
+                    // No more note change events, so we'll process to the end of the buffer.
+                    next_keyframe = output_buffer.len();
+                },
+            };
+
+            // Apply the old parameters up until next_keyframe.
+            {
+                let output_buffer_slice = output_buffer.get_mut(
+                        this_keyframe..next_keyframe).unwrap();
+                let adsr_input_buffer_slice = adsr_input_buffer.get(
+                        this_keyframe..next_keyframe).unwrap();
+
+                // Iterate over two buffer slices at once using a zip method
+                slice::zip_map_in_place(output_buffer_slice, adsr_input_buffer_slice,
+                                        |output_frame, adsr_input_frame|
+                {
+                    // Iterate over the samples in each frame using a zip method
+                    output_frame.zip_map(adsr_input_frame,
+                                         |output_sample, adsr_input_sample| {
+                        self.process(output_sample, adsr_input_sample)
+                    })
+                });
+            } // output_buffer_slice exits scope
+
+            // We've reached the next_keyframe.
+            this_keyframe = next_keyframe;
+
+            // What we do now depends on whether we reached the end of the buffer.
+            if this_keyframe == output_buffer.len() {
+                // Loop exit condition: reached the end of the buffer.
+                break
+            } else {
+                // Before the next iteration, use the event at this keyframe
+                // to update the current state.
+                let (_, event) = next_event.unwrap();
+                match event {
+                    EngineEvent::ModulateParameter { parameter, value } => match parameter {
+                        ModulatableParameter::FilterFrequency => {
+                            self.params.frequency.update_cc(*value);
+                        },
+                        ModulatableParameter::FilterQuality => {
+                            self.params.quality_factor.update_cc(*value);
+                        }
+                        ModulatableParameter::FilterSweepRange => {
+                            self.params.adsr_sweep_octaves.update_cc(*value);
+                        },
+                        _ => (),
                     },
                     _ => (),
-                }
+                };
             }
         }
 
-        // Iterate over two buffers at once using a zip method
-        slice::zip_map_in_place(output_buffer, adsr_input_buffer,
-                                |output_frame, adsr_input_frame|
-        {
-            // Iterate over the samples in each frame using a zip method
-            output_frame.zip_map(adsr_input_frame,
-                                 |output_sample, adsr_input_sample| {
-                self.process(output_sample, adsr_input_sample)
-            })
-        })
     }
 
     fn process(&mut self, input: defs::Sample, adsr_input: defs::Sample) -> defs::Sample
