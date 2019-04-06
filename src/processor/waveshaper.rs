@@ -1,9 +1,9 @@
 extern crate sample;
 
 use defs;
-use event::ModulatableParameterUpdateData;
+use event::{EngineEvent, ModulatableParameter, ModulatableParameterUpdateData};
 use parameter::{Parameter, LinearParameter};
-use sample::{Frame, slice};
+use std::slice::Iter;
 
 pub struct Waveshaper {
     input_gain: LinearParameter,
@@ -28,16 +28,75 @@ impl Waveshaper {
         self.output_gain.update_patch(data)
     }
 
-    pub fn process_buffer(&mut self, output_buffer: &mut defs::MonoFrameBufferSlice)
+    pub fn process_buffer(&mut self,
+                          buffer: &mut defs::MonoFrameBufferSlice,
+                          mut engine_event_iter: Iter<(usize, EngineEvent)>)
     {
-        slice::map_in_place(output_buffer, |output_frame| {
-            output_frame.map(|output_sample| {
-                // Polynomial: -x^3 + x^2 + x
-                // With input and output gain scaling
-                let x = output_sample.abs() * self.input_gain.get();
-                self.output_gain.get() * output_sample.signum() * (
-                    -x.powi(3) + x.powi(2) + x)
-            })
-        })
+        // Calculate the output values per-frame
+        let mut this_keyframe: usize = 0;
+        let mut next_keyframe: usize;
+        loop {
+            // Get next selected note, if there is one.
+            let next_event = engine_event_iter.next();
+
+            // This match block continues on events that are unimportant to this processor.
+            match next_event {
+                Some((frame_num, engine_event)) => {
+                    match engine_event {
+                        EngineEvent::ModulateParameter { parameter, .. } => match parameter {
+                            ModulatableParameter::WaveshaperInputGain => (),
+                            ModulatableParameter::WaveshaperOutputGain => (),
+                            _ => continue,
+                        },
+                        _ => continue,
+                    }
+                    next_keyframe = *frame_num;
+                },
+                None => {
+                    // No more note change events, so we'll process to the end of the buffer.
+                    next_keyframe = buffer.len();
+                },
+            };
+
+            // Apply the old parameters up until next_keyframe.
+            if let Some(buffer_slice) = buffer.get_mut(this_keyframe..next_keyframe) {
+                for frame in buffer_slice {
+                    for sample in frame {
+                        *sample = {
+                            // Polynomial: -x^3 + x^2 + x
+                            // With input and output gain scaling
+                            let x = sample.abs() * self.input_gain.get();
+                            self.output_gain.get() * sample.signum() * (
+                                -x.powi(3) + x.powi(2) + x)
+                        };
+                    }
+                }
+            }
+
+            // We've reached the next_keyframe.
+            this_keyframe = next_keyframe;
+
+            // What we do now depends on whether we reached the end of the buffer.
+            if this_keyframe == buffer.len() {
+                // Loop exit condition: reached the end of the buffer.
+                break
+            } else {
+                // Before the next iteration, use the event at this keyframe
+                // to update the current state.
+                let (_, event) = next_event.unwrap();
+                match event {
+                    EngineEvent::ModulateParameter { parameter, value } => match parameter {
+                        ModulatableParameter::WaveshaperInputGain => {
+                            self.input_gain.update_cc(*value);
+                        },
+                        ModulatableParameter::WaveshaperOutputGain => {
+                            self.output_gain.update_cc(*value);
+                        },
+                        _ => (),
+                    },
+                    _ => (),
+                };
+            }
+        }
     }
 }

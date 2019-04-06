@@ -174,7 +174,8 @@ impl Engine
                                             sample_rate);
 
         // Waveshaper
-        self.waveshaper.process_buffer(main_buffer);
+        self.waveshaper.process_buffer(main_buffer,
+                                       self.engine_event_buffer.iter());
 
     }
 
