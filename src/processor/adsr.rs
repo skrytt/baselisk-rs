@@ -1,5 +1,6 @@
 use defs;
 use event::{EngineEvent,
+            ModulatableParameter,
             ModulatableParameterUpdateData,
 };
 use parameter::{Parameter, LinearParameter};
@@ -28,7 +29,7 @@ impl AdsrParams {
             attack_duration: LinearParameter::new(0.0, 10.0, 0.02),
             decay_duration: LinearParameter::new(0.0, 10.0, 0.707),
             sustain_level: LinearParameter::new(0.0, 1.0, 0.0),
-            release_duration: LinearParameter::new(0.0, 10.0, 0.707),
+            release_duration: LinearParameter::new(0.0, 10.0, 0.4),
         }
     }
 }
@@ -41,7 +42,7 @@ struct AdsrState {
     relative_gain_at_stage_end: f32,
     sample_duration: f32,
     phase_time: f32,
-    last_current_note: Option<u8>,
+    selected_note: Option<u8>,
 }
 
 /// An ADSR struct with all the bits plugged together:
@@ -61,7 +62,7 @@ impl Adsr {
                 relative_gain_at_stage_end: 0.0,
                 sample_duration: 1.0, // Needs to be set by update_sample_rate
                 phase_time: 0.0,
-                last_current_note: None,
+                selected_note: None,
             },
         }
     }
@@ -156,34 +157,37 @@ impl Adsr {
     {
         self.state.sample_duration = 1.0 / sample_rate as f32;
 
-
-        // Calculate the values per-frame
-        let mut frame_num_current: usize = 0;
-        let mut selected_note_current: Option<u8> = self.state.last_current_note;
-
-        let mut frame_num_next: usize;
-        let mut selected_note_next: Option<u8> = selected_note_current;
-
+        // Calculate the output values per-frame
+        let mut this_keyframe: usize = 0;
+        let mut next_keyframe: usize;
         loop {
             // Get next selected note, if there is one.
-            match engine_event_iter.next() {
+            let next_event = engine_event_iter.next();
+
+            // This match block continues on events that are unimportant to this processor.
+            match next_event {
                 Some((frame_num, engine_event)) => {
                     match engine_event {
-                        EngineEvent::NoteChange{ note } => {
-                            frame_num_next = *frame_num;
-                            selected_note_next = *note;
+                        EngineEvent::NoteChange{ .. } => (),
+                        EngineEvent::ModulateParameter { parameter, .. } => match parameter {
+                            ModulatableParameter::AdsrAttack => (),
+                            ModulatableParameter::AdsrDecay => (),
+                            ModulatableParameter::AdsrSustain => (),
+                            ModulatableParameter::AdsrRelease => (),
+                            _ => continue,
                         },
                         _ => continue,
                     }
+                    next_keyframe = *frame_num;
                 },
                 None => {
-                    // No more note change events.
-                    frame_num_next = buffer.len();
+                    // No more note change events, so we'll process to the end of the buffer.
+                    next_keyframe = buffer.len();
                 },
             };
 
-            // Compute values up until the next change
-            if let Some(buffer_slice) = buffer.get_mut(frame_num_current..frame_num_next) {
+            // Apply the old parameters up until next_keyframe.
+            if let Some(buffer_slice) = buffer.get_mut(this_keyframe..next_keyframe) {
                 for frame in buffer_slice {
                     for sample in frame {
                         *sample = self.advance();
@@ -191,19 +195,45 @@ impl Adsr {
                 }
             }
 
-            // Exit condition: reached the end of the buffer.
-            if frame_num_next == buffer.len() {
-                break
-            }
+            // We've reached the next_keyframe.
+            this_keyframe = next_keyframe;
 
-            // Update the state for next iteration.
-            let any_notes_held_next = selected_note_next.is_some();
-            let current_note_changed_next = selected_note_current != selected_note_next;
-            self.update_state(any_notes_held_next, current_note_changed_next);
-            selected_note_current = selected_note_next;
-            frame_num_current = frame_num_next;
+            // What we do now depends on whether we reached the end of the buffer.
+            if this_keyframe == buffer.len() {
+                // Loop exit condition: reached the end of the buffer.
+                break
+            } else {
+                // Before the next iteration, use the event at this keyframe
+                // to update the current state.
+                let (_, event) = next_event.unwrap();
+                match event {
+                    EngineEvent::NoteChange{ note } => {
+                        let any_notes_held_next = note.is_some();
+                        let current_note_changed_next = *note != self.state.selected_note;
+
+                        self.update_state(any_notes_held_next, current_note_changed_next);
+
+                        self.state.selected_note = *note;
+                    },
+                    EngineEvent::ModulateParameter { parameter, value } => match parameter {
+                        ModulatableParameter::AdsrAttack => {
+                            self.params.attack_duration.update_cc(*value);
+                        },
+                        ModulatableParameter::AdsrDecay => {
+                            self.params.decay_duration.update_cc(*value);
+                        },
+                        ModulatableParameter::AdsrSustain => {
+                            self.params.sustain_level.update_cc(*value);
+                        },
+                        ModulatableParameter::AdsrRelease => {
+                            self.params.release_duration.update_cc(*value);
+                        },
+                        _ => (),
+                    },
+                    _ => (),
+                };
+            }
         }
-        self.state.last_current_note = selected_note_current;
     }
 
     fn advance(&mut self) -> defs::Sample {
