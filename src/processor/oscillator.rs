@@ -2,7 +2,7 @@ extern crate sample;
 
 use buffer::ResizableFrameBuffer;
 use defs;
-use event::{EngineEvent, ModulatableParameterUpdateData};
+use event::{EngineEvent, ModulatableParameter, ModulatableParameterUpdateData};
 use parameter::{Parameter, LinearParameter};
 use std::slice;
 
@@ -15,12 +15,12 @@ fn get_frequency(note: defs::Sample) -> defs::Sample {
 
 /// Internal state used by oscillator types.
 pub struct State {
-    note: u8,
-    pitch_bend: defs::Sample,   // Semitones
-
-    frequency_current: defs::Sample,
     pitch_offset: LinearParameter, // Semitones
-    pulse_width: LinearParameter,  // 0.001 <= pulse_width <= 0.999
+    pulse_width: LinearParameter,
+    note: u8,
+
+    pitch_bend: defs::Sample,   // Semitones
+    frequency: defs::Sample,
     phase: defs::Sample,        // 0 <= phase <= 1
     sample_rate: defs::Sample,
     frequency_buffer: ResizableFrameBuffer<defs::MonoFrame>,
@@ -29,11 +29,11 @@ pub struct State {
 impl State {
     pub fn new() -> State {
         State {
-            note: 69,
             pitch_offset: LinearParameter::new(-36.0, 36.0, 0.0),
-            frequency_current: 0.0,
-            pitch_bend: 0.0,
             pulse_width: LinearParameter::new(0.01, 0.99, 0.5),
+            note: 69,
+            pitch_bend: 0.0,
+            frequency: 0.0,
             phase: 0.0,
             sample_rate: 0.0,
             frequency_buffer: ResizableFrameBuffer::new(),
@@ -41,7 +41,7 @@ impl State {
     }
 
     pub fn reset(&mut self) {
-        self.frequency_current = 0.0;
+        self.frequency = 0.0;
         self.pitch_bend = 0.0;
         self.phase = 0.0;
         self.sample_rate = 0.0;
@@ -58,62 +58,81 @@ impl State {
 
         // Calculate the frequencies per-frame
         let frequency_buffer = self.frequency_buffer.get_sized_mut(buffer_size);
-        let mut frame_num_current: usize = 0;
-        let mut frequency_current: defs::Sample = self.frequency_current;
-        let mut frame_num_next: usize;
-        let mut frequency_next: defs::Sample = frequency_current;
+        let mut this_keyframe: usize = 0;
+        let mut next_keyframe: usize;
         loop {
             // Get next selected note, if there is one.
-            match engine_event_iter.next() {
+            let next_event = engine_event_iter.next();
+
+            // This match block continues on events that are unimportant to this processor.
+            match next_event {
                 Some((frame_num, engine_event)) => {
                     match engine_event {
                         EngineEvent::NoteChange{ note } => match note {
-                            Some(note) => {
-                                self.note = *note;
-                                frame_num_next = *frame_num;
-                                frequency_next = get_frequency(
-                                    self.note as defs::Sample
-                                    + self.pitch_offset.get()
-                                    + self.pitch_bend);
-                            },
+                            Some(_) => (),
                             None => continue,
                         },
-                        EngineEvent::PitchBend{ semitones } => {
-                            self.pitch_bend = *semitones;
-                            frame_num_next = *frame_num;
-                            frequency_next = get_frequency(
-                                self.note as defs::Sample
-                                + self.pitch_offset.get()
-                                + self.pitch_bend);
+                        EngineEvent::PitchBend{ .. } => (),
+                        EngineEvent::ModulateParameter { parameter, .. } => match parameter {
+                            ModulatableParameter::OscillatorPitch => (),
+                            ModulatableParameter::OscillatorPulseWidth => (),
+                            _ => continue,
                         },
-                        _ => continue,
                     }
+                    next_keyframe = *frame_num;
                 },
                 None => {
-                    // No more note change events.
-                    frame_num_next = buffer_size;
+                    // No more note change events, so we'll process to the end of the buffer.
+                    next_keyframe = buffer_size;
                 },
             };
 
-            // Apply the current frequency up until the next change
-            if let Some(frequency_buffer_slice) = frequency_buffer.get_mut(frame_num_current..frame_num_next) {
+            // Apply the old parameters up until next_keyframe.
+            if let Some(frequency_buffer_slice) = frequency_buffer.get_mut(
+                    this_keyframe..next_keyframe)
+            {
+                self.frequency = get_frequency(self.note as defs::Sample
+                                               + self.pitch_offset.get()
+                                               + self.pitch_bend);
                 for frequency_frame in frequency_buffer_slice {
                     for frequency_sample in frequency_frame {
-                        *frequency_sample = frequency_current;
+                        *frequency_sample = self.frequency;
                     }
                 }
             }
 
-            // Exit condition: reached the end of the buffer.
-            if frame_num_next == buffer_size {
-                break
-            }
+            // We've reached the next_keyframe.
+            this_keyframe = next_keyframe;
 
-            // Update the current frequency and frame num for next iteration.
-            frequency_current = frequency_next;
-            frame_num_current = frame_num_next;
+            // What we do now depends on whether we reached the end of the buffer.
+            if this_keyframe == buffer_size {
+                // Loop exit condition: reached the end of the buffer.
+                break
+            } else {
+                // Before the next iteration, use the event at this keyframe
+                // to update the current state.
+                let (_, event) = next_event.unwrap();
+                match event {
+                    EngineEvent::NoteChange{ note } => {
+                        if let Some(note) = note {
+                            self.note = *note;
+                        }
+                    },
+                    EngineEvent::PitchBend{ semitones } => {
+                        self.pitch_bend = *semitones;
+                    },
+                    EngineEvent::ModulateParameter { parameter, value } => match parameter {
+                        ModulatableParameter::OscillatorPitch => {
+                            self.pitch_offset.update_cc(*value);
+                        },
+                        ModulatableParameter::OscillatorPulseWidth => {
+                            self.pulse_width.update_cc(*value);
+                        },
+                        _ => (),
+                    },
+                };
+            }
         }
-        self.frequency_current = frequency_current;
     }
 }
 
