@@ -1,5 +1,7 @@
 use defs;
-use event::EngineEvent;
+use event::{EngineEvent,
+            ModulatableParameterUpdateData,
+};
 use parameter::{Parameter, LinearParameter};
 use std::slice;
 
@@ -23,10 +25,10 @@ pub struct AdsrParams {
 impl AdsrParams {
     pub fn new() -> AdsrParams {
         AdsrParams {
-            attack_duration: LinearParameter::new(0.02),
-            decay_duration: LinearParameter::new(0.707),
-            sustain_level: LinearParameter::new(0.0),
-            release_duration: LinearParameter::new(0.707),
+            attack_duration: LinearParameter::new(0.0, 10.0, 0.02),
+            decay_duration: LinearParameter::new(0.0, 10.0, 0.707),
+            sustain_level: LinearParameter::new(0.0, 1.0, 0.0),
+            release_duration: LinearParameter::new(0.0, 10.0, 0.707),
         }
     }
 }
@@ -64,36 +66,25 @@ impl Adsr {
         }
     }
 
-    pub fn set_attack(&mut self, duration: defs::Sample) -> Result<(), &'static str> {
-        if duration < 0.0 {
-            return Err("attack duration must be >= 0.0");
-        }
-        self.params.attack_duration.set_base(duration);
-        Ok(())
+    pub fn update_attack(&mut self, data: ModulatableParameterUpdateData)
+                         -> Result<(), &'static str>
+    {
+        self.params.attack_duration.update_patch(data)
     }
 
-    pub fn set_decay(&mut self, duration: defs::Sample) -> Result<(), &'static str> {
-        if duration < 0.0 {
-            return Err("decay duration must be >= 0.0");
-        }
-        self.params.decay_duration.set_base(duration);
-        Ok(())
+    pub fn update_decay(&mut self, data: ModulatableParameterUpdateData)
+                        -> Result<(), &'static str> {
+        self.params.decay_duration.update_patch(data)
     }
 
-    pub fn set_sustain(&mut self, level: defs::Sample) -> Result<(), &'static str> {
-        if level < 0.0 || level > 1.0 {
-            return Err("sustain level must be 0.0 >= level >= 1.0");
-        }
-        self.params.sustain_level.set_base(level);
-        Ok(())
+    pub fn update_sustain(&mut self, data: ModulatableParameterUpdateData)
+                          -> Result<(), &'static str> {
+        self.params.sustain_level.update_patch(data)
     }
 
-    pub fn set_release(&mut self, duration: defs::Sample) -> Result<(), &'static str> {
-        if duration < 0.0 {
-            return Err("release duration must be >= 0.0");
-        }
-        self.params.release_duration.set_base(duration);
-        Ok(())
+    pub fn update_release(&mut self, data: ModulatableParameterUpdateData)
+                          -> Result<(), &'static str> {
+        self.params.release_duration.update_patch(data)
     }
 
     pub fn update_state(&mut self,

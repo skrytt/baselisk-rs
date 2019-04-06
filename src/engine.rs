@@ -1,7 +1,7 @@
 
 use buffer::ResizableFrameBuffer;
 use defs;
-use event::{EngineEvent, MidiEvent, ModulatableParameter, PatchEvent};
+use event::{ControllerBindData, EngineEvent, MidiEvent, ModulatableParameter, PatchEvent};
 use processor::{Adsr, Gain, Oscillator, LowPassFilter,
                 ModulationMatrix, MonoNoteSelector, PitchBend, Waveshaper};
 use sample::slice;
@@ -26,16 +26,12 @@ pub struct Engine
 impl Engine
 {
     pub fn new() -> Engine {
-        // Temporary code to test binding of parameter
-        // TODO: remove this
-        let mut modulation_matrix = ModulationMatrix::new();
-        modulation_matrix.bind_cc(1, ModulatableParameter::FilterFrequency);
         Engine {
             // Engine Event Processing
             engine_event_buffer: Vec::with_capacity(defs::ENGINE_EVENT_BUF_LEN),
             note_selector: MonoNoteSelector::new(),
             pitch_bend: PitchBend::new(),
-            modulation_matrix,
+            modulation_matrix: ModulationMatrix::new(),
             // Buffers
             adsr_buffer: ResizableFrameBuffer::new(),
             // DSP Units
@@ -57,45 +53,54 @@ impl Engine
         // to the main thread to indicate success or failure.
         while let Ok(patch_event) = rx.try_recv() {
             let result: Result<(), &'static str> = match patch_event {
-
                 PatchEvent::PitchBendRangeSet { semitones } => {
                     self.pitch_bend.set_range(semitones)
                 },
                 PatchEvent::OscillatorTypeSet { type_name } => {
                     self.oscillator.set_type(&type_name)
                 },
-                PatchEvent::OscillatorPitchSet { semitones } => {
-                    self.oscillator.set_pitch(semitones)
+                PatchEvent::ControllerBindUpdate { parameter, bind_type } => {
+                    match bind_type {
+                        ControllerBindData::MidiLearn => {
+                            self.modulation_matrix.learn_parameter(parameter)
+                        },
+                        _ => Err("Unimplemented"),
+                    }
                 },
-                PatchEvent::OscillatorPulseWidthSet { width } => {
-                    self.oscillator.set_pulse_width(width)
-                },
-                PatchEvent::FilterFrequencySet { hz } => {
-                    self.low_pass_filter.set_frequency(hz)
-                },
-                PatchEvent::FilterSweepRangeSet { octaves } => {
-                    self.low_pass_filter.set_sweep(octaves)
-                },
-                PatchEvent::FilterQualitySet { q } => {
-                    self.low_pass_filter.set_quality(q)
-                },
-                PatchEvent::AdsrAttackSet { duration } => {
-                    self.adsr.set_attack(duration)
-                },
-                PatchEvent::AdsrDecaySet { duration } => {
-                    self.adsr.set_decay(duration)
-                },
-                PatchEvent::AdsrSustainSet { level } => {
-                    self.adsr.set_sustain(level)
-                },
-                PatchEvent::AdsrReleaseSet { duration } => {
-                    self.adsr.set_release(duration)
-                },
-                PatchEvent::WaveshaperInputGainSet { gain } => {
-                    self.waveshaper.set_input_gain(gain)
-                },
-                PatchEvent::WaveshaperOutputGainSet { gain } => {
-                    self.waveshaper.set_output_gain(gain)
+                PatchEvent::ModulatableParameterUpdate { parameter, data } => match parameter {
+                    ModulatableParameter::AdsrAttack => {
+                        self.adsr.update_attack(data)
+                    },
+                    ModulatableParameter::AdsrDecay => {
+                        self.adsr.update_decay(data)
+                    },
+                    ModulatableParameter::AdsrSustain => {
+                        self.adsr.update_sustain(data)
+                    },
+                    ModulatableParameter::AdsrRelease => {
+                        self.adsr.update_release(data)
+                    },
+                    ModulatableParameter::FilterFrequency => {
+                        self.low_pass_filter.update_frequency(data)
+                    },
+                    ModulatableParameter::FilterSweepRange => {
+                        self.low_pass_filter.update_sweep(data)
+                    },
+                    ModulatableParameter::FilterQuality => {
+                        self.low_pass_filter.update_quality(data)
+                    },
+                    ModulatableParameter::OscillatorPitch => {
+                        self.oscillator.update_pitch(data)
+                    },
+                    ModulatableParameter::OscillatorPulseWidth => {
+                        self.oscillator.update_pulse_width(data)
+                    },
+                    ModulatableParameter::WaveshaperInputGain => {
+                        self.waveshaper.update_input_gain(data)
+                    },
+                    ModulatableParameter::WaveshaperOutputGain => {
+                        self.waveshaper.update_output_gain(data)
+                    },
                 },
             };
             // TODO: either fix this, or refactor it out

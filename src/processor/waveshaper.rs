@@ -1,6 +1,7 @@
 extern crate sample;
 
 use defs;
+use event::ModulatableParameterUpdateData;
 use parameter::{Parameter, LinearParameter};
 use sample::{Frame, slice};
 
@@ -12,25 +13,19 @@ pub struct Waveshaper {
 impl Waveshaper {
     pub fn new() -> Waveshaper {
         Waveshaper{
-            input_gain: LinearParameter::new(0.333),
-            output_gain: LinearParameter::new(0.667),
+            input_gain: LinearParameter::new(0.0, 1.0, 0.333),
+            output_gain: LinearParameter::new(0.0, 1.0, 0.667),
         }
     }
 
-    pub fn set_input_gain(&mut self, gain: defs::Sample) -> Result<(), &'static str> {
-        if gain <= 0.0 || gain >= 1.0 {
-            return Err("Gain must be in the range 0.0 <= gain <= 1.0")
-        }
-        self.input_gain.set_base(gain);
-        Ok(())
+    pub fn update_input_gain(&mut self, data: ModulatableParameterUpdateData)
+                          -> Result<(), &'static str> {
+        self.input_gain.update_patch(data)
     }
 
-    pub fn set_output_gain(&mut self, gain: defs::Sample) -> Result<(), &'static str> {
-        if gain <= 0.0 || gain >= 1.0 {
-            return Err("Gain must be in the range 0.0 <= gain <= 1.0")
-        }
-        self.output_gain.set_base(gain);
-        Ok(())
+    pub fn update_output_gain(&mut self, data: ModulatableParameterUpdateData)
+                           -> Result<(), &'static str> {
+        self.output_gain.update_patch(data)
     }
 
     pub fn process_buffer(&mut self, output_buffer: &mut defs::MonoFrameBufferSlice)

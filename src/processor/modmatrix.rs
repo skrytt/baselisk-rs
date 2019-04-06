@@ -18,13 +18,23 @@ impl ModulationMatrix
     }
 
     /// Set that a parameter should be bound to the next MIDI CC received.
-    pub fn _learn_parameter(&mut self, parameter: ModulatableParameter) {
+    pub fn learn_parameter(&mut self, parameter: ModulatableParameter)
+                           -> Result<(), &'static str> 
+    {
         self.parameter_to_learn = Some(parameter);
+        Ok(())
     }
 
-    pub fn bind_cc(&mut self, number: u8, parameter: ModulatableParameter) {
+    pub fn bind_cc(&mut self, number: u8) {
         let controller = self.controllers.get_mut(number as usize).unwrap();
+        let parameter = self.parameter_to_learn.take().unwrap();
+
+        // Printing from audio thread is a bad idea, but leaving this in for now
+        // for debugging purposes. TODO: remove.
+        println!("Binding SingleController (CC {}) to {:?}", number, parameter);
+
         controller.bind(parameter);
+        self.parameter_to_learn = None;
     }
 
     /// Process a MidiEvent.
@@ -38,8 +48,7 @@ impl ModulationMatrix
                     return controller.process(*value)
                 },
                 true => {
-                    let mut controller = self.controllers.get_mut(*number as usize).unwrap();
-                    controller.bind(self.parameter_to_learn.take().unwrap());
+                    self.bind_cc(*number);
                 }
             }
         }

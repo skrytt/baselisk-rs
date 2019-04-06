@@ -1,14 +1,10 @@
 use defs;
+use event::ModulatableParameterUpdateData;
 
 pub trait Parameter {
-    /// Update the base value of the parameter.
-    fn set_base(&mut self, base_value: defs::Sample);
+    fn update_patch(&mut self, data: ModulatableParameterUpdateData) -> Result<(), &'static str>;
 
-    /// Update the range of influence of the CC controller on the parameter.
-    fn set_range(&mut self, range: defs::Sample);
-
-    /// Update the parameter with a new CC provided by a cc controller.
-    fn set_cc(&mut self, cc_value: u8);
+    fn update_cc(&mut self, cc_value: u8);
 
     /// Get the current value of the parameter.
     fn get(&self) -> defs::Sample;
@@ -18,7 +14,10 @@ pub trait Parameter {
 /// Its base value is the "unmodulated" value of the parameter.
 pub struct LinearParameter
 {
+    low_limit: defs::Sample,
+    high_limit: defs::Sample,
     base_value: defs::Sample,
+    max_value: defs::Sample,
     cc_influence_range: defs::Sample,
     cc_value: u8,
     current_value: defs::Sample,
@@ -28,51 +27,64 @@ pub struct LinearParameter
 /// number of octaves as the cc_influence_range.
 impl LinearParameter
 {
-    pub fn new(base_value: defs::Sample) -> LinearParameter {
+    pub fn new(low_limit: defs::Sample,
+               high_limit: defs::Sample,
+               base_value: defs::Sample) -> LinearParameter
+    {
         LinearParameter {
+            low_limit,
+            high_limit,
             base_value: base_value,
+            max_value: base_value,
             cc_influence_range: 0.0,
             cc_value: 0,
             current_value: base_value,
         }
     }
 
-    fn update(&mut self) {
+    fn update_current_value(&mut self) {
         self.current_value = self.base_value + (
             self.cc_influence_range * (self.cc_value as defs::Sample) / 127.0);
     }
 }
 impl Parameter for LinearParameter {
-    /// Set the base value of the parameter.
-    fn set_base(&mut self, base_value: defs::Sample) {
-        self.base_value = base_value;
-        self.update();
+    fn update_patch(&mut self, data: ModulatableParameterUpdateData) -> Result<(), &'static str> {
+        match data {
+            ModulatableParameterUpdateData::Base(value) => {
+                let value = defs::Sample::max(self.low_limit, value);
+                let value = defs::Sample::min(self.high_limit, value);
+                self.base_value = value;
+            },
+            ModulatableParameterUpdateData::Max(value) => {
+                let value = defs::Sample::max(self.low_limit, value);
+                let value = defs::Sample::min(self.high_limit, value);
+                self.max_value = value;
+            },
+        }
+        self.cc_influence_range = self.max_value - self.base_value;
+        self.update_current_value();
+        Ok(())
     }
 
-    /// Update the range of influence of the CC controller on the parameter.
-    fn set_range(&mut self, range: defs::Sample) {
-        self.cc_influence_range = range;
-        self.update();
-    }
-
-    /// Return the parameter's new value based on the value provided by a cc controller.
-    fn set_cc(&mut self, cc_value: u8) {
+    fn update_cc(&mut self, cc_value: u8) {
         self.cc_value = cc_value;
-        self.update();
+        self.update_current_value();
     }
 
     /// Get the current value of the parameter.
     fn get(&self) -> defs::Sample {
         self.current_value
     }
-
 }
 
 /// A parameter that can be modulated.
 /// Its base value is the "unmodulated" value of the parameter.
 pub struct FrequencyParameter
 {
+    low_limit: defs::Sample,
+    high_limit: defs::Sample,
     base_value: defs::Sample,
+    max_value: defs::Sample,
     cc_influence_range_octaves: defs::Sample,
     cc_value: u8,
     current_value: defs::Sample,
@@ -82,37 +94,49 @@ pub struct FrequencyParameter
 /// number of octaves as the cc_influence_range.
 impl FrequencyParameter
 {
-    pub fn new(base_value: defs::Sample) -> FrequencyParameter {
+    pub fn new(low_limit: defs::Sample,
+               high_limit: defs::Sample,
+               base_value: defs::Sample) -> FrequencyParameter
+    {
         FrequencyParameter {
+            low_limit,
+            high_limit,
             base_value: base_value,
+            max_value: base_value,
             cc_influence_range_octaves: 0.0,
             cc_value: 0,
             current_value: base_value,
         }
     }
 
-    fn update(&mut self) {
+    fn update_current_value(&mut self) {
         self.current_value = self.base_value * (
             1.0 + self.cc_influence_range_octaves * (self.cc_value as defs::Sample) / 127.0);
     }
 }
+
 impl Parameter for FrequencyParameter {
-    /// Set the base value of the parameter.
-    fn set_base(&mut self, base_value: defs::Sample) {
-        self.base_value = base_value;
-        self.update();
+    fn update_patch(&mut self, data: ModulatableParameterUpdateData) -> Result<(), &'static str> {
+        match data {
+            ModulatableParameterUpdateData::Base(value) => {
+                let value = defs::Sample::max(self.low_limit, value);
+                let value = defs::Sample::min(self.high_limit, value);
+                self.base_value = value;
+            },
+            ModulatableParameterUpdateData::Max(value) => {
+                let value = defs::Sample::max(self.low_limit, value);
+                let value = defs::Sample::min(self.high_limit, value);
+                self.max_value = value;
+            },
+        }
+        self.cc_influence_range_octaves = defs::Sample::log2(self.max_value / self.base_value);
+        self.update_current_value();
+        Ok(())
     }
 
-    /// Update the range of influence of the CC controller on the parameter.
-    fn set_range(&mut self, range: defs::Sample) {
-        self.cc_influence_range_octaves = range;
-        self.update();
-    }
-
-    /// Return the parameter's new value based on the value provided by a cc controller.
-    fn set_cc(&mut self, cc_value: u8) {
+    fn update_cc(&mut self, cc_value: u8) {
         self.cc_value = cc_value;
-        self.update();
+        self.update_current_value();
     }
 
     /// Get the current value of the parameter.

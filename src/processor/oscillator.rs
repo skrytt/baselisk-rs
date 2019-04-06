@@ -2,7 +2,7 @@ extern crate sample;
 
 use buffer::ResizableFrameBuffer;
 use defs;
-use event::EngineEvent;
+use event::{EngineEvent, ModulatableParameterUpdateData};
 use parameter::{Parameter, LinearParameter};
 use std::slice;
 
@@ -30,10 +30,10 @@ impl State {
     pub fn new() -> State {
         State {
             note: 69,
-            pitch_offset: LinearParameter::new(0.0),
+            pitch_offset: LinearParameter::new(-36.0, 36.0, 0.0),
             frequency_current: 0.0,
             pitch_bend: 0.0,
-            pulse_width: LinearParameter::new(0.5),
+            pulse_width: LinearParameter::new(0.01, 0.99, 0.5),
             phase: 0.0,
             sample_rate: 0.0,
             frequency_buffer: ResizableFrameBuffer::new(),
@@ -149,26 +149,16 @@ impl Oscillator {
         Ok(())
     }
 
-    pub fn set_pitch(&mut self, semitones: defs::Sample) -> Result<(), &'static str>
+    pub fn update_pitch(&mut self, data: ModulatableParameterUpdateData)
+                        -> Result<(), &'static str>
     {
-        if semitones < -36.0 {
-            Err("Pitch offset must be >= -36.0 semitones")
-        } else if semitones > 36.0 {
-            Err("Pitch offset must be <= 36.0 semitones")
-        } else {
-            self.state.pitch_offset.set_base(semitones);
-            Ok(())
-        }
+        self.state.pitch_offset.update_patch(data)
     }
 
-    pub fn set_pulse_width(&mut self, width: defs::Sample) -> Result<(), &'static str>
+    pub fn update_pulse_width(&mut self, data: ModulatableParameterUpdateData)
+                              -> Result<(), &'static str>
     {
-        if width < 0.001 || width > 0.999 {
-            Err("Pulse width must be in range 0.001 <= width <= 0.999")
-        } else {
-            self.state.pulse_width.set_base(width);
-            Ok(())
-        }
+        self.state.pulse_width.update_patch(data)
     }
 
     pub fn process_buffer(&mut self,

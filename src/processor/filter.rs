@@ -2,7 +2,7 @@ extern crate sample;
 
 use arraydeque::ArrayDeque;
 use defs;
-use event::{EngineEvent, ModulatableParameter};
+use event::{EngineEvent, ModulatableParameter, ModulatableParameterUpdateData};
 use parameter::{Parameter, FrequencyParameter, LinearParameter};
 use sample::{Frame, slice};
 
@@ -16,15 +16,10 @@ struct FilterParams {
 impl FilterParams {
     /// Constructor for FilterParams instances
     fn new() -> FilterParams {
-        // Temporarily do this here so we can test out the modulation until
-        // it's added to the CLI
-        let mut frequency = FrequencyParameter::new(10.0);
-        frequency.set_range(4.0);
-
         FilterParams {
-            frequency,
-            adsr_sweep_octaves: LinearParameter::new(6.5),
-            quality_factor: LinearParameter::new(0.7),
+            frequency: FrequencyParameter::new(1.0, 22000.0, 10.0),
+            adsr_sweep_octaves: LinearParameter::new(0.0, 20.0, 6.5),
+            quality_factor: LinearParameter::new(0.5, 10.0, 0.707),
         }
     }
 }
@@ -77,27 +72,24 @@ impl LowPassFilter
     /// Set frequency (Hz) for this filter.
     /// Note: frequency will always be limited to the Nyquist frequency,
     /// a function of the sample rate, even if this parameter is higher.
-    pub fn set_frequency(&mut self, value: defs::Sample) -> Result<(), &'static str> {
-        if value <= 0.0 {
-            return Err("Filter frequency must be 0.0 > f > sample_rate/2.0")
-        }
-        self.params.frequency.set_base(value);
-        Ok(())
+    pub fn update_frequency(&mut self, data: ModulatableParameterUpdateData)
+                            -> Result<(), &'static str>
+    {
+        self.params.frequency.update_patch(data)
     }
 
     /// Set sweep range (octaves) for this filter.
-    pub fn set_sweep(&mut self, octaves: defs::Sample) -> Result<(), &'static str> {
-        self.params.adsr_sweep_octaves.set_base(octaves);
-        Ok(())
+    pub fn update_sweep(&mut self, data: ModulatableParameterUpdateData)
+                        -> Result<(), &'static str>
+    {
+        self.params.adsr_sweep_octaves.update_patch(data)
     }
 
     /// Set quality for this filter.
-    pub fn set_quality(&mut self, value: defs::Sample) -> Result<(), &'static str> {
-        if value < 0.5 || value > 10.0 {
-            return Err("Filter resonance must be 0.5 >= r >= 10.0")
-        }
-        self.params.quality_factor.set_base(value);
-        Ok(())
+    pub fn update_quality(&mut self, data: ModulatableParameterUpdateData)
+                          -> Result<(), &'static str>
+    {
+        self.params.quality_factor.update_patch(data)
     }
 
     pub fn process_buffer(&mut self,
@@ -112,8 +104,9 @@ impl LowPassFilter
             if let EngineEvent::ModulateParameter { parameter, value } = engine_event {
                 match parameter {
                     ModulatableParameter::FilterFrequency => {
-                        self.params.frequency.set_cc(*value);
+                        self.params.frequency.update_cc(*value);
                     },
+                    _ => (),
                 }
             }
         }

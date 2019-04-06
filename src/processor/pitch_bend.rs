@@ -1,5 +1,5 @@
 use defs;
-use event::{EngineEvent, MidiEvent};
+use event::{EngineEvent, MidiEvent, ModulatableParameterUpdateData};
 use parameter::{Parameter, LinearParameter};
 
 pub struct PitchBend {
@@ -9,19 +9,15 @@ pub struct PitchBend {
 impl PitchBend {
     pub fn new() -> PitchBend {
         PitchBend {
-            range_semitones: LinearParameter::new(2.0),
+            range_semitones: LinearParameter::new(0.0, 36.0, 2.0),
         }
     }
 
-    pub fn set_range(&mut self, semitones: defs::Sample) -> Result<(), &'static str> {
-        if semitones < 0.0 {
-            Err("Pitch bend must be >= 0.0 semitones")
-        } else if semitones > 36.0 {
-            Err("Pitch bend must be <= 36.0 semitones")
-        } else {
-            self.range_semitones.set_base(semitones);
-            Ok(())
-        }
+    pub fn set_range(&mut self, range: defs::Sample)
+        -> Result<(), &'static str> {
+        // TODO: improve on this hack...
+        let data = ModulatableParameterUpdateData::Base(range);
+        self.range_semitones.update_patch(data)
     }
 
     pub fn process_event(&self, midi_event: &MidiEvent) -> Option<EngineEvent> {

@@ -5,21 +5,36 @@ use defs;
 pub enum PatchEvent {
     PitchBendRangeSet { semitones: defs::Sample },
     OscillatorTypeSet { type_name: String },
-    OscillatorPitchSet { semitones: defs::Sample },
-    OscillatorPulseWidthSet { width: defs::Sample },
-    AdsrAttackSet { duration: defs::Sample },
-    AdsrDecaySet { duration: defs::Sample },
-    AdsrSustainSet { level: defs::Sample },
-    AdsrReleaseSet { duration: defs::Sample },
-    FilterFrequencySet { hz: defs::Sample },
-    FilterQualitySet { q: defs::Sample },
-    FilterSweepRangeSet { octaves: defs::Sample },
-    WaveshaperInputGainSet { gain: defs::Sample },
-    WaveshaperOutputGainSet { gain: defs::Sample },
+    ModulatableParameterUpdate { parameter: ModulatableParameter,
+                                 data: ModulatableParameterUpdateData },
+    ControllerBindUpdate { parameter: ModulatableParameter,
+                           bind_type: ControllerBindData },
 }
 
 /// Enum of modulatable parameters.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ModulatableParameter {
+    AdsrAttack,
+    AdsrDecay,
+    AdsrSustain,
+    AdsrRelease,
     FilterFrequency,
+    FilterQuality,
+    FilterSweepRange,
+    OscillatorPitch,
+    OscillatorPulseWidth,
+    WaveshaperInputGain,
+    WaveshaperOutputGain,
 }
+
+/// Types of float parameter updates
+pub enum ModulatableParameterUpdateData {
+    Base(defs::Sample),
+    Max(defs::Sample),
+}
+
+pub enum ControllerBindData {
+    _CliInput(Option<u8>), // Not yet supported
+    MidiLearn,
+}
+
