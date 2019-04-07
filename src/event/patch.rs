@@ -34,7 +34,7 @@ pub enum ModulatableParameterUpdateData {
 }
 
 pub enum ControllerBindData {
-    _CliInput(Option<u8>), // Not yet supported
+    CliInput(u8),
     MidiLearn,
 }
 

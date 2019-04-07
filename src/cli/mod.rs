@@ -54,6 +54,17 @@ pub fn update_parameter_from_tokens(parameter: ModulatableParameter,
                 data: parameter_update_data,
             }
         },
+        "cc" => {
+            // Try to get a value
+            let field_value: u8 = match parse_from_next_token(token_iter) {
+                Ok(val) => val,
+                Err(_) => return Err(String::from("Could not parse a field value")),
+            };
+            PatchEvent::ControllerBindUpdate {
+                parameter: parameter.clone(),
+                bind_type: ControllerBindData::CliInput(field_value),
+            }
+        },
         "learn" => {
             PatchEvent::ControllerBindUpdate {
                 parameter: parameter.clone(),

@@ -64,7 +64,9 @@ impl Engine
                         ControllerBindData::MidiLearn => {
                             self.modulation_matrix.learn_parameter(parameter)
                         },
-                        _ => Err("Unimplemented"),
+                        ControllerBindData::CliInput(cc_number) => {
+                            self.modulation_matrix.bind_parameter(cc_number, parameter)
+                        },
                     }
                 },
                 PatchEvent::ModulatableParameterUpdate { parameter, data } => match parameter {

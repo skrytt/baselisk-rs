@@ -1,2 +1,31 @@
-filter frequency base 50
+oscillator type saw
+
+filter frequency base 100
 filter frequency max 2000
+filter frequency cc 1
+
+adsr attack base 0.02
+adsr attack max 2
+adsr attack cc 74
+
+adsr decay base 0.02
+adsr decay max 2
+adsr decay cc 71
+
+adsr sustain base 1.0
+
+adsr release base 0.02
+adsr release max 2
+adsr release cc 93
+
+filter sweeprange base 0
+filter sweeprange max 8
+filter sweeprange cc 73
+
+filter quality base 0.5
+filter quality max 5
+filter quality cc 72
+
+waveshaper inputgain base 0.33
+waveshaper inputgain max 1.0
+waveshaper inputgain cc 5
