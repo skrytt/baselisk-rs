@@ -12,6 +12,8 @@ use rustyline::{Cmd, CompletionType, Config, EditMode, Editor, Helper, KeyPress}
 use cli::tree::Tree;
 use event::PatchEvent;
 use std::sync::mpsc;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 static BREAK_CHARS: [u8; 1] = [b' '];
 
@@ -100,6 +102,26 @@ impl Cli {
             tx,
             rx
         }
+    }
+
+    pub fn read_from_file(&mut self, file_path: &str) -> std::io::Result<()> {
+        let file = File::open(file_path)?;
+        let reader = BufReader::new(file);
+        let lines = reader.lines();
+        for line in lines {
+            match line {
+                Err(_) => {
+                    println!("Error parsing input file");
+                    break
+                },
+                Ok(line) => {
+                    if let Some(helper) = self.rl.helper() {
+                        helper.tree.execute_command(line, &self.tx, &self.rx);
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn read_until_interrupted(&mut self) {
