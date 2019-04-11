@@ -65,7 +65,7 @@ impl Waveshaper {
                         *sample = {
                             // Polynomial: -x^3 + x^2 + x
                             // With input and output gain scaling
-                            let x = sample.abs() * self.input_gain.get();
+                            let x = sample.abs().min(1.0) * self.input_gain.get();
                             self.output_gain.get() * sample.signum() * (
                                 -x.powi(3) + x.powi(2) + x)
                         };
