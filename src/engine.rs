@@ -2,7 +2,7 @@
 use buffer::ResizableFrameBuffer;
 use defs;
 use event::{ControllerBindData, EngineEvent, MidiEvent, ModulatableParameter, PatchEvent};
-use processor::{Adsr, Gain, Oscillator, LowPassFilter,
+use processor::{Adsr, Delay, Gain, Oscillator, LowPassFilter,
                 ModulationMatrix, MonoNoteSelector, PitchBend, Waveshaper};
 use sample::slice;
 
@@ -21,6 +21,7 @@ pub struct Engine
     pub gain: Gain,
     pub low_pass_filter: LowPassFilter,
     pub waveshaper: Waveshaper,
+    pub delay: Delay,
 }
 
 impl Engine
@@ -40,6 +41,7 @@ impl Engine
             gain: Gain::new(1.0),
             low_pass_filter: LowPassFilter::new(),
             waveshaper: Waveshaper::new(),
+            delay: Delay::new(),
         }
     }
 
@@ -179,6 +181,9 @@ impl Engine
         self.waveshaper.process_buffer(main_buffer,
                                        self.engine_event_buffer.iter());
 
+        // Delay
+        self.delay.process_buffer(main_buffer,
+                                  self.engine_event_buffer.iter());
     }
 
     fn handle_midi_panic(&mut self) {

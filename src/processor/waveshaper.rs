@@ -14,7 +14,7 @@ impl Waveshaper {
     pub fn new() -> Waveshaper {
         Waveshaper{
             input_gain: LinearParameter::new(0.0, 1.0, 0.333),
-            output_gain: LinearParameter::new(0.0, 1.0, 0.667),
+            output_gain: LinearParameter::new(0.0, 1.0, 0.2),
         }
     }
 
