@@ -1,10 +1,9 @@
 extern crate sample;
 
-use arraydeque::ArrayDeque;
 use defs;
 use event::{EngineEvent, ModulatableParameter, ModulatableParameterUpdateData};
 use parameter::{Parameter, FrequencyParameter, LinearParameter};
-use sample::{Frame, slice};
+use sample::{Frame, slice, ring_buffer};
 
 /// Parameters available for filters.
 struct FilterParams {
@@ -31,41 +30,29 @@ pub struct LowPassFilter
 {
     params: FilterParams,
     sample_rate: defs::Sample,
-    ringbuffer_input: ArrayDeque<[defs::Sample; 3]>,
-    ringbuffer_output: ArrayDeque<[defs::Sample; 2]>,
+    ringbuffer_input: ring_buffer::Fixed<[defs::Sample; 3]>,
+    ringbuffer_output: ring_buffer::Fixed<[defs::Sample; 2]>,
 }
 
 impl LowPassFilter
 {
     /// Constructor for new LowPassFilter instances
     pub fn new() -> LowPassFilter {
-        let mut result = LowPassFilter {
+        LowPassFilter {
             params: FilterParams::new(),
             sample_rate: 0.0,
-            ringbuffer_input: ArrayDeque::new(),
-            ringbuffer_output: ArrayDeque::new(),
-        };
-
-        // Prepopulate the buffers
-        for _ in 1..=3 {
-            result.ringbuffer_input.push_front(0.0).unwrap();
+            ringbuffer_input: ring_buffer::Fixed::from([0.0; 3]),
+            ringbuffer_output: ring_buffer::Fixed::from([0.0; 2]),
         }
-        for _ in 1..=2 {
-            result.ringbuffer_output.push_front(0.0).unwrap();
-        }
-
-        result
     }
 
     pub fn midi_panic(&mut self) {
-        // Prepopulate the buffers
-        for _ in 1..=3 {
-            self.ringbuffer_input.pop_back().unwrap();
-            self.ringbuffer_input.push_front(0.0).unwrap();
+        // Reset the buffers
+        for _ in 0..self.ringbuffer_input.len() {
+            self.ringbuffer_input.push(0.0);
         }
-        for _ in 1..=2 {
-            self.ringbuffer_output.pop_back().unwrap();
-            self.ringbuffer_output.push_front(0.0).unwrap();
+        for _ in 0..self.ringbuffer_output.len() {
+            self.ringbuffer_output.push(0.0);
         }
     }
 
@@ -179,20 +166,19 @@ impl LowPassFilter
     fn process(&mut self, input: defs::Sample, adsr_input: defs::Sample) -> defs::Sample
     {
         // Update input buffer:
-        self.ringbuffer_input.pop_back().unwrap();
-        self.ringbuffer_input.push_front(input).unwrap();
+        self.ringbuffer_input.push(input);
 
         let mut input_iter = self.ringbuffer_input.iter();
-        let x_0 = *input_iter.next().unwrap();
-        let x_1 = *input_iter.next().unwrap();
         let x_2 = *input_iter.next().unwrap();
+        let x_1 = *input_iter.next().unwrap();
+        let x_0 = *input_iter.next().unwrap();
 
         let y_1: defs::Sample;
         let y_2: defs::Sample;
         {
             let mut output_iter = self.ringbuffer_output.iter();
-            y_1 = *output_iter.next().unwrap();
             y_2 = *output_iter.next().unwrap();
+            y_1 = *output_iter.next().unwrap();
         } // End borrow of ringbuffer_output
 
         // Use adsr_input (0 <= x <= 1) to determine the influence
@@ -235,8 +221,7 @@ impl LowPassFilter
                            - a1 * y_1 - a2 * y_2;
 
         // Update output buffer for next time:
-        self.ringbuffer_output.pop_back().unwrap();
-        self.ringbuffer_output.push_front(y_0).unwrap();
+        self.ringbuffer_output.push(y_0);
 
         // TODO: remove these once confident in filter stability
         assert!(y_0 >= -5.0);
