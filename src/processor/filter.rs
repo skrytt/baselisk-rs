@@ -26,21 +26,23 @@ impl FilterParams {
 /// A low pass filter type that can be used for audio processing.
 /// This is to be a constant-peak-gain two-pole resonator with
 /// parameterized cutoff frequency and resonance.
-pub struct LowPassFilter
+pub struct Filter
 {
     params: FilterParams,
     sample_rate: defs::Sample,
+    biquad_coefficient_func: BiquadCoefficientGeneratorFunc,
     ringbuffer_input: ring_buffer::Fixed<[defs::Sample; 3]>,
     ringbuffer_output: ring_buffer::Fixed<[defs::Sample; 2]>,
 }
 
-impl LowPassFilter
+impl Filter
 {
-    /// Constructor for new LowPassFilter instances
-    pub fn new() -> LowPassFilter {
-        LowPassFilter {
+    /// Constructor for new Filter instances
+    pub fn new() -> Filter {
+        Filter {
             params: FilterParams::new(),
             sample_rate: 0.0,
+            biquad_coefficient_func: get_lowpass_second_order_biquad_consts,
             ringbuffer_input: ring_buffer::Fixed::from([0.0; 3]),
             ringbuffer_output: ring_buffer::Fixed::from([0.0; 2]),
         }
@@ -134,13 +136,10 @@ impl LowPassFilter
                     {
                         // Use adsr_input (0 <= x <= 1) to determine the influence
                         // of self.params.adsr_sweep_octaves on the filter frequency.
-                        let mut frequency_hz = base_frequency_hz
+                        let frequency_hz = base_frequency_hz
                             * defs::Sample::exp2(adsr_sweep_octaves * adsr_input_sample);
 
-                        // Limit frequency_hz to just under half of the sample rate for stability.
-                        frequency_hz = frequency_hz.min(0.495 * self.sample_rate);
-
-                        let (b0, b1, b2, a1, a2) = get_biquad_consts(
+                        let (b0, b1, b2, a1, a2) = (self.biquad_coefficient_func)(
                                 frequency_hz, quality_factor, self.sample_rate);
 
                         self.process_biquad(b0, b1, b2, a1, a2, sample)
@@ -222,13 +221,22 @@ impl LowPassFilter
     }
 }
 
-/// Returns (b0, b1, b2, a1, a2) in this order,
-/// each normalized by dividing off a0.
-fn get_biquad_consts(frequency_hz: defs::Sample,
-                     quality_factor: defs::Sample,
-                     sample_rate: defs::Sample)
+
+/// Accepts: frequency_hz, quality_factor, sample_rate.
+/// Returns: (b0, b1, b2, a1, a2) in this order.
+type BiquadCoefficientGeneratorFunc = fn (defs::Sample,
+                                          defs::Sample,
+                                          defs::Sample)
+        -> (defs::Sample, defs::Sample, defs::Sample, defs::Sample, defs::Sample);
+
+fn get_lowpass_second_order_biquad_consts(frequency_hz: defs::Sample,
+                                          quality_factor: defs::Sample,
+                                          sample_rate: defs::Sample)
     -> (defs::Sample, defs::Sample, defs::Sample, defs::Sample, defs::Sample)
 {
+    // Limit frequency_hz to just under half of the sample rate for stability.
+    let frequency_hz = frequency_hz.min(0.495 * sample_rate);
+
     // Intermediate variables:
     let theta_c = 2.0 * defs::PI * frequency_hz / sample_rate;
     let cos_theta_c = theta_c.cos();
@@ -249,3 +257,32 @@ fn get_biquad_consts(frequency_hz: defs::Sample,
     (b0, b1, b2, a1, a2)
 }
 
+fn get_highpass_second_order_biquad_consts(frequency_hz: defs::Sample,
+                                          quality_factor: defs::Sample,
+                                          sample_rate: defs::Sample)
+    -> (defs::Sample, defs::Sample, defs::Sample, defs::Sample, defs::Sample)
+{
+    // Limit frequency_hz to just under half of the sample rate for stability.
+    let frequency_hz = frequency_hz.min(0.495 * sample_rate);
+
+    // Intermediate variables:
+    let theta_c = 2.0 * defs::PI * frequency_hz / sample_rate;
+    let cos_theta_c = theta_c.cos();
+    let sin_theta_c = theta_c.sin();
+    let alpha = sin_theta_c / (2.0 * quality_factor);
+
+    // Calculate the coefficients.
+    // a0 was divided off from each one to save on computation.
+    let a0 = 1.0 + alpha;
+
+    let a1 = -2.0 * cos_theta_c / a0;
+    let a2 = (1.0 - alpha) / a0;
+
+    // Really the only difference from LowPassBiquadSecondOrder is that
+    // the cos_theta_c param is added (rather than subtracted) for the b coefficients.
+    let b1 = (1.0 + cos_theta_c) / a0;
+    let b0 = b1 / 2.0;
+    let b2 = b0;
+
+    (b0, b1, b2, a1, a2)
+}

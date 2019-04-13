@@ -2,7 +2,7 @@
 use buffer::ResizableFrameBuffer;
 use defs;
 use event::{ControllerBindData, EngineEvent, MidiEvent, ModulatableParameter, PatchEvent};
-use processor::{Adsr, Delay, Gain, Oscillator, LowPassFilter,
+use processor::{Adsr, Delay, Gain, Oscillator, Filter,
                 ModulationMatrix, MonoNoteSelector, PitchBend, Waveshaper};
 use sample::slice;
 
@@ -21,7 +21,7 @@ pub struct Engine
     oscillator: Oscillator,
     adsr: Adsr,
     gain: Gain,
-    low_pass_filter: LowPassFilter,
+    filter: Filter,
     waveshaper: Waveshaper,
     delay: Delay,
 }
@@ -43,7 +43,7 @@ impl Engine
             oscillator: Oscillator::new(),
             adsr: Adsr::new(),
             gain: Gain::new(1.0),
-            low_pass_filter: LowPassFilter::new(),
+            filter: Filter::new(),
             waveshaper: Waveshaper::new(),
             delay: Delay::new(),
         }
@@ -89,13 +89,13 @@ impl Engine
                         self.adsr.update_release(data)
                     },
                     ModulatableParameter::FilterFrequency => {
-                        self.low_pass_filter.update_frequency(data)
+                        self.filter.update_frequency(data)
                     },
                     ModulatableParameter::FilterSweepRange => {
-                        self.low_pass_filter.update_sweep(data)
+                        self.filter.update_sweep(data)
                     },
                     ModulatableParameter::FilterQuality => {
-                        self.low_pass_filter.update_quality(data)
+                        self.filter.update_quality(data)
                     },
                     ModulatableParameter::OscillatorPitch => {
                         self.oscillator.update_pitch(data)
@@ -188,12 +188,12 @@ impl Engine
         }
 
         // Filter
-        let low_pass_filter_start_time = time::precise_time_ns();
-        self.low_pass_filter.process_buffer(adsr_buffer,
+        let filter_start_time = time::precise_time_ns();
+        self.filter.process_buffer(adsr_buffer,
                                             main_buffer,
                                             self.engine_event_buffer.iter(),
                                             sample_rate);
-        self.timing_data.low_pass_filter = (time::precise_time_ns() - low_pass_filter_start_time) / 1000;
+        self.timing_data.filter = (time::precise_time_ns() - filter_start_time) / 1000;
 
         // Waveshaper
         let waveshaper_start_time = time::precise_time_ns();
@@ -216,7 +216,7 @@ impl Engine
         self.note_selector.midi_panic();
         self.oscillator.midi_panic();
         self.adsr.midi_panic();
-        self.low_pass_filter.midi_panic();
+        self.filter.midi_panic();
     }
 }
 
@@ -225,7 +225,7 @@ struct TimingData {
     oscillator: u64,
     adsr: u64,
     gain: u64,
-    low_pass_filter: u64,
+    filter: u64,
     waveshaper: u64,
     delay: u64,
 }
@@ -235,7 +235,7 @@ impl TimingData {
                 self.oscillator,
                 self.adsr,
                 self.gain,
-                self.low_pass_filter,
+                self.filter,
                 self.waveshaper,
                 self.delay
         );

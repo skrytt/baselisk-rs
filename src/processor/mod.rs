@@ -15,7 +15,7 @@ pub use processor::{
     delay::Delay as Delay,
     gain::Gain as Gain,
     oscillator::Oscillator as Oscillator,
-    filter::LowPassFilter as LowPassFilter,
+    filter::Filter as Filter,
     modmatrix::ModulationMatrix as ModulationMatrix,
     note_selector::MonoNoteSelector as MonoNoteSelector,
     pitch_bend::PitchBend as PitchBend,
