@@ -120,38 +120,28 @@ impl LowPassFilter
                 let adsr_input_buffer_slice = adsr_input_buffer.get(
                         this_keyframe..next_keyframe).unwrap();
 
+                let quality_factor = self.params.quality_factor.get();
+                let base_frequency_hz = self.params.frequency.get();
+                let adsr_sweep_octaves = self.params.adsr_sweep_octaves.get();
+
                 // Iterate over two buffer slices at once using a zip method
                 slice::zip_map_in_place(output_buffer_slice, adsr_input_buffer_slice,
                                         |output_frame, adsr_input_frame|
                 {
                     // Iterate over the samples in each frame using a zip method
                     output_frame.zip_map(adsr_input_frame,
-                                         |sample, adsr_input_sample| {
-
+                                         |sample, adsr_input_sample|
+                    {
                         // Use adsr_input (0 <= x <= 1) to determine the influence
                         // of self.params.adsr_sweep_octaves on the filter frequency.
-                        let mut frequency_hz = self.params.frequency.get()
-                                               * defs::Sample::exp2(self.params.adsr_sweep_octaves.get()
-                                               * adsr_input_sample);
+                        let mut frequency_hz = base_frequency_hz
+                            * defs::Sample::exp2(adsr_sweep_octaves * adsr_input_sample);
 
                         // Limit frequency_hz to just under half of the sample rate for stability.
                         frequency_hz = frequency_hz.min(0.495 * self.sample_rate);
 
-                        // There are some intermediate variables:
-                        let theta_c = 2.0 * defs::PI * frequency_hz / self.sample_rate as defs::Sample;
-                        let cos_theta_c = theta_c.cos();
-                        let sin_theta_c = theta_c.sin();
-                        let alpha = sin_theta_c / (2.0 * self.params.quality_factor.get());
-
-                        // Calculate the coefficients.
-                        // We'll just divide off a_0 from each one to save on computation.
-                        let a0 = 1.0 + alpha;
-                        let a1 = -2.0 * cos_theta_c / a0;
-                        let a2 = (1.0 - alpha) / a0;
-
-                        let b1 = (1.0 - cos_theta_c) / a0;
-                        let b0 = b1 / 2.0;
-                        let b2 = b0;
+                        let (b0, b1, b2, a1, a2) = get_biquad_consts(
+                                frequency_hz, quality_factor, self.sample_rate);
 
                         self.process_biquad(b0, b1, b2, a1, a2, sample)
                     })
@@ -231,3 +221,31 @@ impl LowPassFilter
         y
     }
 }
+
+/// Returns (b0, b1, b2, a1, a2) in this order,
+/// each normalized by dividing off a0.
+fn get_biquad_consts(frequency_hz: defs::Sample,
+                     quality_factor: defs::Sample,
+                     sample_rate: defs::Sample)
+    -> (defs::Sample, defs::Sample, defs::Sample, defs::Sample, defs::Sample)
+{
+    // Intermediate variables:
+    let theta_c = 2.0 * defs::PI * frequency_hz / sample_rate;
+    let cos_theta_c = theta_c.cos();
+    let sin_theta_c = theta_c.sin();
+    let alpha = sin_theta_c / (2.0 * quality_factor);
+
+    // Calculate the coefficients.
+    // a0 was divided off from each one to save on computation.
+    let a0 = 1.0 + alpha;
+
+    let a1 = -2.0 * cos_theta_c / a0;
+    let a2 = (1.0 - alpha) / a0;
+
+    let b1 = (1.0 - cos_theta_c) / a0;
+    let b0 = b1 / 2.0;
+    let b2 = b0;
+
+    (b0, b1, b2, a1, a2)
+}
+
