@@ -150,12 +150,19 @@ impl Adsr {
         self.state.stage = AdsrStages::Off;
     }
 
+    // Process the buffer of audio.
+    // Return a bool indicating whether the output contains non-zero samples.
     pub fn process_buffer(&mut self,
                           buffer: &mut defs::MonoFrameBufferSlice,
                           mut engine_event_iter: slice::Iter<(usize, EngineEvent)>,
-                          sample_rate: defs::Sample)
+                          sample_rate: defs::Sample) -> bool
     {
         self.state.sample_duration = 1.0 / sample_rate as f32;
+
+        let mut any_nonzero_output = match self.state.stage {
+            AdsrStages::Off => false,
+            _ => true,
+        };
 
         // Calculate the output values per-frame
         let mut this_keyframe: usize = 0;
@@ -211,6 +218,9 @@ impl Adsr {
                         let any_notes_held_next = note.is_some();
                         let current_note_changed_next = *note != self.state.selected_note;
 
+                        // If any note is pressed, assume this means there will be some output
+                        any_nonzero_output = any_notes_held_next;
+
                         self.update_state(any_notes_held_next, current_note_changed_next);
 
                         self.state.selected_note = *note;
@@ -234,6 +244,9 @@ impl Adsr {
                 };
             }
         }
+        // Return a bool to tell the engine whether there's any nonzero output, to
+        // allow it to make any desired optimizations.
+        any_nonzero_output
     }
 
     fn advance(&mut self) -> defs::Sample {

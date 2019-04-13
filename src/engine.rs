@@ -159,27 +159,33 @@ impl Engine
             return
         }
 
-        // Oscillator
-        let oscillator_start_time = time::precise_time_ns();
-        self.oscillator.process_buffer(main_buffer,
-                                       self.engine_event_buffer.iter(),
-                                       sample_rate);
-        self.timing_data.oscillator = (time::precise_time_ns() - oscillator_start_time) / 1000;
-
-        // ADSR buffer for Gain and Filter (shared for now)
+        // ADSR buffer for Gain and Filter (shared for now).
         let adsr_start_time = time::precise_time_ns();
         let frames_this_buffer = main_buffer.len();
         let adsr_buffer = self.adsr_buffer.get_sized_mut(frames_this_buffer);
-        self.adsr.process_buffer(adsr_buffer,
+        let adsr_any_nonzero_output = self.adsr.process_buffer(adsr_buffer,
                                  self.engine_event_buffer.iter(),
                                  sample_rate);
         self.timing_data.adsr = (time::precise_time_ns() - adsr_start_time) / 1000;
 
-        // Gain
-        let gain_start_time = time::precise_time_ns();
-        self.gain.process_buffer(adsr_buffer,
-                                 main_buffer);
-        self.timing_data.gain = (time::precise_time_ns() - gain_start_time) / 1000;
+        // Optimization: when ADSR is in the off state for a whole buffer,
+        // the result of the oscillator and gain stages is silence
+        if adsr_any_nonzero_output {
+
+            // Oscillator
+            let oscillator_start_time = time::precise_time_ns();
+            self.oscillator.process_buffer(main_buffer,
+                                           self.engine_event_buffer.iter(),
+                                           sample_rate);
+            self.timing_data.oscillator = (time::precise_time_ns() - oscillator_start_time) / 1000;
+
+            // Use ADSR to apply gain to oscillator output
+            let gain_start_time = time::precise_time_ns();
+            self.gain.process_buffer(adsr_buffer,
+                                     main_buffer);
+            self.timing_data.gain = (time::precise_time_ns() - gain_start_time) / 1000;
+
+        }
 
         // Filter
         let low_pass_filter_start_time = time::precise_time_ns();
