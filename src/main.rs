@@ -4,6 +4,7 @@ extern crate clap;
 extern crate jack;
 extern crate sample;
 extern crate rustyline;
+extern crate time;
 
 mod audio_interface;
 mod buffer;
@@ -27,9 +28,15 @@ fn main() {
              .help("Load a patch from a text file")
              .takes_value(true))
 
+        .arg(clap::Arg::with_name("timing-dump")
+             .long("timing-dump")
+             .help("Output timing information to stderr"))
+
         .get_matches();
 
-    let mut engine = Arc::new(RwLock::new(engine::Engine::new()));
+    let mut engine = Arc::new(RwLock::new(engine::Engine::new(
+        matches.is_present("timing-dump") // Whether to enable timing info
+    )));
 
     // Initialize the audio interface
     audio_interface::jack::connect_and_run(&mut engine, |tx, rx| {

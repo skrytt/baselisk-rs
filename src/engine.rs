@@ -9,30 +9,34 @@ use sample::slice;
 pub struct Engine
 {
     // Misc
-    pub engine_event_buffer: Vec<(usize, EngineEvent)>,
-    pub note_selector: MonoNoteSelector,
-    pub pitch_bend: PitchBend,
-    pub modulation_matrix: ModulationMatrix,
+    engine_event_buffer: Vec<(usize, EngineEvent)>,
+    note_selector: MonoNoteSelector,
+    pitch_bend: PitchBend,
+    modulation_matrix: ModulationMatrix,
+    timing_data: TimingData,
+    dump_timing_info: bool,
     // Buffers
-    pub adsr_buffer: ResizableFrameBuffer<defs::MonoFrame>,
+    adsr_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     // DSP Units
-    pub oscillator: Oscillator,
-    pub adsr: Adsr,
-    pub gain: Gain,
-    pub low_pass_filter: LowPassFilter,
-    pub waveshaper: Waveshaper,
-    pub delay: Delay,
+    oscillator: Oscillator,
+    adsr: Adsr,
+    gain: Gain,
+    low_pass_filter: LowPassFilter,
+    waveshaper: Waveshaper,
+    delay: Delay,
 }
 
 impl Engine
 {
-    pub fn new() -> Engine {
+    pub fn new(dump_timing_info: bool) -> Engine {
         Engine {
             // Engine Event Processing
             engine_event_buffer: Vec::with_capacity(defs::ENGINE_EVENT_BUF_LEN),
             note_selector: MonoNoteSelector::new(),
             pitch_bend: PitchBend::new(),
             modulation_matrix: ModulationMatrix::new(),
+            timing_data: Default::default(),
+            dump_timing_info,
             // Buffers
             adsr_buffer: ResizableFrameBuffer::new(),
             // DSP Units
@@ -156,34 +160,50 @@ impl Engine
         }
 
         // Oscillator
+        let oscillator_start_time = time::precise_time_ns();
         self.oscillator.process_buffer(main_buffer,
                                        self.engine_event_buffer.iter(),
                                        sample_rate);
+        self.timing_data.oscillator = (time::precise_time_ns() - oscillator_start_time) / 1000;
 
         // ADSR buffer for Gain and Filter (shared for now)
+        let adsr_start_time = time::precise_time_ns();
         let frames_this_buffer = main_buffer.len();
         let adsr_buffer = self.adsr_buffer.get_sized_mut(frames_this_buffer);
         self.adsr.process_buffer(adsr_buffer,
                                  self.engine_event_buffer.iter(),
                                  sample_rate);
+        self.timing_data.adsr = (time::precise_time_ns() - adsr_start_time) / 1000;
 
         // Gain
+        let gain_start_time = time::precise_time_ns();
         self.gain.process_buffer(adsr_buffer,
                                  main_buffer);
+        self.timing_data.gain = (time::precise_time_ns() - gain_start_time) / 1000;
 
         // Filter
+        let low_pass_filter_start_time = time::precise_time_ns();
         self.low_pass_filter.process_buffer(adsr_buffer,
                                             main_buffer,
                                             self.engine_event_buffer.iter(),
                                             sample_rate);
+        self.timing_data.low_pass_filter = (time::precise_time_ns() - low_pass_filter_start_time) / 1000;
 
         // Waveshaper
+        let waveshaper_start_time = time::precise_time_ns();
         self.waveshaper.process_buffer(main_buffer,
                                        self.engine_event_buffer.iter());
+        self.timing_data.waveshaper = (time::precise_time_ns() - waveshaper_start_time) / 1000;
 
         // Delay
+        let delay_start_time = time::precise_time_ns();
         self.delay.process_buffer(main_buffer,
                                   self.engine_event_buffer.iter());
+        self.timing_data.delay = (time::precise_time_ns() - delay_start_time) / 1000;
+
+        if self.dump_timing_info {
+            self.timing_data.dump_to_stderr();
+        }
     }
 
     fn handle_midi_panic(&mut self) {
@@ -191,5 +211,27 @@ impl Engine
         self.oscillator.midi_panic();
         self.adsr.midi_panic();
         self.low_pass_filter.midi_panic();
+    }
+}
+
+#[derive(Default)]
+struct TimingData {
+    oscillator: u64,
+    adsr: u64,
+    gain: u64,
+    low_pass_filter: u64,
+    waveshaper: u64,
+    delay: u64,
+}
+impl TimingData {
+    fn dump_to_stderr(&self) {
+        eprintln!("osc={}us adsr={}us gain={}us filter={}us waveshaper={}us delay={}us",
+                self.oscillator,
+                self.adsr,
+                self.gain,
+                self.low_pass_filter,
+                self.waveshaper,
+                self.delay
+        );
     }
 }
