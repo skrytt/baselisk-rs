@@ -142,7 +142,11 @@ impl Filter
                         let (b0, b1, b2, a1, a2) = (self.biquad_coefficient_func)(
                                 frequency_hz, quality_factor, self.sample_rate);
 
-                        self.process_biquad(b0, b1, b2, a1, a2, sample)
+                        process_biquad(
+                            &mut self.ringbuffer_input, &mut self.ringbuffer_output,
+                            b0, b1, b2,
+                            a1, a2,
+                            sample)
                     })
                 });
             } // output_buffer_slice exits scope
@@ -178,49 +182,50 @@ impl Filter
 
     }
 
-    /// Process a biquad frame.
-    /// Input consts must have be normalised such that a0 == 1.0,
-    /// by dividing a0 from all other "a" and "b" consts.
-    ///
-    /// The general biquad implementation for Direct Form 1:
-    ///
-    /// y_0 = b0 * x_0 + b1 * x_1 + b2 * x_2
-    ///                - a1 * y_1 - a2 * y_2
-    fn process_biquad(&mut self,
+}
+
+/// Process a biquad frame.
+/// Input consts must have be normalised such that a0 == 1.0,
+/// by dividing a0 from all other "a" and "b" consts.
+///
+/// The general biquad implementation for Direct Form 1:
+///
+/// y_0 = b0 * x_0 + b1 * x_1 + b2 * x_2
+///                - a1 * y_1 - a2 * y_2
+pub fn process_biquad(ringbuffer_input: &mut ring_buffer::Fixed<[defs::Sample; 3]>,
+                      ringbuffer_output: &mut ring_buffer::Fixed<[defs::Sample; 2]>,
                       b0: defs::Sample,
                       b1: defs::Sample,
                       b2: defs::Sample,
                       a1: defs::Sample,
                       a2: defs::Sample,
                       x: defs::Sample) -> defs::Sample
+{
+    // Update input ringbuffer with the new x:
+    ringbuffer_input.push(x);
+
+    let mut input_iter = ringbuffer_input.iter();
+    let x2 = *input_iter.next().unwrap();
+    let x1 = *input_iter.next().unwrap();
+    let x0 = *input_iter.next().unwrap();
+
+    // Get the values from output ringbuffer, but don't mutate the buffer until the end
+    let y1: defs::Sample;
+    let y2: defs::Sample;
     {
-        // Update input ringbuffer with the new x:
-        self.ringbuffer_input.push(x);
+        let mut output_iter = ringbuffer_output.iter();
+        y2 = *output_iter.next().unwrap();
+        y1 = *output_iter.next().unwrap();
+    } // End borrow of ringbuffer_output
 
-        let mut input_iter = self.ringbuffer_input.iter();
-        let x2 = *input_iter.next().unwrap();
-        let x1 = *input_iter.next().unwrap();
-        let x0 = *input_iter.next().unwrap();
+    // Calculate the output
+    let y = b0 * x0 + b1 * x1 + b2 * x2
+                    - a1 * y1 - a2 * y2;
 
-        // Get the values from output ringbuffer, but don't mutate the buffer until the end
-        let y1: defs::Sample;
-        let y2: defs::Sample;
-        {
-            let mut output_iter = self.ringbuffer_output.iter();
-            y2 = *output_iter.next().unwrap();
-            y1 = *output_iter.next().unwrap();
-        } // End borrow of ringbuffer_output
-
-        // Calculate the output
-        let y = b0 * x0 + b1 * x1 + b2 * x2
-                        - a1 * y1 - a2 * y2;
-
-        // Update output ringbuffer and return the output
-        self.ringbuffer_output.push(y);
-        y
-    }
+    // Update output ringbuffer and return the output
+    ringbuffer_output.push(y);
+    y
 }
-
 
 /// Accepts: frequency_hz, quality_factor, sample_rate.
 /// Returns: (b0, b1, b2, a1, a2) in this order.
@@ -278,10 +283,8 @@ pub fn get_highpass_second_order_biquad_consts(frequency_hz: defs::Sample,
     let a1 = -2.0 * cos_theta_c / a0;
     let a2 = (1.0 - alpha) / a0;
 
-    // Really the only difference from LowPassBiquadSecondOrder is that
-    // the cos_theta_c param is added (rather than subtracted) for the b coefficients.
-    let b1 = (1.0 + cos_theta_c) / a0;
-    let b0 = b1 / 2.0;
+    let b0 = (1.0 + cos_theta_c) / (2.0 * a0);
+    let b1 = -(1.0 + cos_theta_c) / a0;
     let b2 = b0;
 
     (b0, b1, b2, a1, a2)

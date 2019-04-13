@@ -9,7 +9,7 @@ use event::{
 use processor::filter::{
     get_lowpass_second_order_biquad_consts,
     get_highpass_second_order_biquad_consts,
-    //process_biquad,
+    process_biquad,
 };
 use sample::ring_buffer;
 use std::slice::Iter;
@@ -35,7 +35,7 @@ impl Delay {
 
         Delay {
             delay_buffer,
-            feedback: 1.0,
+            feedback: 0.6,
             lowpass_ringbuffer_input: ring_buffer::Fixed::from([0.0; 3]),
             lowpass_ringbuffer_output: ring_buffer::Fixed::from([0.0; 2]),
             highpass_ringbuffer_input: ring_buffer::Fixed::from([0.0; 3]),
@@ -67,17 +67,17 @@ impl Delay {
                 },
             };
 
-            //let lowpass_frequency_hz = 1000.0; // TODO: make not hard-coded
-            //let highpass_frequency_hz = 250.0; // TODO: make not hard-coded
-            //let quality_factor = 0.707; // TODO: make not hard-coded
+            let lowpass_frequency_hz = 5000.0; // TODO: make not hard-coded
+            let highpass_frequency_hz = 125.0; // TODO: make not hard-coded
+            let quality_factor = 0.707; // TODO: make not hard-coded
 
             // Lowpass filter coefficients
-            //let (lp_b0, lp_b1, lp_b2, lp_a1, lp_a2) = get_lowpass_second_order_biquad_consts(
-            //        lowpass_frequency_hz, quality_factor, sample_rate);
+            let (lp_b0, lp_b1, lp_b2, lp_a1, lp_a2) = get_lowpass_second_order_biquad_consts(
+                    lowpass_frequency_hz, quality_factor, sample_rate);
 
             // Highpass filter coefficients
-            //let (hp_b0, hp_b1, hp_b2, hp_a1, hp_a2) = get_highpass_second_order_biquad_consts(
-            //        highpass_frequency_hz, quality_factor, sample_rate);
+            let (hp_b0, hp_b1, hp_b2, hp_a1, hp_a2) = get_highpass_second_order_biquad_consts(
+                    highpass_frequency_hz, quality_factor, sample_rate);
 
             // Apply the old parameters up until next_keyframe.
             if let Some(buffer_slice) = buffer.get_mut(this_keyframe..next_keyframe) {
@@ -87,19 +87,19 @@ impl Delay {
                         // delayed sample.
                         let mut delayed_sample = self.feedback * self.delay_buffer.get(0);
 
-                        // Apply lowpass
-                        //delayed_sample = process_biquad(
-                        //    self.lowpass_ringbuffer_input, self.lowpass_ringbuffer_output,
-                        //    lp_b0, lp_b1, lp_b2,
-                        //    lp_a1, lp_a2,
-                        //    delayed_sample);
-
                         // Apply highpass
-                        //delayed_sample = process_biquad(
-                        //    self.highpass_ringbuffer_input, self.highpass_ringbuffer_output,
-                        //    hp_b0, hp_b1, hp_b2,
-                        //    hp_a1, hp_a2,
-                        //    delayed_sample);
+                        delayed_sample = process_biquad(
+                            &mut self.highpass_ringbuffer_input, &mut self.highpass_ringbuffer_output,
+                            hp_b0, hp_b1, hp_b2,
+                            hp_a1, hp_a2,
+                            delayed_sample);
+
+                        // Apply lowpass
+                        delayed_sample = process_biquad(
+                            &mut self.lowpass_ringbuffer_input, &mut self.lowpass_ringbuffer_output,
+                            lp_b0, lp_b1, lp_b2,
+                            lp_a1, lp_a2,
+                            delayed_sample);
 
                         *sample += delayed_sample;
                         self.delay_buffer.push(*sample);

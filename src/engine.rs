@@ -2,7 +2,7 @@
 use buffer::ResizableFrameBuffer;
 use defs;
 use event::{ControllerBindData, EngineEvent, MidiEvent, ModulatableParameter, PatchEvent};
-use processor::{Adsr, Gain, Oscillator, Filter,
+use processor::{Adsr, Delay, Gain, Oscillator, Filter,
                 ModulationMatrix, MonoNoteSelector, PitchBend, Waveshaper};
 use sample::slice;
 
@@ -23,7 +23,7 @@ pub struct Engine
     gain: Gain,
     filter: Filter,
     waveshaper: Waveshaper,
-    //delay: Delay,
+    delay: Delay,
 }
 
 impl Engine
@@ -45,7 +45,7 @@ impl Engine
             gain: Gain::new(1.0),
             filter: Filter::new(),
             waveshaper: Waveshaper::new(),
-            //delay: Delay::new(),
+            delay: Delay::new(),
         }
     }
 
@@ -202,11 +202,11 @@ impl Engine
         self.timing_data.waveshaper = (time::precise_time_ns() - waveshaper_start_time) / 1000;
 
         // Delay
-        //let delay_start_time = time::precise_time_ns();
-        //self.delay.process_buffer(main_buffer,
-        //                          self.engine_event_buffer.iter(),
-        //                          sample_rate);
-        //self.timing_data.delay = (time::precise_time_ns() - delay_start_time) / 1000;
+        let delay_start_time = time::precise_time_ns();
+        self.delay.process_buffer(main_buffer,
+                                  self.engine_event_buffer.iter(),
+                                  sample_rate);
+        self.timing_data.delay = (time::precise_time_ns() - delay_start_time) / 1000;
 
         if self.dump_timing_info {
             self.timing_data.dump_to_stderr();
