@@ -229,7 +229,7 @@ type BiquadCoefficientGeneratorFunc = fn (defs::Sample,
                                           defs::Sample)
         -> (defs::Sample, defs::Sample, defs::Sample, defs::Sample, defs::Sample);
 
-fn get_lowpass_second_order_biquad_consts(frequency_hz: defs::Sample,
+pub fn get_lowpass_second_order_biquad_consts(frequency_hz: defs::Sample,
                                           quality_factor: defs::Sample,
                                           sample_rate: defs::Sample)
     -> (defs::Sample, defs::Sample, defs::Sample, defs::Sample, defs::Sample)
@@ -257,7 +257,7 @@ fn get_lowpass_second_order_biquad_consts(frequency_hz: defs::Sample,
     (b0, b1, b2, a1, a2)
 }
 
-fn get_highpass_second_order_biquad_consts(frequency_hz: defs::Sample,
+pub fn get_highpass_second_order_biquad_consts(frequency_hz: defs::Sample,
                                           quality_factor: defs::Sample,
                                           sample_rate: defs::Sample)
     -> (defs::Sample, defs::Sample, defs::Sample, defs::Sample, defs::Sample)
