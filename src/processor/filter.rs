@@ -126,8 +126,34 @@ impl LowPassFilter
                 {
                     // Iterate over the samples in each frame using a zip method
                     output_frame.zip_map(adsr_input_frame,
-                                         |output_sample, adsr_input_sample| {
-                        self.process(output_sample, adsr_input_sample)
+                                         |sample, adsr_input_sample| {
+
+                        // Use adsr_input (0 <= x <= 1) to determine the influence
+                        // of self.params.adsr_sweep_octaves on the filter frequency.
+                        let mut frequency_hz = self.params.frequency.get()
+                                               * defs::Sample::exp2(self.params.adsr_sweep_octaves.get()
+                                               * adsr_input_sample);
+
+                        // Limit frequency_hz to just under half of the sample rate for stability.
+                        frequency_hz = frequency_hz.min(0.495 * self.sample_rate);
+
+                        // There are some intermediate variables:
+                        let theta_c = 2.0 * defs::PI * frequency_hz / self.sample_rate as defs::Sample;
+                        let cos_theta_c = theta_c.cos();
+                        let sin_theta_c = theta_c.sin();
+                        let alpha = sin_theta_c / (2.0 * self.params.quality_factor.get());
+
+                        // Calculate the coefficients.
+                        // We'll just divide off a_0 from each one to save on computation.
+                        let a0 = 1.0 + alpha;
+                        let a1 = -2.0 * cos_theta_c / a0;
+                        let a2 = (1.0 - alpha) / a0;
+
+                        let b1 = (1.0 - cos_theta_c) / a0;
+                        let b0 = b1 / 2.0;
+                        let b2 = b0;
+
+                        self.process_biquad(b0, b1, b2, a1, a2, sample)
                     })
                 });
             } // output_buffer_slice exits scope
@@ -163,71 +189,45 @@ impl LowPassFilter
 
     }
 
-    fn process(&mut self, input: defs::Sample, adsr_input: defs::Sample) -> defs::Sample
+    /// Process a biquad frame.
+    /// Input consts must have be normalised such that a0 == 1.0,
+    /// by dividing a0 from all other "a" and "b" consts.
+    ///
+    /// The general biquad implementation for Direct Form 1:
+    ///
+    /// y_0 = b0 * x_0 + b1 * x_1 + b2 * x_2
+    ///                - a1 * y_1 - a2 * y_2
+    fn process_biquad(&mut self,
+                      b0: defs::Sample,
+                      b1: defs::Sample,
+                      b2: defs::Sample,
+                      a1: defs::Sample,
+                      a2: defs::Sample,
+                      x: defs::Sample) -> defs::Sample
     {
-        // Update input buffer:
-        self.ringbuffer_input.push(input);
+        // Update input ringbuffer with the new x:
+        self.ringbuffer_input.push(x);
 
         let mut input_iter = self.ringbuffer_input.iter();
-        let x_2 = *input_iter.next().unwrap();
-        let x_1 = *input_iter.next().unwrap();
-        let x_0 = *input_iter.next().unwrap();
+        let x2 = *input_iter.next().unwrap();
+        let x1 = *input_iter.next().unwrap();
+        let x0 = *input_iter.next().unwrap();
 
-        let y_1: defs::Sample;
-        let y_2: defs::Sample;
+        // Get the values from output ringbuffer, but don't mutate the buffer until the end
+        let y1: defs::Sample;
+        let y2: defs::Sample;
         {
             let mut output_iter = self.ringbuffer_output.iter();
-            y_2 = *output_iter.next().unwrap();
-            y_1 = *output_iter.next().unwrap();
+            y2 = *output_iter.next().unwrap();
+            y1 = *output_iter.next().unwrap();
         } // End borrow of ringbuffer_output
 
-        // Use adsr_input (0 <= x <= 1) to determine the influence
-        // of self.params.adsr_sweep_octaves on the filter frequency.
-        let mut frequency_hz = self.params.frequency.get()
-                               * defs::Sample::exp2(self.params.adsr_sweep_octaves.get()
-                               * adsr_input);
+        // Calculate the output
+        let y = b0 * x0 + b1 * x1 + b2 * x2
+                        - a1 * y1 - a2 * y2;
 
-        // Limit frequency_hz to just under half of the sample rate for stability.
-        frequency_hz = frequency_hz.min(0.495 * self.sample_rate);
-
-        // We implement a biquad section with coefficients selected to achieve
-        // a low-pass filter.
-        //
-        // The general biquad implementation for Direct Form 1:
-        //
-        // y_0 = b0 * x_0 + b1 * x_1 + b2 * x_2
-        //                - a1 * y_1 - a2 * y_2
-        //
-        // The above assumes a constant a0 has been divided off all the other coefficients
-        // to save on computation steps.
-        // There are some intermediate variables:
-        //
-        let theta_c = 2.0 * defs::PI * frequency_hz / self.sample_rate as defs::Sample;
-        let cos_theta_c = theta_c.cos();
-        let sin_theta_c = theta_c.sin();
-        let alpha = sin_theta_c / (2.0 * self.params.quality_factor.get());
-
-        // Calculate the coefficients.
-        // We'll just divide off a_0 from each one to save on computation.
-        let a0 = 1.0 + alpha;
-        let a1 = -2.0 * cos_theta_c / a0;
-        let a2 = (1.0 - alpha) / a0;
-
-        let b1 = (1.0 - cos_theta_c) / a0;
-        let b0 = b1 / 2.0;
-        let b2 = b0;
-
-        let y_0 = b0 * x_0 + b1 * x_1 + b2 * x_2
-                           - a1 * y_1 - a2 * y_2;
-
-        // Update output buffer for next time:
-        self.ringbuffer_output.push(y_0);
-
-        // TODO: remove these once confident in filter stability
-        assert!(y_0 >= -5.0);
-        assert!(y_0 <= 5.0);
-
-        // Set sample to output
-        y_0
+        // Update output ringbuffer and return the output
+        self.ringbuffer_output.push(y);
+        y
     }
 }
