@@ -1,5 +1,5 @@
 
-use buffer::ResizableFrameBuffer;
+use buffer::ResizableFrameBuffers;
 use defs;
 use event::{ControllerBindData, EngineEvent, MidiEvent, ModulatableParameter, PatchEvent};
 use processor::{Adsr, Delay, Gain, Oscillator, Filter,
@@ -9,6 +9,7 @@ use sample::slice;
 pub struct Engine
 {
     // Misc
+    current_buffer_size: usize,
     engine_event_buffer: Vec<(usize, EngineEvent)>,
     note_selector: MonoNoteSelector,
     pitch_bend: PitchBend,
@@ -16,7 +17,7 @@ pub struct Engine
     timing_data: TimingData,
     dump_timing_info: bool,
     // Buffers
-    adsr_buffer: ResizableFrameBuffer<defs::MonoFrame>,
+    adsr_buffer: ResizableFrameBuffers<defs::MonoFrame>,
     // DSP Units
     oscillator: Oscillator,
     adsr: Adsr,
@@ -30,6 +31,7 @@ impl Engine
 {
     pub fn new(dump_timing_info: bool) -> Engine {
         Engine {
+            current_buffer_size: 0,
             // Engine Event Processing
             engine_event_buffer: Vec::with_capacity(defs::ENGINE_EVENT_BUF_LEN),
             note_selector: MonoNoteSelector::new(),
@@ -38,7 +40,7 @@ impl Engine
             timing_data: Default::default(),
             dump_timing_info,
             // Buffers
-            adsr_buffer: ResizableFrameBuffer::new(),
+            adsr_buffer: ResizableFrameBuffers::new(1),
             // DSP Units
             oscillator: Oscillator::new(),
             adsr: Adsr::new(),
@@ -47,6 +49,12 @@ impl Engine
             waveshaper: Waveshaper::new(),
             delay: Delay::new(),
         }
+    }
+
+    pub fn set_buffer_sizes(&mut self, size: usize) {
+        self.adsr_buffer.resize(size);
+        self.oscillator.resize_buffers(size);
+        self.current_buffer_size = size;
     }
 
     pub fn apply_patch_events(&mut self,
@@ -127,6 +135,12 @@ impl Engine
     {
         let engine_start_time = time::precise_time_ns();
 
+        // Currently we don't support dynamically changing the buffer size during processing.
+        // Break loudly, rather than running incorrectly.
+        if main_buffer.len() != self.current_buffer_size {
+            panic!("Changing buffer size during runtime is currently unsupported");
+        }
+
         // Zero the buffer
         slice::equilibrium(main_buffer);
 
@@ -165,8 +179,7 @@ impl Engine
 
         // ADSR buffer for Gain and Filter (shared for now).
         let adsr_start_time = time::precise_time_ns();
-        let frames_this_buffer = main_buffer.len();
-        let adsr_buffer = self.adsr_buffer.get_sized_mut(frames_this_buffer);
+        let adsr_buffer = self.adsr_buffer.get_mut(0);
         let adsr_any_nonzero_output = self.adsr.process_buffer(adsr_buffer,
                                  self.engine_event_buffer.iter(),
                                  sample_rate);
@@ -188,7 +201,6 @@ impl Engine
             self.gain.process_buffer(adsr_buffer,
                                      main_buffer);
             self.timing_data.gain = (time::precise_time_ns() - gain_start_time) / 1000;
-
         }
 
         // Filter

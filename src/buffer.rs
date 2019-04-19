@@ -2,47 +2,42 @@ extern crate sample;
 
 use sample::Frame;
 
-/// Buffer: a container for a buffer needed for processing,
+/// A container for one or more buffers needed for processing,
 /// and a means to manage its size.
-pub struct ResizableFrameBuffer<F>
+pub struct ResizableFrameBuffers<F>
 where
     F: Frame,
 {
+    per_buffer_capacity: usize,
+    num_buffers: usize,
     data: Vec<F>,
 }
 
-// If the frames per callback exceed this value,
-// buffers will need to be reallocated, which is expensive
-// and not desirable for realtime audio processing.
-const BUFFER_DEFAULT_CAPACITY: usize = 4096;
-
-impl<F> ResizableFrameBuffer<F>
+impl<F> ResizableFrameBuffers<F>
 where
     F: Frame,
 {
-    pub fn new() -> ResizableFrameBuffer<F> {
-        ResizableFrameBuffer {
-            data: Vec::with_capacity(BUFFER_DEFAULT_CAPACITY),
+    /// Create the buffers.
+    /// The capacity defaults to 0, and should be set using self.resize().
+    pub fn new(num_buffers: usize) -> ResizableFrameBuffers<F> {
+        ResizableFrameBuffers {
+            per_buffer_capacity: 0,
+            num_buffers,
+            data: Vec::with_capacity(0),
         }
     }
 
-    /// Check the buffer matches the expected size.
-    /// Otherwise, resize it.
-    fn ensure_size(&mut self, frames: usize) {
-        if self.data.len() != frames {
-            let current_len = self.data.len();
-            if current_len < frames {
-                self.data.extend((current_len..frames).map(|_| F::equilibrium()));
-            } else if current_len > frames {
-                self.data.truncate(frames);
-            }
-        }
+    /// Resize the buffers by setting a new capacity per buffer.
+    pub fn resize(&mut self, per_buffer_capacity: usize) {
+        self.data.resize(self.num_buffers * per_buffer_capacity, F::equilibrium());
+        self.per_buffer_capacity = per_buffer_capacity;
     }
 
-    /// get_mut: Returns a mutable reference to a buffer of size expected_frames.
-    /// The buffer will be resized if necessary.
-    pub fn get_sized_mut(&mut self, expected_frames: usize) -> &mut Vec<F> {
-        self.ensure_size(expected_frames);
-        &mut self.data
+    /// get_mut: Returns a mutable reference to a buffer with the given number.
+    /// Panics if the requested buffer is out of range.
+    pub fn get_mut(&mut self, buffer_number: usize) -> &mut [F] {
+        let start = buffer_number * self.per_buffer_capacity;
+        let end = start + self.per_buffer_capacity;
+        self.data.get_mut(start..end).unwrap()
     }
 }

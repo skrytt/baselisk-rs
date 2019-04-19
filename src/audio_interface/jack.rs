@@ -37,6 +37,10 @@ where
         Ok(midi_input_port) => midi_input_port,
     };
 
+    // Set the engine buffer sizes here, before the audio callbacks start
+    engine.write().unwrap()
+        .set_buffer_sizes(client.buffer_size() as usize);
+
     let engine_callback = Arc::clone(engine);
 
     let (tx_main_thread, rx_audio_thread) = mpsc::sync_channel(256);
