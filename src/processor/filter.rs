@@ -186,8 +186,8 @@ pub struct BiquadCoefficients {
     b0: defs::Sample,
     b1: defs::Sample,
     b2: defs::Sample,
-    negative_a1: defs::Sample,
-    negative_a2: defs::Sample,
+    a1: defs::Sample,
+    a2: defs::Sample,
 }
 
 impl BiquadCoefficients {
@@ -241,8 +241,8 @@ pub fn process_biquad(history: &mut BiquadSampleHistory,
     let mut output_sample = coeffs.b0 * history.x0;
     output_sample += coeffs.b1 * history.x1;
     output_sample += coeffs.b2 * history.x2;
-    output_sample += coeffs.negative_a1 * history.y1;
-    output_sample += coeffs.negative_a2 * history.y2;
+    output_sample -= coeffs.a1 * history.y1;
+    output_sample -= coeffs.a2 * history.y2;
 
     // Update output ringbuffer and return the output
     history.y2 = history.y1;
@@ -267,7 +267,7 @@ pub fn get_lowpass_second_order_biquad_consts(frequency_hz: defs::Sample,
     let frequency_hz = frequency_hz.min(0.495 * sample_rate);
 
     // Intermediate variables:
-    let two_q_inv = 1.0 / (2.0 * quality_factor);
+    let two_q_inv = 0.5 / quality_factor;
     let theta_c = defs::TWOPI * frequency_hz / sample_rate;
     let cos_theta_c = theta_c.cos();
     let sin_theta_c = theta_c.sin();
@@ -277,8 +277,8 @@ pub fn get_lowpass_second_order_biquad_consts(frequency_hz: defs::Sample,
     // a0 was divided off from each one to save on computation.
     let a0_inv = 1.0 / (1.0 + alpha);
 
-    coeffs.negative_a1 = 2.0 * cos_theta_c * a0_inv;
-    coeffs.negative_a2 = (alpha - 1.0) * a0_inv;
+    coeffs.a1 = -2.0 * cos_theta_c * a0_inv;
+    coeffs.a2 = (1.0 - alpha) * a0_inv;
 
     coeffs.b1 = (1.0 - cos_theta_c) * a0_inv;
     coeffs.b0 = 0.5 * coeffs.b1;
@@ -295,19 +295,20 @@ pub fn get_highpass_second_order_biquad_consts(frequency_hz: defs::Sample,
     let frequency_hz = frequency_hz.min(0.495 * sample_rate);
 
     // Intermediate variables:
-    let theta_c = 2.0 * defs::PI * frequency_hz / sample_rate;
+    let two_q_inv = 0.5 / quality_factor;
+    let theta_c = defs::TWOPI * frequency_hz / sample_rate;
     let cos_theta_c = theta_c.cos();
     let sin_theta_c = theta_c.sin();
-    let alpha = sin_theta_c / (2.0 * quality_factor);
+    let alpha = sin_theta_c * two_q_inv;
 
     // Calculate the coefficients.
     // a0 was divided off from each one to save on computation.
-    let a0 = 1.0 + alpha;
+    let a0_inv = 1.0 / (1.0 + alpha);
 
-    coeffs.negative_a1 = 2.0 * cos_theta_c / a0;
-    coeffs.negative_a2 = (alpha - 1.0) / a0;
+    coeffs.a1 = -2.0 * cos_theta_c * a0_inv;
+    coeffs.a2 = (1.0 - alpha) * a0_inv;
 
-    coeffs.b0 = (1.0 + cos_theta_c) / (2.0 * a0);
-    coeffs.b1 = -(1.0 + cos_theta_c) / a0;
+    coeffs.b0 = 0.5 * (1.0 + cos_theta_c) * a0_inv;
+    coeffs.b1 = -2.0 * coeffs.b0;
     coeffs.b2 = coeffs.b0;
 }
