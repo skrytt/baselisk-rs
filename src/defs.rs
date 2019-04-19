@@ -10,3 +10,4 @@ pub type MonoFrame = frame::Mono<Sample>;    // A slice of samples
 pub type MonoFrameBufferSlice = [MonoFrame]; // A slice of frames
 
 pub const PI: Sample = f32::consts::PI;
+pub const TWOPI: Sample = 2.0 * PI;

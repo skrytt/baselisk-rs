@@ -7,6 +7,8 @@ use event::{
     //ModulatableParameterUpdateData,
 };
 use processor::filter::{
+    BiquadCoefficients,
+    BiquadSampleHistory,
     get_lowpass_second_order_biquad_consts,
     get_highpass_second_order_biquad_consts,
     process_biquad,
@@ -17,10 +19,10 @@ use std::slice::Iter;
 pub struct Delay {
     delay_buffer: ring_buffer::Fixed<Vec<defs::Sample>>,
     feedback: defs::Sample,
-    lowpass_ringbuffer_input: ring_buffer::Fixed<[defs::Sample; 3]>,
-    lowpass_ringbuffer_output: ring_buffer::Fixed<[defs::Sample; 2]>,
-    highpass_ringbuffer_input: ring_buffer::Fixed<[defs::Sample; 3]>,
-    highpass_ringbuffer_output: ring_buffer::Fixed<[defs::Sample; 2]>,
+    highpass_history: BiquadSampleHistory,
+    highpass_coeffs: BiquadCoefficients,
+    lowpass_history: BiquadSampleHistory,
+    lowpass_coeffs: BiquadCoefficients,
 }
 
 impl Delay {
@@ -36,10 +38,10 @@ impl Delay {
         Delay {
             delay_buffer,
             feedback: 0.6,
-            lowpass_ringbuffer_input: ring_buffer::Fixed::from([0.0; 3]),
-            lowpass_ringbuffer_output: ring_buffer::Fixed::from([0.0; 2]),
-            highpass_ringbuffer_input: ring_buffer::Fixed::from([0.0; 3]),
-            highpass_ringbuffer_output: ring_buffer::Fixed::from([0.0; 2]),
+            highpass_history: BiquadSampleHistory::new(),
+            highpass_coeffs: BiquadCoefficients::new(),
+            lowpass_history: BiquadSampleHistory::new(),
+            lowpass_coeffs: BiquadCoefficients::new(),
         }
     }
 
@@ -72,12 +74,12 @@ impl Delay {
             let quality_factor = 0.707; // TODO: make not hard-coded
 
             // Lowpass filter coefficients
-            let (lp_b0, lp_b1, lp_b2, lp_a1, lp_a2) = get_lowpass_second_order_biquad_consts(
-                    lowpass_frequency_hz, quality_factor, sample_rate);
+            get_lowpass_second_order_biquad_consts(
+                    lowpass_frequency_hz, quality_factor, sample_rate, &mut self.lowpass_coeffs);
 
             // Highpass filter coefficients
-            let (hp_b0, hp_b1, hp_b2, hp_a1, hp_a2) = get_highpass_second_order_biquad_consts(
-                    highpass_frequency_hz, quality_factor, sample_rate);
+            get_highpass_second_order_biquad_consts(
+                    highpass_frequency_hz, quality_factor, sample_rate, &mut self.highpass_coeffs);
 
             // Apply the old parameters up until next_keyframe.
             if let Some(buffer_slice) = buffer.get_mut(this_keyframe..next_keyframe) {
@@ -89,16 +91,14 @@ impl Delay {
 
                         // Apply highpass
                         delayed_sample = process_biquad(
-                            &mut self.highpass_ringbuffer_input, &mut self.highpass_ringbuffer_output,
-                            hp_b0, hp_b1, hp_b2,
-                            hp_a1, hp_a2,
+                            &mut self.highpass_history,
+                            &self.highpass_coeffs,
                             delayed_sample);
 
                         // Apply lowpass
                         delayed_sample = process_biquad(
-                            &mut self.lowpass_ringbuffer_input, &mut self.lowpass_ringbuffer_output,
-                            lp_b0, lp_b1, lp_b2,
-                            lp_a1, lp_a2,
+                            &mut self.lowpass_history,
+                            &self.lowpass_coeffs,
                             delayed_sample);
 
                         *sample += delayed_sample;

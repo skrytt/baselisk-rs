@@ -3,7 +3,8 @@ extern crate sample;
 use defs;
 use event::{EngineEvent, ModulatableParameter, ModulatableParameterUpdateData};
 use parameter::{Parameter, FrequencyParameter, LinearParameter};
-use sample::{Frame, slice, ring_buffer};
+use sample::{Frame, slice};
+use std::default::Default;
 
 /// Parameters available for filters.
 struct FilterParams {
@@ -30,9 +31,10 @@ pub struct Filter
 {
     params: FilterParams,
     sample_rate: defs::Sample,
+    last_adsr_input_sample: defs::Sample,
     biquad_coefficient_func: BiquadCoefficientGeneratorFunc,
-    ringbuffer_input: ring_buffer::Fixed<[defs::Sample; 3]>,
-    ringbuffer_output: ring_buffer::Fixed<[defs::Sample; 2]>,
+    history: BiquadSampleHistory,
+    coeffs: BiquadCoefficients,
 }
 
 impl Filter
@@ -42,20 +44,15 @@ impl Filter
         Filter {
             params: FilterParams::new(),
             sample_rate: 0.0,
+            last_adsr_input_sample: 2.0, // Force computation the first time
             biquad_coefficient_func: get_lowpass_second_order_biquad_consts,
-            ringbuffer_input: ring_buffer::Fixed::from([0.0; 3]),
-            ringbuffer_output: ring_buffer::Fixed::from([0.0; 2]),
+            history: BiquadSampleHistory::new(),
+            coeffs: BiquadCoefficients::new(),
         }
     }
 
     pub fn midi_panic(&mut self) {
-        // Reset the buffers
-        for _ in 0..self.ringbuffer_input.len() {
-            self.ringbuffer_input.push(0.0);
-        }
-        for _ in 0..self.ringbuffer_output.len() {
-            self.ringbuffer_output.push(0.0);
-        }
+        self.history.reset();
     }
 
     /// Set frequency (Hz) for this filter.
@@ -134,18 +131,20 @@ impl Filter
                     output_frame.zip_map(adsr_input_frame,
                                          |sample, adsr_input_sample|
                     {
-                        // Use adsr_input (0 <= x <= 1) to determine the influence
-                        // of self.params.adsr_sweep_octaves on the filter frequency.
-                        let frequency_hz = base_frequency_hz
-                            * defs::Sample::exp2(adsr_sweep_octaves * adsr_input_sample);
+                        if self.last_adsr_input_sample != adsr_input_sample {
+                            self.last_adsr_input_sample = adsr_input_sample;
+                            // Use adsr_input (0 <= x <= 1) to determine the influence
+                            // of self.params.adsr_sweep_octaves on the filter frequency.
+                            let frequency_hz = base_frequency_hz
+                                * defs::Sample::exp2(adsr_sweep_octaves * adsr_input_sample);
 
-                        let (b0, b1, b2, a1, a2) = (self.biquad_coefficient_func)(
-                                frequency_hz, quality_factor, self.sample_rate);
+                            (self.biquad_coefficient_func)(
+                                    frequency_hz, quality_factor, self.sample_rate, &mut self.coeffs);
+                        }
 
                         process_biquad(
-                            &mut self.ringbuffer_input, &mut self.ringbuffer_output,
-                            b0, b1, b2,
-                            a1, a2,
+                            &mut self.history,
+                            &self.coeffs,
                             sample)
                     })
                 });
@@ -179,9 +178,46 @@ impl Filter
                 };
             }
         }
+    }
+}
 
+#[derive(Default)]
+pub struct BiquadCoefficients {
+    b0: defs::Sample,
+    b1: defs::Sample,
+    b2: defs::Sample,
+    negative_a1: defs::Sample,
+    negative_a2: defs::Sample,
+}
+
+impl BiquadCoefficients {
+    pub fn new() -> BiquadCoefficients {
+        Default::default()
+    }
+}
+
+
+#[derive(Default)]
+pub struct BiquadSampleHistory {
+    x0: defs::Sample,
+    x1: defs::Sample,
+    x2: defs::Sample,
+    y1: defs::Sample,
+    y2: defs::Sample,
+}
+
+impl BiquadSampleHistory {
+    pub fn new() -> BiquadSampleHistory {
+        Default::default()
     }
 
+    pub fn reset(&mut self) {
+        self.x0 = 0.0;
+        self.x1 = 0.0;
+        self.x2 = 0.0;
+        self.y1 = 0.0;
+        self.y2 = 0.0;
+    }
 }
 
 /// Process a biquad frame.
@@ -192,80 +228,68 @@ impl Filter
 ///
 /// y_0 = b0 * x_0 + b1 * x_1 + b2 * x_2
 ///                - a1 * y_1 - a2 * y_2
-pub fn process_biquad(ringbuffer_input: &mut ring_buffer::Fixed<[defs::Sample; 3]>,
-                      ringbuffer_output: &mut ring_buffer::Fixed<[defs::Sample; 2]>,
-                      b0: defs::Sample,
-                      b1: defs::Sample,
-                      b2: defs::Sample,
-                      a1: defs::Sample,
-                      a2: defs::Sample,
-                      x: defs::Sample) -> defs::Sample
+pub fn process_biquad(history: &mut BiquadSampleHistory,
+                      coeffs: &BiquadCoefficients,
+                      input_sample: defs::Sample) -> defs::Sample
 {
     // Update input ringbuffer with the new x:
-    ringbuffer_input.push(x);
-
-    let mut input_iter = ringbuffer_input.iter();
-    let x2 = *input_iter.next().unwrap();
-    let x1 = *input_iter.next().unwrap();
-    let x0 = *input_iter.next().unwrap();
-
-    // Get the values from output ringbuffer, but don't mutate the buffer until the end
-    let y1: defs::Sample;
-    let y2: defs::Sample;
-    {
-        let mut output_iter = ringbuffer_output.iter();
-        y2 = *output_iter.next().unwrap();
-        y1 = *output_iter.next().unwrap();
-    } // End borrow of ringbuffer_output
+    history.x2 = history.x1;
+    history.x1 = history.x0;
+    history.x0 = input_sample;
 
     // Calculate the output
-    let y = b0 * x0 + b1 * x1 + b2 * x2
-                    - a1 * y1 - a2 * y2;
+    let mut output_sample = coeffs.b0 * history.x0;
+    output_sample += coeffs.b1 * history.x1;
+    output_sample += coeffs.b2 * history.x2;
+    output_sample += coeffs.negative_a1 * history.y1;
+    output_sample += coeffs.negative_a2 * history.y2;
 
     // Update output ringbuffer and return the output
-    ringbuffer_output.push(y);
-    y
+    history.y2 = history.y1;
+    history.y1 = output_sample;
+
+    output_sample
 }
 
 /// Accepts: frequency_hz, quality_factor, sample_rate.
-/// Returns: (b0, b1, b2, a1, a2) in this order.
+/// Returns a BiquadCoefficients.
 type BiquadCoefficientGeneratorFunc = fn (defs::Sample,
                                           defs::Sample,
-                                          defs::Sample)
-        -> (defs::Sample, defs::Sample, defs::Sample, defs::Sample, defs::Sample);
+                                          defs::Sample,
+                                          &mut BiquadCoefficients);
 
 pub fn get_lowpass_second_order_biquad_consts(frequency_hz: defs::Sample,
                                           quality_factor: defs::Sample,
-                                          sample_rate: defs::Sample)
-    -> (defs::Sample, defs::Sample, defs::Sample, defs::Sample, defs::Sample)
+                                          sample_rate: defs::Sample,
+                                          coeffs: &mut BiquadCoefficients)
 {
     // Limit frequency_hz to just under half of the sample rate for stability.
     let frequency_hz = frequency_hz.min(0.495 * sample_rate);
 
     // Intermediate variables:
-    let theta_c = 2.0 * defs::PI * frequency_hz / sample_rate;
+    let two_q_inv = 1.0 / (2.0 * quality_factor);
+    let theta_c = defs::TWOPI * frequency_hz / sample_rate;
     let cos_theta_c = theta_c.cos();
     let sin_theta_c = theta_c.sin();
-    let alpha = sin_theta_c / (2.0 * quality_factor);
+    let alpha = sin_theta_c * two_q_inv;
 
     // Calculate the coefficients.
     // a0 was divided off from each one to save on computation.
-    let a0 = 1.0 + alpha;
+    let a0_inv = 1.0 / (1.0 + alpha);
 
-    let a1 = -2.0 * cos_theta_c / a0;
-    let a2 = (1.0 - alpha) / a0;
+    coeffs.negative_a1 = 2.0 * cos_theta_c * a0_inv;
+    coeffs.negative_a2 = (alpha - 1.0) * a0_inv;
 
-    let b1 = (1.0 - cos_theta_c) / a0;
-    let b0 = b1 / 2.0;
-    let b2 = b0;
+    coeffs.b1 = (1.0 - cos_theta_c) * a0_inv;
+    coeffs.b0 = 0.5 * coeffs.b1;
+    coeffs.b2 = coeffs.b0; // b2 = b0
 
-    (b0, b1, b2, a1, a2)
 }
 
 pub fn get_highpass_second_order_biquad_consts(frequency_hz: defs::Sample,
                                           quality_factor: defs::Sample,
-                                          sample_rate: defs::Sample)
-    -> (defs::Sample, defs::Sample, defs::Sample, defs::Sample, defs::Sample)
+                                          sample_rate: defs::Sample,
+                                          coeffs: &mut BiquadCoefficients)
 {
     // Limit frequency_hz to just under half of the sample rate for stability.
     let frequency_hz = frequency_hz.min(0.495 * sample_rate);
@@ -280,12 +304,10 @@ pub fn get_highpass_second_order_biquad_consts(frequency_hz: defs::Sample,
     // a0 was divided off from each one to save on computation.
     let a0 = 1.0 + alpha;
 
-    let a1 = -2.0 * cos_theta_c / a0;
-    let a2 = (1.0 - alpha) / a0;
+    coeffs.negative_a1 = 2.0 * cos_theta_c / a0;
+    coeffs.negative_a2 = (alpha - 1.0) / a0;
 
-    let b0 = (1.0 + cos_theta_c) / (2.0 * a0);
-    let b1 = -(1.0 + cos_theta_c) / a0;
-    let b2 = b0;
-
-    (b0, b1, b2, a1, a2)
+    coeffs.b0 = (1.0 + cos_theta_c) / (2.0 * a0);
+    coeffs.b1 = -(1.0 + cos_theta_c) / a0;
+    coeffs.b2 = coeffs.b0;
 }
