@@ -125,6 +125,8 @@ impl Engine
                            raw_midi_iter: jack::MidiIter,
                            sample_rate: defs::Sample)
     {
+        let engine_start_time = time::precise_time_ns();
+
         // Zero the buffer
         slice::equilibrium(main_buffer);
 
@@ -158,6 +160,8 @@ impl Engine
             self.handle_midi_panic();
             return
         }
+
+        self.timing_data.pre = (time::precise_time_ns() - engine_start_time) / 1000;
 
         // ADSR buffer for Gain and Filter (shared for now).
         let adsr_start_time = time::precise_time_ns();
@@ -208,6 +212,10 @@ impl Engine
                                   sample_rate);
         self.timing_data.delay = (time::precise_time_ns() - delay_start_time) / 1000;
 
+        self.timing_data.total = (time::precise_time_ns() - engine_start_time) / 1000;
+
+        self.timing_data.window = 1000000.0 * main_buffer.len() as f32 / sample_rate;
+
         if self.dump_timing_info {
             self.timing_data.dump_to_stderr();
         }
@@ -223,22 +231,28 @@ impl Engine
 
 #[derive(Default)]
 struct TimingData {
+    pre: u64,
     oscillator: u64,
     adsr: u64,
     gain: u64,
     filter: u64,
     waveshaper: u64,
     delay: u64,
+    total: u64,
+    window: f32,
 }
 impl TimingData {
     fn dump_to_stderr(&self) {
-        eprintln!("osc={}us adsr={}us gain={}us filter={}us waveshaper={}us delay={}us",
+        eprintln!("pre:{:3}us osc:{:3}us adsr:{:3}us gain:{:3}us fltr:{:3}us wshp:{:3}us dly:{:3}us total:{:3}us [{:3.3}%]",
+                self.pre,
                 self.oscillator,
                 self.adsr,
                 self.gain,
                 self.filter,
                 self.waveshaper,
-                self.delay
+                self.delay,
+                self.total,
+                100.0 * (self.total as f32 / self.window),
         );
     }
 }
