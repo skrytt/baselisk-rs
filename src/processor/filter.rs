@@ -32,14 +32,15 @@ enum BufferEnum {
     SinThetaC,
     Alpha,
     A0Inv,
-    A1,
-    A2,
+    NegativeA1,
+    NegativeA2,
     B0,
     B1,
     B2,
+    CentreTap,
     Output,
 }
-const NUM_BUFFERS: usize = 15;
+const NUM_BUFFERS: usize = 16;
 
 /// A low pass filter type that can be used for audio processing.
 /// This is to be a constant-peak-gain two-pole resonator with
@@ -211,13 +212,14 @@ impl Filter
         // Finally we can compute the output values.
         let all_buffers = self.buffers.get_mut();
         let (_, remaining) = all_buffers.split_at_mut(
-            (BufferEnum::A1 as usize) * buffer_size);
-        let (a1_buffer, remaining) = remaining.split_at_mut(buffer_size);
-        let (a2_buffer, remaining) = remaining.split_at_mut(buffer_size);
+            (BufferEnum::NegativeA1 as usize) * buffer_size);
+        let (negative_a1_buffer, remaining) = remaining.split_at_mut(buffer_size);
+        let (negative_a2_buffer, remaining) = remaining.split_at_mut(buffer_size);
         let (b0_buffer, remaining) = remaining.split_at_mut(buffer_size);
         let (b1_buffer, remaining) = remaining.split_at_mut(buffer_size);
         let (b2_buffer, remaining) = remaining.split_at_mut(buffer_size);
         let (temp_input_buffer, remaining) = remaining.split_at_mut(buffer_size);
+        let (centre_tap_buffer, remaining) = remaining.split_at_mut(buffer_size);
         let (temp_output_buffer, _) = remaining.split_at_mut(buffer_size);
 
         // Copy the input from the real input buffer to temp_input_buffer
@@ -229,23 +231,26 @@ impl Filter
         let mut y1 = self.y1;
         let mut y2 = self.y2;
 
+        // Calculate the centre tap first
         for frame_num in 0..buffer_size {
             // Update input ringbuffer with the new x:
             x2 = x1;
             x1 = x0;
             x0 = temp_input_buffer[frame_num][0];
 
-            // Calculate the output
-            let temp_output_sample: &mut defs::Sample = &mut temp_output_buffer[frame_num][0];
-            *temp_output_sample = b0_buffer[frame_num][0] * x0;
-            *temp_output_sample += b1_buffer[frame_num][0] * x1;
-            *temp_output_sample += b2_buffer[frame_num][0] * x2;
-            *temp_output_sample -= a1_buffer[frame_num][0] * y1;
-            *temp_output_sample -= a2_buffer[frame_num][0] * y2;
+            centre_tap_buffer[frame_num][0] = b0_buffer[frame_num][0] * x0
+                                            + b1_buffer[frame_num][0] * x1
+                                            + b2_buffer[frame_num][0] * x2;
+        }
+        // Then calculate the outputs
+        for frame_num in 0..buffer_size {
+            temp_output_buffer[frame_num][0] = centre_tap_buffer[frame_num][0]
+                                             + negative_a1_buffer[frame_num][0] * y1
+                                             + negative_a2_buffer[frame_num][0] * y2;
 
-            // Update output ringbuffer and return the output
+            // Update output ringbuffer with the new y
             y2 = y1;
-            y1 = *temp_output_sample;
+            y1 = temp_output_buffer[frame_num][0];
         }
 
         self.x0 = x0;
@@ -253,7 +258,6 @@ impl Filter
         self.x2 = x2;
         self.y1 = y1;
         self.y2 = y2;
-
 
         // Copy the results from temp_output_buffer to the real output buffer
         sample::slice::write(output_buffer, temp_output_buffer);
@@ -279,8 +283,8 @@ pub fn get_lowpass_second_order_biquad_consts(buffers: &mut ResizableFrameBuffer
     let (sin_theta_c_buffer, remaining) = remaining.split_at_mut(buffer_size);
     let (alpha_buffer, remaining) = remaining.split_at_mut(buffer_size);
     let (a0_inv_buffer, remaining) = remaining.split_at_mut(buffer_size);
-    let (a1_buffer, remaining) = remaining.split_at_mut(buffer_size);
-    let (a2_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (negative_a1_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (negative_a2_buffer, remaining) = remaining.split_at_mut(buffer_size);
     let (b0_buffer, remaining) = remaining.split_at_mut(buffer_size);
     let (b1_buffer, remaining) = remaining.split_at_mut(buffer_size);
     let (b2_buffer, _) = remaining.split_at_mut(buffer_size);
@@ -307,11 +311,11 @@ pub fn get_lowpass_second_order_biquad_consts(buffers: &mut ResizableFrameBuffer
 
     // Calculate the coefficients.
     // a0 was divided off from each one to save on computation.
-    for (frame_num, frame) in a1_buffer.iter_mut().enumerate() {
-        frame[0] = -2.0 * cos_theta_c_buffer[frame_num][0] * a0_inv_buffer[frame_num][0];
+    for (frame_num, frame) in negative_a1_buffer.iter_mut().enumerate() {
+        frame[0] = 2.0 * cos_theta_c_buffer[frame_num][0] * a0_inv_buffer[frame_num][0];
     }
-    for (frame_num, frame) in a2_buffer.iter_mut().enumerate() {
-        frame[0] = (1.0 - alpha_buffer[frame_num][0]) * a0_inv_buffer[frame_num][0];
+    for (frame_num, frame) in negative_a2_buffer.iter_mut().enumerate() {
+        frame[0] = (alpha_buffer[frame_num][0] - 1.0) * a0_inv_buffer[frame_num][0];
     }
     for (frame_num, frame) in b1_buffer.iter_mut().enumerate() {
         frame[0] = (1.0 - cos_theta_c_buffer[frame_num][0]) * a0_inv_buffer[frame_num][0];
@@ -337,8 +341,8 @@ pub fn get_highpass_second_order_biquad_consts(buffers: &mut ResizableFrameBuffe
     let (sin_theta_c_buffer, remaining) = remaining.split_at_mut(buffer_size);
     let (alpha_buffer, remaining) = remaining.split_at_mut(buffer_size);
     let (a0_inv_buffer, remaining) = remaining.split_at_mut(buffer_size);
-    let (a1_buffer, remaining) = remaining.split_at_mut(buffer_size);
-    let (a2_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (negative_a1_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (negative_a2_buffer, remaining) = remaining.split_at_mut(buffer_size);
     let (b0_buffer, remaining) = remaining.split_at_mut(buffer_size);
     let (b1_buffer, remaining) = remaining.split_at_mut(buffer_size);
     let (b2_buffer, _) = remaining.split_at_mut(buffer_size);
@@ -365,11 +369,11 @@ pub fn get_highpass_second_order_biquad_consts(buffers: &mut ResizableFrameBuffe
 
     // Calculate the coefficients.
     // a0 was divided off from each one to save on computation.
-    for (frame_num, frame) in a1_buffer.iter_mut().enumerate() {
-        frame[0] = -2.0 * cos_theta_c_buffer[frame_num][0] * a0_inv_buffer[frame_num][0];
+    for (frame_num, frame) in negative_a1_buffer.iter_mut().enumerate() {
+        frame[0] = 2.0 * cos_theta_c_buffer[frame_num][0] * a0_inv_buffer[frame_num][0];
     }
-    for (frame_num, frame) in a2_buffer.iter_mut().enumerate() {
-        frame[0] = (1.0 - alpha_buffer[frame_num][0]) * a0_inv_buffer[frame_num][0];
+    for (frame_num, frame) in negative_a2_buffer.iter_mut().enumerate() {
+        frame[0] = (alpha_buffer[frame_num][0] - 1.0) * a0_inv_buffer[frame_num][0];
     }
     for (frame_num, frame) in b0_buffer.iter_mut().enumerate() {
         frame[0] = 0.5 * (1.0 + cos_theta_c_buffer[frame_num][0]) * a0_inv_buffer[frame_num][0];
