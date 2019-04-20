@@ -61,7 +61,7 @@ impl State {
         self.sample_rate = sample_rate;
 
         // Calculate the frequencies per-frame
-        let frequency_buffer = self.frequency_buffer.get_mut(0);
+        let frequency_buffer = self.frequency_buffer.get_mut();
         let mut this_keyframe: usize = 0;
         let mut next_keyframe: usize;
         loop {
@@ -203,7 +203,7 @@ impl Oscillator {
 /// Generator function that produces a sine wave.
 fn sine_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
 {
-    let frequency_buffer = state.frequency_buffer.get_mut(0);
+    let frequency_buffer = state.frequency_buffer.get_mut();
 
     for (frame_num, frame) in buffer.iter_mut().enumerate() {
         // Advance phase
@@ -225,7 +225,7 @@ fn sine_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
 /// Uses PolyBLEP smoothing to reduce aliasing.
 fn pulse_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
 {
-    let frequency_buffer = state.frequency_buffer.get_mut(0);
+    let frequency_buffer = state.frequency_buffer.get_mut();
 
     for (frame_num, frame) in buffer.iter_mut().enumerate() {
         // Advance phase
@@ -278,7 +278,7 @@ fn pulse_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
 /// Uses PolyBLEP smoothing to reduce aliasing.
 fn sawtooth_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
 {
-    let frequency_buffer = state.frequency_buffer.get_mut(0);
+    let frequency_buffer = state.frequency_buffer.get_mut();
 
     for (frame_num, frame) in buffer.iter_mut().enumerate() {
         // Advance phase

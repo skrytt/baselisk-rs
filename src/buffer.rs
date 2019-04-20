@@ -33,11 +33,8 @@ where
         self.per_buffer_capacity = per_buffer_capacity;
     }
 
-    /// get_mut: Returns a mutable reference to a buffer with the given number.
-    /// Panics if the requested buffer is out of range.
-    pub fn get_mut(&mut self, buffer_number: usize) -> &mut [F] {
-        let start = buffer_number * self.per_buffer_capacity;
-        let end = start + self.per_buffer_capacity;
-        self.data.get_mut(start..end).unwrap()
+    /// get_mut: Returns a mutable reference to the entire range of buffers.
+    pub fn get_mut(&mut self) -> &mut [F] {
+        &mut self.data[..]
     }
 }

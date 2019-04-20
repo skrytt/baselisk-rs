@@ -1,10 +1,9 @@
 extern crate sample;
 
+use buffer::ResizableFrameBuffers;
 use defs;
 use event::{EngineEvent, ModulatableParameter, ModulatableParameterUpdateData};
 use parameter::{Parameter, FrequencyParameter, LinearParameter};
-use sample::{Frame, slice};
-use std::default::Default;
 
 /// Parameters available for filters.
 struct FilterParams {
@@ -24,17 +23,37 @@ impl FilterParams {
     }
 }
 
+enum BufferEnum {
+    Frequency,
+    Quality,
+    TwoQInv,
+    ThetaC,
+    CosThetaC,
+    SinThetaC,
+    Alpha,
+    A0Inv,
+    A1,
+    A2,
+    B0,
+    B1,
+    B2,
+    Output,
+}
+const NUM_BUFFERS: usize = 15;
+
 /// A low pass filter type that can be used for audio processing.
 /// This is to be a constant-peak-gain two-pole resonator with
 /// parameterized cutoff frequency and resonance.
 pub struct Filter
 {
     params: FilterParams,
-    sample_rate: defs::Sample,
-    last_adsr_input_sample: defs::Sample,
-    biquad_coefficient_func: BiquadCoefficientGeneratorFunc,
-    history: BiquadSampleHistory,
-    coeffs: BiquadCoefficients,
+    buffers: ResizableFrameBuffers<defs::MonoFrame>,
+    biquad_coefficient_generator_func: BiquadCoefficientGeneratorFunc,
+    x0: defs::Sample,
+    x1: defs::Sample,
+    x2: defs::Sample,
+    y1: defs::Sample,
+    y2: defs::Sample,
 }
 
 impl Filter
@@ -43,16 +62,22 @@ impl Filter
     pub fn new() -> Filter {
         Filter {
             params: FilterParams::new(),
-            sample_rate: 0.0,
-            last_adsr_input_sample: 2.0, // Force computation the first time
-            biquad_coefficient_func: get_lowpass_second_order_biquad_consts,
-            history: BiquadSampleHistory::new(),
-            coeffs: BiquadCoefficients::new(),
+            buffers: ResizableFrameBuffers::new(NUM_BUFFERS),
+            biquad_coefficient_generator_func: get_lowpass_second_order_biquad_consts,
+            x0: 0.0,
+            x1: 0.0,
+            x2: 0.0,
+            y1: 0.0,
+            y2: 0.0,
         }
     }
 
+    pub fn resize_buffers(&mut self, size: usize) {
+        self.buffers.resize(size);
+    }
+
     pub fn midi_panic(&mut self) {
-        self.history.reset();
+        panic!("midi panic needs reimplementation for filter module");
     }
 
     /// Set frequency (Hz) for this filter.
@@ -83,232 +108,276 @@ impl Filter
                           output_buffer: &mut defs::MonoFrameBufferSlice,
                           mut engine_event_iter: std::slice::Iter<(usize, EngineEvent)>,
                           sample_rate: defs::Sample) {
-        self.sample_rate = sample_rate;
 
-        // Calculate the output values per-frame
-        let mut this_keyframe: usize = 0;
-        let mut next_keyframe: usize;
-        loop {
-            // Get next selected note, if there is one.
-            let next_event = engine_event_iter.next();
+        let buffer_size = output_buffer.len();
 
-            // This match block continues on events that are unimportant to this processor.
-            match next_event {
-                Some((frame_num, engine_event)) => {
-                    match engine_event {
-                        EngineEvent::ModulateParameter { parameter, .. } => match parameter {
-                            ModulatableParameter::FilterFrequency => (),
-                            ModulatableParameter::FilterQuality => (),
-                            ModulatableParameter::FilterSweepRange => (),
+        // Calculate the frequency and quality values per-frame
+        {
+            let all_buffers = self.buffers.get_mut();
+
+            let (frequency_buffer, remaining) = all_buffers.split_at_mut(buffer_size);
+            let (quality_buffer, _) = remaining.split_at_mut(buffer_size);
+
+            let mut this_keyframe: usize = 0;
+            let mut next_keyframe: usize;
+            loop {
+                // Get next selected note, if there is one.
+                let next_event = engine_event_iter.next();
+
+                // This match block continues on events that are unimportant to this processor.
+                match next_event {
+                    Some((frame_num, engine_event)) => {
+                        match engine_event {
+                            EngineEvent::ModulateParameter { parameter, .. } => match parameter {
+                                ModulatableParameter::FilterFrequency => (),
+                                ModulatableParameter::FilterQuality => (),
+                                ModulatableParameter::FilterSweepRange => (),
+                                _ => continue,
+                            },
                             _ => continue,
-                        },
-                        _ => continue,
-                    }
-                    next_keyframe = *frame_num;
-                },
-                None => {
-                    // No more note change events, so we'll process to the end of the buffer.
-                    next_keyframe = output_buffer.len();
-                },
-            };
+                        }
+                        next_keyframe = *frame_num;
+                    },
+                    None => {
+                        // No more note change events, so we'll process to the end of the buffer.
+                        next_keyframe = output_buffer.len();
+                    },
+                };
 
-            // Apply the old parameters up until next_keyframe.
-            {
-                let output_buffer_slice = output_buffer.get_mut(
-                        this_keyframe..next_keyframe).unwrap();
-                let adsr_input_buffer_slice = adsr_input_buffer.get(
-                        this_keyframe..next_keyframe).unwrap();
-
-                let quality_factor = self.params.quality_factor.get();
-                let base_frequency_hz = self.params.frequency.get();
-                let adsr_sweep_octaves = self.params.adsr_sweep_octaves.get();
-
-                // Iterate over two buffer slices at once using a zip method
-                slice::zip_map_in_place(output_buffer_slice, adsr_input_buffer_slice,
-                                        |output_frame, adsr_input_frame|
+                // Apply the old parameters up until next_keyframe.
                 {
-                    // Iterate over the samples in each frame using a zip method
-                    output_frame.zip_map(adsr_input_frame,
-                                         |sample, adsr_input_sample|
-                    {
-                        if self.last_adsr_input_sample != adsr_input_sample {
-                            self.last_adsr_input_sample = adsr_input_sample;
-                            // Use adsr_input (0 <= x <= 1) to determine the influence
-                            // of self.params.adsr_sweep_octaves on the filter frequency.
-                            let frequency_hz = base_frequency_hz
-                                * defs::Sample::exp2(adsr_sweep_octaves * adsr_input_sample);
+                    // Frequency
+                    let base_frequency_hz = self.params.frequency.get();
+                    let adsr_sweep_octaves = self.params.adsr_sweep_octaves.get();
 
-                            (self.biquad_coefficient_func)(
-                                    frequency_hz, quality_factor, self.sample_rate, &mut self.coeffs);
-                        }
+                    let adsr_buffer_slice = adsr_input_buffer.get(
+                            this_keyframe..next_keyframe).unwrap();
+                    let frequency_buffer_slice = frequency_buffer.get_mut(
+                            this_keyframe..next_keyframe).unwrap();
 
-                        process_biquad(
-                            &mut self.history,
-                            &self.coeffs,
-                            sample)
-                    })
-                });
-            } // output_buffer_slice exits scope
+                    for (frame_num, frame) in frequency_buffer_slice.iter_mut().enumerate() {
+                        // Use adsr_input (0 <= x <= 1) to determine the influence
+                        // of self.params.adsr_sweep_octaves on the filter frequency.
+                        // Limit to just under the Nyquist frequency for stability.
+                        *frame = [(base_frequency_hz
+                            * defs::Sample::exp2(adsr_sweep_octaves * adsr_buffer_slice[frame_num][0]))
+                              .min(0.495 * sample_rate)];
+                    };
 
-            // We've reached the next_keyframe.
-            this_keyframe = next_keyframe;
+                    // Quality
+                    let quality_factor = self.params.quality_factor.get();
+                    let quality_buffer_slice = quality_buffer.get_mut(
+                            this_keyframe..next_keyframe).unwrap();
+                    for frame in quality_buffer_slice.iter_mut() {
+                        *frame = [quality_factor];
+                    }
 
-            // What we do now depends on whether we reached the end of the buffer.
-            if this_keyframe == output_buffer.len() {
-                // Loop exit condition: reached the end of the buffer.
-                break
-            } else {
-                // Before the next iteration, use the event at this keyframe
-                // to update the current state.
-                let (_, event) = next_event.unwrap();
-                match event {
-                    EngineEvent::ModulateParameter { parameter, value } => match parameter {
-                        ModulatableParameter::FilterFrequency => {
-                            self.params.frequency.update_cc(*value);
-                        },
-                        ModulatableParameter::FilterQuality => {
-                            self.params.quality_factor.update_cc(*value);
-                        }
-                        ModulatableParameter::FilterSweepRange => {
-                            self.params.adsr_sweep_octaves.update_cc(*value);
+                } // output_buffer_slice exits scope
+
+                // We've reached the next_keyframe.
+                this_keyframe = next_keyframe;
+
+                // What we do now depends on whether we reached the end of the buffer.
+                if this_keyframe == output_buffer.len() {
+                    // Loop exit condition: reached the end of the buffer.
+                    break
+                } else {
+                    // Before the next iteration, use the event at this keyframe
+                    // to update the current state.
+                    let (_, event) = next_event.unwrap();
+                    match event {
+                        EngineEvent::ModulateParameter { parameter, value } => match parameter {
+                            ModulatableParameter::FilterFrequency => {
+                                self.params.frequency.update_cc(*value);
+                            },
+                            ModulatableParameter::FilterQuality => {
+                                self.params.quality_factor.update_cc(*value);
+                            }
+                            ModulatableParameter::FilterSweepRange => {
+                                self.params.adsr_sweep_octaves.update_cc(*value);
+                            },
+                            _ => (),
                         },
                         _ => (),
-                    },
-                    _ => (),
-                };
+                    };
+                }
             }
+        } // all_buffers exits scope
+
+        // Once we're here, we have frequency and quality values for all samples.
+        // We need to do a little more work to get all the coefficients for the samples too.
+        (self.biquad_coefficient_generator_func)(&mut self.buffers, buffer_size, sample_rate);
+
+        // Finally we can compute the output values.
+        let all_buffers = self.buffers.get_mut();
+        let (_, remaining) = all_buffers.split_at_mut(
+            (BufferEnum::A1 as usize) * buffer_size);
+        let (a1_buffer, remaining) = remaining.split_at_mut(buffer_size);
+        let (a2_buffer, remaining) = remaining.split_at_mut(buffer_size);
+        let (b0_buffer, remaining) = remaining.split_at_mut(buffer_size);
+        let (b1_buffer, remaining) = remaining.split_at_mut(buffer_size);
+        let (b2_buffer, remaining) = remaining.split_at_mut(buffer_size);
+        let (temp_input_buffer, remaining) = remaining.split_at_mut(buffer_size);
+        let (temp_output_buffer, _) = remaining.split_at_mut(buffer_size);
+
+        // Copy the input from the real input buffer to temp_input_buffer
+        sample::slice::write(temp_input_buffer, output_buffer);
+
+        let mut x0 = self.x0;
+        let mut x1 = self.x1;
+        let mut x2 = self.x2;
+        let mut y1 = self.y1;
+        let mut y2 = self.y2;
+
+        for frame_num in 0..buffer_size {
+            // Update input ringbuffer with the new x:
+            x2 = x1;
+            x1 = x0;
+            x0 = temp_input_buffer[frame_num][0];
+
+            // Calculate the output
+            let temp_output_sample: &mut defs::Sample = &mut temp_output_buffer[frame_num][0];
+            *temp_output_sample = b0_buffer[frame_num][0] * x0;
+            *temp_output_sample += b1_buffer[frame_num][0] * x1;
+            *temp_output_sample += b2_buffer[frame_num][0] * x2;
+            *temp_output_sample -= a1_buffer[frame_num][0] * y1;
+            *temp_output_sample -= a2_buffer[frame_num][0] * y2;
+
+            // Update output ringbuffer and return the output
+            y2 = y1;
+            y1 = *temp_output_sample;
         }
+
+        self.x0 = x0;
+        self.x1 = x1;
+        self.x2 = x2;
+        self.y1 = y1;
+        self.y2 = y2;
+
+
+        // Copy the results from temp_output_buffer to the real output buffer
+        sample::slice::write(output_buffer, temp_output_buffer);
     }
 }
 
-#[derive(Default)]
-pub struct BiquadCoefficients {
-    b0: defs::Sample,
-    b1: defs::Sample,
-    b2: defs::Sample,
-    a1: defs::Sample,
-    a2: defs::Sample,
-}
-
-impl BiquadCoefficients {
-    pub fn new() -> BiquadCoefficients {
-        Default::default()
-    }
-}
-
-
-#[derive(Default)]
-pub struct BiquadSampleHistory {
-    x0: defs::Sample,
-    x1: defs::Sample,
-    x2: defs::Sample,
-    y1: defs::Sample,
-    y2: defs::Sample,
-}
-
-impl BiquadSampleHistory {
-    pub fn new() -> BiquadSampleHistory {
-        Default::default()
-    }
-
-    pub fn reset(&mut self) {
-        self.x0 = 0.0;
-        self.x1 = 0.0;
-        self.x2 = 0.0;
-        self.y1 = 0.0;
-        self.y2 = 0.0;
-    }
-}
-
-/// Process a biquad frame.
-/// Input consts must have be normalised such that a0 == 1.0,
-/// by dividing a0 from all other "a" and "b" consts.
-///
-/// The general biquad implementation for Direct Form 1:
-///
-/// y_0 = b0 * x_0 + b1 * x_1 + b2 * x_2
-///                - a1 * y_1 - a2 * y_2
-pub fn process_biquad(history: &mut BiquadSampleHistory,
-                      coeffs: &BiquadCoefficients,
-                      input_sample: defs::Sample) -> defs::Sample
-{
-    // Update input ringbuffer with the new x:
-    history.x2 = history.x1;
-    history.x1 = history.x0;
-    history.x0 = input_sample;
-
-    // Calculate the output
-    let mut output_sample = coeffs.b0 * history.x0;
-    output_sample += coeffs.b1 * history.x1;
-    output_sample += coeffs.b2 * history.x2;
-    output_sample -= coeffs.a1 * history.y1;
-    output_sample -= coeffs.a2 * history.y2;
-
-    // Update output ringbuffer and return the output
-    history.y2 = history.y1;
-    history.y1 = output_sample;
-
-    output_sample
-}
-
-/// Accepts: frequency_hz, quality_factor, sample_rate.
+/// Accepts: a ResizableFrameBuffers (must have 12 buffers), a buffer size and a sample rate.
 /// Returns a BiquadCoefficients.
-type BiquadCoefficientGeneratorFunc = fn (defs::Sample,
-                                          defs::Sample,
-                                          defs::Sample,
-                                          &mut BiquadCoefficients);
+type BiquadCoefficientGeneratorFunc = fn (&mut ResizableFrameBuffers<defs::MonoFrame>,
+                                          usize,
+                                          defs::Sample);
 
-pub fn get_lowpass_second_order_biquad_consts(frequency_hz: defs::Sample,
-                                          quality_factor: defs::Sample,
-                                          sample_rate: defs::Sample,
-                                          coeffs: &mut BiquadCoefficients)
+pub fn get_lowpass_second_order_biquad_consts(buffers: &mut ResizableFrameBuffers<defs::MonoFrame>,
+                                              buffer_size: usize,
+                                              sample_rate: defs::Sample)
 {
-    // Limit frequency_hz to just under half of the sample rate for stability.
-    let frequency_hz = frequency_hz.min(0.495 * sample_rate);
+    let all_buffers = buffers.get_mut();
+    let (frequency_buffer, remaining) = all_buffers.split_at_mut(buffer_size);
+    let (quality_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (two_q_inv_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (theta_c_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (cos_theta_c_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (sin_theta_c_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (alpha_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (a0_inv_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (a1_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (a2_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (b0_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (b1_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (b2_buffer, _) = remaining.split_at_mut(buffer_size);
 
     // Intermediate variables:
-    let two_q_inv = 0.5 / quality_factor;
-    let theta_c = defs::TWOPI * frequency_hz / sample_rate;
-    let cos_theta_c = theta_c.cos();
-    let sin_theta_c = theta_c.sin();
-    let alpha = sin_theta_c * two_q_inv;
+    for (frame_num, frame) in two_q_inv_buffer.iter_mut().enumerate() {
+        frame[0] = 0.5 / quality_buffer[frame_num][0];
+    }
+    for (frame_num, frame) in theta_c_buffer.iter_mut().enumerate() {
+        frame[0] = defs::TWOPI * frequency_buffer[frame_num][0] / sample_rate;
+    }
+    for (frame_num, frame) in cos_theta_c_buffer.iter_mut().enumerate() {
+        frame[0] = theta_c_buffer[frame_num][0].cos();
+    }
+    for (frame_num, frame) in sin_theta_c_buffer.iter_mut().enumerate() {
+        frame[0] = theta_c_buffer[frame_num][0].sin();
+    }
+    for (frame_num, frame) in alpha_buffer.iter_mut().enumerate() {
+        frame[0] = sin_theta_c_buffer[frame_num][0] * two_q_inv_buffer[frame_num][0];
+    }
+    for (frame_num, frame) in a0_inv_buffer.iter_mut().enumerate() {
+        frame[0] = 1.0 / (1.0 + alpha_buffer[frame_num][0]);
+    }
 
     // Calculate the coefficients.
     // a0 was divided off from each one to save on computation.
-    let a0_inv = 1.0 / (1.0 + alpha);
-
-    coeffs.a1 = -2.0 * cos_theta_c * a0_inv;
-    coeffs.a2 = (1.0 - alpha) * a0_inv;
-
-    coeffs.b1 = (1.0 - cos_theta_c) * a0_inv;
-    coeffs.b0 = 0.5 * coeffs.b1;
-    coeffs.b2 = coeffs.b0; // b2 = b0
-
+    for (frame_num, frame) in a1_buffer.iter_mut().enumerate() {
+        frame[0] = -2.0 * cos_theta_c_buffer[frame_num][0] * a0_inv_buffer[frame_num][0];
+    }
+    for (frame_num, frame) in a2_buffer.iter_mut().enumerate() {
+        frame[0] = (1.0 - alpha_buffer[frame_num][0]) * a0_inv_buffer[frame_num][0];
+    }
+    for (frame_num, frame) in b1_buffer.iter_mut().enumerate() {
+        frame[0] = (1.0 - cos_theta_c_buffer[frame_num][0]) * a0_inv_buffer[frame_num][0];
+    }
+    for (frame_num, frame) in b0_buffer.iter_mut().enumerate() {
+        frame[0] = 0.5 * b1_buffer[frame_num][0];
+    }
+    for (frame_num, frame) in b2_buffer.iter_mut().enumerate() {
+        frame[0] = b0_buffer[frame_num][0];
+    }
 }
 
-pub fn get_highpass_second_order_biquad_consts(frequency_hz: defs::Sample,
-                                          quality_factor: defs::Sample,
-                                          sample_rate: defs::Sample,
-                                          coeffs: &mut BiquadCoefficients)
+pub fn get_highpass_second_order_biquad_consts(buffers: &mut ResizableFrameBuffers<defs::MonoFrame>,
+                                               buffer_size: usize,
+                                               sample_rate: defs::Sample)
 {
-    // Limit frequency_hz to just under half of the sample rate for stability.
-    let frequency_hz = frequency_hz.min(0.495 * sample_rate);
+    let all_buffers = buffers.get_mut();
+    let (frequency_buffer, remaining) = all_buffers.split_at_mut(buffer_size);
+    let (quality_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (two_q_inv_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (theta_c_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (cos_theta_c_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (sin_theta_c_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (alpha_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (a0_inv_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (a1_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (a2_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (b0_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (b1_buffer, remaining) = remaining.split_at_mut(buffer_size);
+    let (b2_buffer, _) = remaining.split_at_mut(buffer_size);
 
     // Intermediate variables:
-    let two_q_inv = 0.5 / quality_factor;
-    let theta_c = defs::TWOPI * frequency_hz / sample_rate;
-    let cos_theta_c = theta_c.cos();
-    let sin_theta_c = theta_c.sin();
-    let alpha = sin_theta_c * two_q_inv;
+    for (frame_num, frame) in two_q_inv_buffer.iter_mut().enumerate() {
+        frame[0] = 0.5 / quality_buffer[frame_num][0];
+    }
+    for (frame_num, frame) in theta_c_buffer.iter_mut().enumerate() {
+        frame[0] = defs::TWOPI * frequency_buffer[frame_num][0] / sample_rate;
+    }
+    for (frame_num, frame) in cos_theta_c_buffer.iter_mut().enumerate() {
+        frame[0] = theta_c_buffer[frame_num][0].cos();
+    }
+    for (frame_num, frame) in sin_theta_c_buffer.iter_mut().enumerate() {
+        frame[0] = theta_c_buffer[frame_num][0].sin();
+    }
+    for (frame_num, frame) in alpha_buffer.iter_mut().enumerate() {
+        frame[0] = sin_theta_c_buffer[frame_num][0] * two_q_inv_buffer[frame_num][0];
+    }
+    for (frame_num, frame) in a0_inv_buffer.iter_mut().enumerate() {
+        frame[0] = 1.0 / (1.0 + alpha_buffer[frame_num][0]);
+    }
 
     // Calculate the coefficients.
     // a0 was divided off from each one to save on computation.
-    let a0_inv = 1.0 / (1.0 + alpha);
-
-    coeffs.a1 = -2.0 * cos_theta_c * a0_inv;
-    coeffs.a2 = (1.0 - alpha) * a0_inv;
-
-    coeffs.b0 = 0.5 * (1.0 + cos_theta_c) * a0_inv;
-    coeffs.b1 = -2.0 * coeffs.b0;
-    coeffs.b2 = coeffs.b0;
+    for (frame_num, frame) in a1_buffer.iter_mut().enumerate() {
+        frame[0] = -2.0 * cos_theta_c_buffer[frame_num][0] * a0_inv_buffer[frame_num][0];
+    }
+    for (frame_num, frame) in a2_buffer.iter_mut().enumerate() {
+        frame[0] = (1.0 - alpha_buffer[frame_num][0]) * a0_inv_buffer[frame_num][0];
+    }
+    for (frame_num, frame) in b0_buffer.iter_mut().enumerate() {
+        frame[0] = 0.5 * (1.0 + cos_theta_c_buffer[frame_num][0]) * a0_inv_buffer[frame_num][0];
+    }
+    for (frame_num, frame) in b1_buffer.iter_mut().enumerate() {
+        frame[0] = -2.0 * b0_buffer[frame_num][0];
+    }
+    for (frame_num, frame) in b2_buffer.iter_mut().enumerate() {
+        frame[0] = b0_buffer[frame_num][0];
+    }
 }

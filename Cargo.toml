@@ -10,5 +10,8 @@ rustyline = "3.0.0"
 sample = "0.10.0"
 time = "0.1"
 
-[profile.release]
+[profile.dev]
+opt-level = 3
 debug = true
+debug-assertions = true
+overflow-checks = false
