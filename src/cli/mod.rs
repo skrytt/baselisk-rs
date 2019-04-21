@@ -160,6 +160,61 @@ fn build_tree() -> Tree
 
     }
     {
+        let delay = root.add_child("delay", Node::new_with_children());
+
+        {
+            let lowpass = delay.add_child("lowpass", Node::new_with_children());
+
+            lowpass.add_child("frequency", Node::new_dispatch_event(
+                |mut token_iter| {
+                    update_parameter_from_tokens(
+                        ModulatableParameter::DelayLowPassFilterFrequency,
+                        &mut token_iter)
+                },
+                Some(String::from("<Hz>")),
+            ));
+
+            lowpass.add_child("quality", Node::new_dispatch_event(
+                |mut token_iter| {
+                    update_parameter_from_tokens(
+                        ModulatableParameter::DelayLowPassFilterQuality,
+                        &mut token_iter)
+                },
+                Some(String::from("<Hz>")),
+            ));
+        }
+        {
+            let highpass = delay.add_child("highpass", Node::new_with_children());
+
+            highpass.add_child("frequency", Node::new_dispatch_event(
+                |mut token_iter| {
+                    update_parameter_from_tokens(
+                        ModulatableParameter::DelayHighPassFilterFrequency,
+                        &mut token_iter)
+                },
+                Some(String::from("<Hz>")),
+            ));
+
+            highpass.add_child("quality", Node::new_dispatch_event(
+                |mut token_iter| {
+                    update_parameter_from_tokens(
+                        ModulatableParameter::DelayHighPassFilterQuality,
+                        &mut token_iter)
+                },
+                Some(String::from("<Hz>")),
+            ));
+        }
+
+        delay.add_child("feedback", Node::new_dispatch_event(
+            |mut token_iter| {
+                update_parameter_from_tokens(
+                    ModulatableParameter::DelayFeedback,
+                    &mut token_iter)
+            },
+            Some(String::from("<Hz>")),
+        ));
+    }
+    {
         let filter = root.add_child("filter", Node::new_with_children());
 
         filter.add_child("frequency", Node::new_dispatch_event(

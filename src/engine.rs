@@ -88,6 +88,21 @@ impl Engine
                     ModulatableParameter::AdsrRelease => {
                         self.adsr.update_release(data)
                     },
+                    ModulatableParameter::DelayFeedback => {
+                        self.delay.update_feedback(data)
+                    },
+                    ModulatableParameter::DelayHighPassFilterFrequency => {
+                        self.delay.update_highpass_frequency(data)
+                    },
+                    ModulatableParameter::DelayHighPassFilterQuality => {
+                        self.delay.update_highpass_quality(data)
+                    },
+                    ModulatableParameter::DelayLowPassFilterFrequency => {
+                        self.delay.update_lowpass_frequency(data)
+                    },
+                    ModulatableParameter::DelayLowPassFilterQuality => {
+                        self.delay.update_lowpass_quality(data)
+                    },
                     ModulatableParameter::FilterFrequency => {
                         self.filter.update_frequency(data)
                     },
