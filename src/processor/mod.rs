@@ -1,7 +1,7 @@
 extern crate sample;
 
 pub mod adsr;
-//pub mod delay;
+pub mod delay;
 pub mod gain;
 pub mod oscillator;
 pub mod filter;
@@ -12,7 +12,7 @@ pub mod waveshaper;
 
 pub use processor::{
     adsr::Adsr as Adsr,
-    //delay::Delay as Delay,
+    delay::Delay as Delay,
     gain::Gain as Gain,
     oscillator::Oscillator as Oscillator,
     filter::Filter as Filter,
