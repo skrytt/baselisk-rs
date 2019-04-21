@@ -44,7 +44,7 @@ impl Filter
         Filter {
             params: FilterParams::new(),
             sample_rate: 0.0,
-            last_adsr_input_sample: 2.0, // Force computation the first time
+            last_adsr_input_sample: 0.0,
             biquad_coefficient_func: get_lowpass_second_order_biquad_consts,
             history: BiquadSampleHistory::new(),
             coeffs: BiquadCoefficients::new(),
@@ -123,6 +123,9 @@ impl Filter
                 let base_frequency_hz = self.params.frequency.get();
                 let adsr_sweep_octaves = self.params.adsr_sweep_octaves.get();
 
+                // This forces the biquad coefficients to be computed at least once this slice:
+                self.last_adsr_input_sample = 2.0;
+
                 // Iterate over two buffer slices at once using a zip method
                 slice::zip_map_in_place(output_buffer_slice, adsr_input_buffer_slice,
                                         |output_frame, adsr_input_frame|
@@ -133,6 +136,7 @@ impl Filter
                     {
                         if self.last_adsr_input_sample != adsr_input_sample {
                             self.last_adsr_input_sample = adsr_input_sample;
+
                             // Use adsr_input (0 <= x <= 1) to determine the influence
                             // of self.params.adsr_sweep_octaves on the filter frequency.
                             let frequency_hz = base_frequency_hz
@@ -243,6 +247,12 @@ pub fn process_biquad(history: &mut BiquadSampleHistory,
     output_sample += coeffs.b2 * history.x2;
     output_sample += coeffs.negative_a1 * history.y1;
     output_sample += coeffs.negative_a2 * history.y2;
+
+    // Avoid arithmetic underflow by rounding very small values to zero.
+    // This improves performance during periods of silence in the input.
+    if output_sample.abs() < 1.0e-25 {
+        output_sample = 0.0;
+    }
 
     // Update output ringbuffer and return the output
     history.y2 = history.y1;
