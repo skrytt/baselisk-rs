@@ -39,22 +39,22 @@ Parameters that would take numeric values can currently be manipulated in these 
 The command tree itself is structured roughly like this.
 
 - `adsr`
-  - `attack  <duration>`: Set the attack time for the ADSR used by the gain and filter processors.
-  - `decay <duration>`: Set the ADSR decay time.
-  - `sustain <level>`: Set the ADSR sustain level.
+  - `attack  <seconds>`: Set the attack time for the ADSR used by the gain and filter processors.
+  - `decay <seconds>`: Set the ADSR decay time.
+  - `sustain <level>`: Set the ADSR sustain level. `1.0` is considered maximum and `0.0` is minimum.
   - `release <duration>`: Set the ADSR release time.
 - `oscillator`
   - `type <str>`: Sets the oscillator type. Supported are `saw`, `pulse` and `sine`. Does not support CC learning/modulation.
-  - `pitch <pitch>`: Sets the pitch offset of the oscillator.
-  - `pulsewidth <width>`: Sets the pulse width of the `pulse` waveform.
+  - `pitch <octaves>`: Sets the pitch offset of the oscillator.
+  - `pulsewidth <width>`: Sets the pulsewidth of the `pulse` waveform. `0.5` is a square wave. Minumum is `0.0` and maximum is `1.0`.
 - `filter`
   - `frequency <hz>`: Set the cutoff frequency of the filter.
-  - `quality <q>`: Set the quality of the filter. `0.7` is flatter; higher values produce higher resonance.
+  - `quality <q>`: Set the quality (resonance) of the filter. `0.7` is flatter; values as high as `5.0` produce more resonance.
 - `waveshaper`
-  - `inputgain <gain>`: Set the input gain of the waveshaper.
-  - `outputgain <gain>`: Set the output gain of the waveshaper.
+  - `inputgain <gain>`: Set the input gain to the waveshaper stage, controlling waveshaper tone. `1.0` is unity gain.
+  - `outputgain <gain>`: Set the output gain of the waveshaper. Does not affect waveshaper tone. `1.0` is unity gain.
 - `delay`
-  - `feedback <proportion`: Set the proportion of feedback. `1.0` is unity gain; `0.0` is silence. 
+  - `feedback <proportion>`: Set the proportion of feedback in the delay loop. `1.0` is unity gain; `0.0` is silence. 
   - `highpass`
     - `frequency <hz>`: Set the cutoff frequency of the delay feedback loop highpass filter.
     - `quality <q>`: Set the quality of the delay feedback loop highpass filter.
