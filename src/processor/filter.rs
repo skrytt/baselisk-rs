@@ -31,7 +31,7 @@ pub struct Filter
 {
     params: FilterParams,
     sample_rate: defs::Sample,
-    last_adsr_input_sample: defs::Sample,
+    last_adsr_input_sample_bits: u32,
     biquad_coefficient_func: BiquadCoefficientGeneratorFunc,
     history: BiquadSampleHistory,
     coeffs: BiquadCoefficients,
@@ -44,7 +44,7 @@ impl Filter
         Filter {
             params: FilterParams::new(),
             sample_rate: 0.0,
-            last_adsr_input_sample: 0.0,
+            last_adsr_input_sample_bits: 0,
             biquad_coefficient_func: get_lowpass_second_order_biquad_consts,
             history: BiquadSampleHistory::new(),
             coeffs: BiquadCoefficients::new(),
@@ -124,7 +124,7 @@ impl Filter
                 let adsr_sweep_octaves = self.params.adsr_sweep_octaves.get();
 
                 // This forces the biquad coefficients to be computed at least once this slice:
-                self.last_adsr_input_sample = 2.0;
+                self.last_adsr_input_sample_bits = std::u32::MAX;
 
                 // Iterate over two buffer slices at once using a zip method
                 slice::zip_map_in_place(output_buffer_slice, adsr_input_buffer_slice,
@@ -134,8 +134,11 @@ impl Filter
                     output_frame.zip_map(adsr_input_frame,
                                          |sample, adsr_input_sample|
                     {
-                        if self.last_adsr_input_sample != adsr_input_sample {
-                            self.last_adsr_input_sample = adsr_input_sample;
+                        // Optimization: don't recompute the coefficients if they haven't changed
+                        // since last iteration.
+                        let adsr_input_sample_bits = adsr_input_sample.to_bits();
+                        if self.last_adsr_input_sample_bits != adsr_input_sample_bits {
+                            self.last_adsr_input_sample_bits = adsr_input_sample_bits;
 
                             // Use adsr_input (0 <= x <= 1) to determine the influence
                             // of self.params.adsr_sweep_octaves on the filter frequency.
