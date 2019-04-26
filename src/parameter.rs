@@ -34,7 +34,7 @@ impl LinearParameter
         LinearParameter {
             low_limit,
             high_limit,
-            base_value: base_value,
+            base_value,
             max_value: base_value,
             cc_influence_range: 0.0,
             cc_value: 0,
@@ -44,7 +44,7 @@ impl LinearParameter
 
     fn update_current_value(&mut self) {
         self.current_value = self.base_value + (
-            self.cc_influence_range * (self.cc_value as defs::Sample) / 127.0);
+            self.cc_influence_range * defs::Sample::from(self.cc_value) / 127.0);
     }
 }
 impl Parameter for LinearParameter {
@@ -101,7 +101,7 @@ impl FrequencyParameter
         FrequencyParameter {
             low_limit,
             high_limit,
-            base_value: base_value,
+            base_value,
             max_value: base_value,
             cc_influence_range_octaves: 0.0,
             cc_value: 0,
@@ -111,7 +111,7 @@ impl FrequencyParameter
 
     fn update_current_value(&mut self) {
         self.current_value = self.base_value * (
-            1.0 + self.cc_influence_range_octaves * (self.cc_value as defs::Sample) / 127.0);
+            1.0 + self.cc_influence_range_octaves * defs::Sample::from(self.cc_value) / 127.0);
     }
 }
 

@@ -165,8 +165,8 @@ impl Filter
                 // Before the next iteration, use the event at this keyframe
                 // to update the current state.
                 let (_, event) = next_event.unwrap();
-                match event {
-                    EngineEvent::ModulateParameter { parameter, value } => match parameter {
+                if let EngineEvent::ModulateParameter { parameter, value } = event {
+                   match parameter {
                         ModulatableParameter::FilterFrequency => {
                             self.params.frequency.update_cc(*value);
                         },
@@ -177,8 +177,7 @@ impl Filter
                             self.params.adsr_sweep_octaves.update_cc(*value);
                         },
                         _ => (),
-                    },
-                    _ => (),
+                    }
                 };
             }
         }

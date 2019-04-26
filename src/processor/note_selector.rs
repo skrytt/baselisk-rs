@@ -19,8 +19,8 @@ impl MonoNoteSelector {
 
     pub fn midi_panic(&mut self) {
         // Small optimization: if no notes are on, there's nothing to do.
-        if let Some(_) = self.note_selected {
-            for mut note in self.notes_held.iter_mut() {
+        if self.note_selected.is_some() {
+            for note in self.notes_held.iter_mut() {
                 *note = false;
             }
             self.note_priority_stack.clear();
@@ -54,7 +54,7 @@ impl MonoNoteSelector {
         if let Some(note_held_ref) = self.notes_held.get_mut(note as usize) {
             // It's possible (due to dropped note events)
             // that the note was not actually off. Check for that here.
-            if *note_held_ref == false {
+            if !(*note_held_ref) {
                 *note_held_ref = true;
                 // Due to the note_held_ref check, it should never be the case
                 // that the unwrap_err call here fails
@@ -78,7 +78,7 @@ impl MonoNoteSelector {
         if let Some(note_held_ref) = self.notes_held.get_mut(note as usize) {
             // It's possible (due to dropped note events or midi panics)
             // that the note was not actually on. Check for that here.
-            if *note_held_ref == true {
+            if *note_held_ref {
                 *note_held_ref = false;
                  // Due to the note_held_ref check, it should never be the case
                 // that the unwrap_err call here fails

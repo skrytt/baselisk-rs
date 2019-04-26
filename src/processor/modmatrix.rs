@@ -42,16 +42,12 @@ impl ModulationMatrix
     /// Maybe emit an EngineEvent::ModulateParameter.
     pub fn process_event(&mut self, event: &MidiEvent) -> Option<EngineEvent> {
         if let MidiEvent::ControlChange { number, value } = event {
-            let is_midi_learn = self.parameter_to_learn.is_some();
-            match is_midi_learn {
-                false => {
-                    let controller = self.controllers.get(*number as usize).unwrap();
-                    return controller.process(*value)
-                },
-                true => {
-                    let parameter = self.parameter_to_learn.take().unwrap();
-                    self.bind_parameter(*number, parameter).unwrap();
-                }
+            if self.parameter_to_learn.is_some() {
+                let parameter = self.parameter_to_learn.take().unwrap();
+                self.bind_parameter(*number, parameter).unwrap();
+            } else {
+                let controller = self.controllers.get(*number as usize).unwrap();
+                return controller.process(*value)
             }
         }
         None

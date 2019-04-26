@@ -51,7 +51,7 @@ impl Completer for CliHelper {
             let matches = options
                 .into_iter()
                 .filter(|s| { s.replacement.starts_with(partial) });
-            for mut item in matches {
+            for item in matches {
                 result_vec.push(item);
             }
         }

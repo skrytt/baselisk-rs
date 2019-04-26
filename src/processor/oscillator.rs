@@ -91,7 +91,7 @@ impl State {
             if let Some(frequency_buffer_slice) = frequency_buffer.get_mut(
                     this_keyframe..next_keyframe)
             {
-                self.frequency = get_frequency(self.note as defs::Sample
+                self.frequency = get_frequency(defs::Sample::from(self.note)
                                                + self.pitch_offset.get()
                                                + self.pitch_bend);
                 for frequency_frame in frequency_buffer_slice {
@@ -244,14 +244,14 @@ fn pulse_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
             //   phase == step: x = 1.0
             if phase < step {
                 let x = phase / step;
-                return 2.0 * x - x * x - 1.0;
+                2.0 * x - x * x - 1.0
             }
             // Apply PolyBLEP Smoothing for (1.0 - (freq / sample_rate)) < phase < 1.0:
             //   phase == (1.0 - step): x = 1.0
             //   phase == 1.0:          x = 0.0
             else if phase > (1.0 - step) {
                 let x = (phase - 1.0) / step;
-                return 2.0 * x + x * x + 1.0;
+                2.0 * x + x * x + 1.0
             } else {
                 0.0
             }

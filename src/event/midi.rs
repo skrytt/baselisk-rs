@@ -111,21 +111,21 @@ impl MidiEvent {
                 pressure: data1,
             })),
             0xE0 => Some((time, MidiEvent::PitchBend {
-                value: ((data2 as u16) << 7) + (data1 as u16),
+                value: (u16::from(data2) << 7) + u16::from(data1),
             })),
             0xF0 => {
                 // System message. Consider the second four bits
                 match status & 0x0F {
                     0x00 => Some((time, MidiEvent::SystemExclusive {
-                        data1: data1,
-                        data2: data2,
+                        data1,
+                        data2,
                     })),
                     0x01 => Some((time, MidiEvent::TimeCodeQuarterFrame {
                         message_type: data1 >> 4,
                         values: data1 & 0x0F,
                     })),
                     0x02 => Some((time, MidiEvent::SongPositionPointer {
-                        beats: ((data2 as u16) << 7) + (data1 as u16),
+                        beats: (u16::from(data2) << 7) + u16::from(data1),
                     })),
                     0x03 => Some((time, MidiEvent::SongSelect {
                         value: data1,

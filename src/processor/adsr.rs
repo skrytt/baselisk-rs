@@ -121,25 +121,23 @@ impl Adsr {
     }
 
     fn get_gain(&self) -> f32 {
-        loop {
-            match self.state.stage {
-                AdsrStages::Off => return 0.0,
-                AdsrStages::HeldAttack => {
-                    return self.state.gain_at_stage_start
-                        + self.state.relative_gain_at_stage_end
-                            * (self.state.phase_time / self.params.attack_duration.get())
-                }
-                AdsrStages::HeldDecay => {
-                    return self.state.gain_at_stage_start
-                        + self.state.relative_gain_at_stage_end
-                            * (self.state.phase_time / self.params.decay_duration.get())
-                }
-                AdsrStages::HeldSustain => return self.params.sustain_level.get(),
-                AdsrStages::Released => {
-                    return self.state.gain_at_stage_start
-                        + self.state.relative_gain_at_stage_end
-                            * (self.state.phase_time / self.params.release_duration.get())
-                }
+        match self.state.stage {
+            AdsrStages::Off => 0.0,
+            AdsrStages::HeldAttack => {
+                self.state.gain_at_stage_start
+                + self.state.relative_gain_at_stage_end * (
+                    self.state.phase_time / self.params.attack_duration.get())
+            }
+            AdsrStages::HeldDecay => {
+                self.state.gain_at_stage_start
+                + self.state.relative_gain_at_stage_end * (
+                    self.state.phase_time / self.params.decay_duration.get())
+            }
+            AdsrStages::HeldSustain => self.params.sustain_level.get(),
+            AdsrStages::Released => {
+                self.state.gain_at_stage_start
+                + self.state.relative_gain_at_stage_end * (
+                    self.state.phase_time / self.params.release_duration.get())
             }
         }
     }
@@ -275,6 +273,6 @@ impl Adsr {
             }
             _ => (),
         }
-        return self.get_gain();
+        self.get_gain()
     }
 }

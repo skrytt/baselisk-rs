@@ -60,24 +60,17 @@ impl Tree {
         let mut tokens = line.trim().split_whitespace();
 
         let mut current_node = &self.root;
-        loop {
-            match current_node {
-                Node::WithChildren(child_map) => {
-                    match tokens.next() {
-                        Some(token) => {
-                            match child_map.get(token) {
-                                Some(child) => current_node = &child,
-                                None => break, // Can't match the trailing text to a node,
-                                               // return the last node that we could match
-                            }
-                        },
-                        None => break,
+
+        while let Node::WithChildren(child_map) = current_node {
+            match tokens.next() {
+                Some(token) => {
+                    match child_map.get(token) {
+                        Some(child) => current_node = &child,
+                        None => break, // Can't match the trailing text to a node,
+                                       // return the last node that we could match
                     }
                 },
-                Node::DispatchEvent(_, _) => {
-                    // The final node
-                    break;
-                },
+                None => break,
             }
         }
         current_node
@@ -123,7 +116,7 @@ impl Tree {
         let line = line.trim();
 
         // If nothing was typed, don't bother printing an error message
-        if line.len() == 0 {
+        if line.is_empty() {
             return
         }
 

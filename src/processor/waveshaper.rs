@@ -84,8 +84,8 @@ impl Waveshaper {
                 // Before the next iteration, use the event at this keyframe
                 // to update the current state.
                 let (_, event) = next_event.unwrap();
-                match event {
-                    EngineEvent::ModulateParameter { parameter, value } => match parameter {
+                if let EngineEvent::ModulateParameter { parameter, value } = event {
+                    match parameter {
                         ModulatableParameter::WaveshaperInputGain => {
                             self.input_gain.update_cc(*value);
                         },
@@ -93,8 +93,7 @@ impl Waveshaper {
                             self.output_gain.update_cc(*value);
                         },
                         _ => (),
-                    },
-                    _ => (),
+                    }
                 };
             }
         }

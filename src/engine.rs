@@ -229,7 +229,7 @@ impl Engine
 
         self.timing_data.total = (time::precise_time_ns() - engine_start_time) / 1000;
 
-        self.timing_data.window = 1000000.0 * main_buffer.len() as f32 / sample_rate;
+        self.timing_data.window = 1_000_000.0 * main_buffer.len() as f32 / sample_rate;
 
         if self.dump_timing_info {
             self.timing_data.dump_to_stderr();

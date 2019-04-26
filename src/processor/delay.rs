@@ -197,8 +197,8 @@ impl Delay {
                 // Before the next iteration, use the event at this keyframe
                 // to update the current state.
                 let (_, event) = next_event.unwrap();
-                match event {
-                    EngineEvent::ModulateParameter { parameter, value } => match parameter {
+                if let EngineEvent::ModulateParameter { parameter, value } = event {
+                    match parameter {
                         ModulatableParameter::DelayFeedback => {
                             self.params.feedback.update_cc(*value);
                         },
@@ -215,8 +215,7 @@ impl Delay {
                             self.params.lowpass_quality.update_cc(*value);
                         },
                         _ => (),
-                    },
-                    _ => (),
+                    }
                 };
             }
         }
