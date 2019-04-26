@@ -19,13 +19,9 @@ Code is an everlasting work in progress.
 
 To build: `cargo build --release`
 
-Make sure your MIDI and audio devices are connected and powered on. Then:
+Make sure your MIDI and audio devices are connected and powered on, and that the JACK audio server is running. Then:
 
 `cargo run --release`
-
-You will be shown a list of audio devices. Enter the ID of your chosen output device, then press Return.
-
-PortAudio will be initialized and audio callbacks will begin. You will be shown a list of MIDI devices and IDs for convenience, but none will be selected until you specify one (see the `midi input` command below).
 
 This application uses [Rustyline](https://github.com/kkawakam/rustyline) to provide readline-like tab completion of commands. 
 
