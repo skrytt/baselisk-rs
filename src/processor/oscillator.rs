@@ -27,8 +27,8 @@ pub struct State {
 }
 
 impl State {
-    pub fn new() -> State {
-        State {
+    pub fn new() -> Self {
+        Self {
             pitch_offset: LinearParameter::new(-36.0, 36.0, 0.0),
             pulse_width: LinearParameter::new(0.01, 0.99, 0.5),
             note: 69,
@@ -64,27 +64,27 @@ impl State {
             // Get next selected note, if there is one.
             let next_event = engine_event_iter.next();
 
-            // This match block continues on events that are unimportant to this processor.
-            match next_event {
-                Some((frame_num, engine_event)) => {
-                    match engine_event {
-                        EngineEvent::NoteChange{ note } => match note {
-                            Some(_) => (),
-                            None => continue,
-                        },
-                        EngineEvent::PitchBend{ .. } => (),
-                        EngineEvent::ModulateParameter { parameter, .. } => match parameter {
-                            ModulatableParameter::OscillatorPitch => (),
-                            ModulatableParameter::OscillatorPulseWidth => (),
-                            _ => continue,
-                        },
-                    }
-                    next_keyframe = *frame_num;
-                },
-                None => {
-                    // No more note change events, so we'll process to the end of the buffer.
-                    next_keyframe = buffer_size;
-                },
+            if let Some((frame_num, engine_event)) = next_event {
+                match engine_event {
+                    // Note changes will trigger keyframes only if there is a new note
+                    // (i.e. not None)
+                    EngineEvent::NoteChange{ note } => {
+                        if note.is_none() {
+                            continue
+                        }
+                    },
+                    // Pitch bends and oscillator parameter changes will also trigger keyframes
+                    EngineEvent::PitchBend{ .. } => (),
+                    EngineEvent::ModulateParameter { parameter, .. } => match parameter {
+                        ModulatableParameter::OscillatorPitch |
+                        ModulatableParameter::OscillatorPulseWidth => (),
+                        _ => continue,
+                    },
+                }
+                next_keyframe = *frame_num;
+            } else {
+                // No more note change events, so we'll process to the end of the buffer.
+                next_keyframe = buffer_size;
             };
 
             // Apply the old parameters up until next_keyframe.
@@ -144,9 +144,9 @@ pub struct Oscillator {
 
 impl Oscillator {
 /// Function to construct new oscillators.
-    pub fn new() -> Oscillator
+    pub fn new() -> Self
     {
-        Oscillator {
+        Self {
             state: State::new(),
             generator_func: sine_generator,
         }

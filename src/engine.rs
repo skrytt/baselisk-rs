@@ -1,3 +1,4 @@
+#![allow(clippy::cast_precision_loss)]
 
 use buffer::ResizableFrameBuffer;
 use defs;
@@ -28,14 +29,14 @@ pub struct Engine
 
 impl Engine
 {
-    pub fn new(dump_timing_info: bool) -> Engine {
-        Engine {
+    pub fn new(dump_timing_info: bool) -> Self {
+        Self {
             // Engine Event Processing
             engine_event_buffer: Vec::with_capacity(defs::ENGINE_EVENT_BUF_LEN),
             note_selector: MonoNoteSelector::new(),
             pitch_bend: PitchBend::new(),
             modulation_matrix: ModulationMatrix::new(),
-            timing_data: Default::default(),
+            timing_data: TimingData::default(),
             dump_timing_info,
             // Buffers
             adsr_buffer: ResizableFrameBuffer::new(),

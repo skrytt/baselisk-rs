@@ -29,9 +29,9 @@ impl LinearParameter
 {
     pub fn new(low_limit: defs::Sample,
                high_limit: defs::Sample,
-               base_value: defs::Sample) -> LinearParameter
+               base_value: defs::Sample) -> Self
     {
-        LinearParameter {
+        Self {
             low_limit,
             high_limit,
             base_value,
@@ -96,9 +96,9 @@ impl FrequencyParameter
 {
     pub fn new(low_limit: defs::Sample,
                high_limit: defs::Sample,
-               base_value: defs::Sample) -> FrequencyParameter
+               base_value: defs::Sample) -> Self
     {
-        FrequencyParameter {
+        Self {
             low_limit,
             high_limit,
             base_value,

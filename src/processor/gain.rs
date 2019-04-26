@@ -11,8 +11,8 @@ impl Gain
 {
     pub fn new(
         amplitude: defs::Sample,
-    ) -> Gain {
-        Gain {
+    ) -> Self {
+        Self {
             amplitude,
         }
     }

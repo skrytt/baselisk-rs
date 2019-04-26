@@ -15,20 +15,20 @@ pub enum Node
 
 impl Node {
     /// Build a new node with children
-    pub fn new_with_children() -> Node {
+    pub fn new_with_children() -> Self {
         Node::WithChildren(HashMap::new())
     }
 
     /// Build a new node with a function to process
     /// any remaining tokens and return an event
     pub fn new_dispatch_event(f: fn(&mut SplitWhitespace) -> Result<PatchEvent, String>,
-                              argument_hint: Option<String>) -> Node
+                              argument_hint: Option<String>) -> Self
     {
         Node::DispatchEvent(f, argument_hint)
     }
 
     /// Add a child node and return a reference to it
-    pub fn add_child(&mut self, name: &str, child: Node) -> &mut Node {
+    pub fn add_child(&mut self, name: &str, child: Self) -> &mut Self {
         let child_map = match self {
             Node::WithChildren(map) => map,
             _ => panic!("Can't add children to a node that doesn't have a child map"),
@@ -50,8 +50,8 @@ pub struct Tree {
 }
 
 impl Tree {
-    pub fn new(root: Node) -> Tree {
-        Tree {
+    pub fn new(root: Node) -> Self {
+        Self {
             root
         }
     }
@@ -109,7 +109,7 @@ impl Tree {
     }
 
     pub fn execute_command(&self,
-                           line: String,
+                           line: &str,
                            tx: &mpsc::SyncSender<PatchEvent>,
                            rx: &mpsc::Receiver<Result<(), &'static str>>,
     ) {

@@ -7,8 +7,8 @@ pub struct PitchBend {
 }
 
 impl PitchBend {
-    pub fn new() -> PitchBend {
-        PitchBend {
+    pub fn new() -> Self {
+        Self {
             range_semitones: LinearParameter::new(0.0, 36.0, 2.0),
         }
     }

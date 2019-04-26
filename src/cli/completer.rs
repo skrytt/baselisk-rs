@@ -28,8 +28,8 @@ struct CliHelper {
 }
 
 impl CliHelper {
-    fn new(tree: Tree) -> CliHelper {
-        CliHelper {
+    fn new(tree: Tree) -> Self {
+        Self {
             tree
         }
     }
@@ -80,7 +80,7 @@ impl Cli {
     pub fn new(tree: Tree,
                tx: mpsc::SyncSender<PatchEvent>,
                rx: mpsc::Receiver<Result<(), &'static str>>,
-    ) -> Cli {
+    ) -> Self {
         let config = Config::builder()
             .history_ignore_space(true)
             .completion_type(CompletionType::List)
@@ -97,7 +97,7 @@ impl Cli {
         if rl.load_history("history.txt").is_err() {
             println!("No previous history.");
         }
-        Cli {
+        Self {
             rl,
             tx,
             rx
@@ -116,7 +116,7 @@ impl Cli {
                 },
                 Ok(line) => {
                     if let Some(helper) = self.rl.helper() {
-                        helper.tree.execute_command(line, &self.tx, &self.rx);
+                        helper.tree.execute_command(line.as_str(), &self.tx, &self.rx);
                     }
                 }
             }
@@ -131,7 +131,7 @@ impl Cli {
                 Ok(line) => {
                     self.rl.add_history_entry(line.as_ref());
                     if let Some(helper) = self.rl.helper() {
-                        helper.tree.execute_command(line, &self.tx, &self.rx);
+                        helper.tree.execute_command(line.as_str(), &self.tx, &self.rx);
                     }
                 }
                 Err(ReadlineError::Interrupted) => {

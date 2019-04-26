@@ -24,8 +24,8 @@ pub struct AdsrParams {
 }
 
 impl AdsrParams {
-    pub fn new() -> AdsrParams {
-        AdsrParams {
+    pub fn new() -> Self {
+        Self {
             attack_duration: LinearParameter::new(0.0, 10.0, 0.02),
             decay_duration: LinearParameter::new(0.0, 10.0, 0.707),
             sustain_level: LinearParameter::new(0.0, 1.0, 0.0),
@@ -52,8 +52,8 @@ pub struct Adsr {
 }
 
 impl Adsr {
-    pub fn new() -> Adsr {
-        Adsr {
+    pub fn new() -> Self {
+        Self {
             params: AdsrParams::new(),
             state: AdsrState {
                 stage: AdsrStages::Off,
@@ -106,15 +106,12 @@ impl Adsr {
             self.state.stage = AdsrStages::HeldAttack;
         } else if !any_notes_held {
             // Transition to release stage
-            match self.state.stage {
+            if let AdsrStages::Off = self.state.stage {
                 // This case shouldn't generally happen and is ignored
-                AdsrStages::Off => (),
-                // Avoid discontinuities
-                _ => {
-                    self.state.gain_at_stage_start = self.get_gain();
-                    self.state.relative_gain_at_stage_end = -self.state.gain_at_stage_start;
-                    self.state.phase_time = 0.0;
-                }
+            } else {
+                self.state.gain_at_stage_start = self.get_gain();
+                self.state.relative_gain_at_stage_end = -self.state.gain_at_stage_start;
+                self.state.phase_time = 0.0;
             }
             self.state.stage = AdsrStages::Released;
         }
@@ -169,27 +166,24 @@ impl Adsr {
             // Get next selected note, if there is one.
             let next_event = engine_event_iter.next();
 
-            // This match block continues on events that are unimportant to this processor.
-            match next_event {
-                Some((frame_num, engine_event)) => {
-                    match engine_event {
-                        EngineEvent::NoteChange{ .. } => (),
-                        EngineEvent::ModulateParameter { parameter, .. } => match parameter {
-                            ModulatableParameter::AdsrAttack => (),
-                            ModulatableParameter::AdsrDecay => (),
-                            ModulatableParameter::AdsrSustain => (),
-                            ModulatableParameter::AdsrRelease => (),
-                            _ => continue,
-                        },
+            if let Some((frame_num, engine_event)) = next_event {
+                match engine_event {
+                    // All note changes and ADSR parameter changes will trigger keyframes
+                    EngineEvent::NoteChange{ .. } => (),
+                    EngineEvent::ModulateParameter { parameter, .. } => match parameter {
+                        ModulatableParameter::AdsrAttack |
+                        ModulatableParameter::AdsrDecay |
+                        ModulatableParameter::AdsrSustain |
+                        ModulatableParameter::AdsrRelease => (),
                         _ => continue,
-                    }
-                    next_keyframe = *frame_num;
-                },
-                None => {
-                    // No more note change events, so we'll process to the end of the buffer.
-                    next_keyframe = buffer.len();
-                },
-            };
+                    },
+                    _ => continue,
+                }
+                next_keyframe = *frame_num;
+            } else {
+                // No more note change events, so we'll process to the end of the buffer.
+                next_keyframe = buffer.len();
+            }
 
             // Apply the old parameters up until next_keyframe.
             if let Some(buffer_slice) = buffer.get_mut(this_keyframe..next_keyframe) {

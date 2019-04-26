@@ -41,7 +41,7 @@ impl MidiEvent {
     /// If the event is recognised, return Some((usize, Event)).
     /// Otherwise, return None.
     pub fn parse(raw_event: jack::RawMidi,
-                 filter_by_channel: Option<u8>) -> Option<(usize, MidiEvent)> {
+                 filter_by_channel: Option<u8>) -> Option<(usize, Self)> {
         let time = raw_event.time as usize;
 
         let status = raw_event.bytes[0];

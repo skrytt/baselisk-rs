@@ -15,8 +15,8 @@ struct FilterParams {
 
 impl FilterParams {
     /// Constructor for FilterParams instances
-    fn new() -> FilterParams {
-        FilterParams {
+    fn new() -> Self {
+        Self {
             frequency: FrequencyParameter::new(1.0, 22000.0, 10.0),
             adsr_sweep_octaves: LinearParameter::new(0.0, 20.0, 6.5),
             quality_factor: LinearParameter::new(0.5, 10.0, 0.707),
@@ -40,8 +40,8 @@ pub struct Filter
 impl Filter
 {
     /// Constructor for new Filter instances
-    pub fn new() -> Filter {
-        Filter {
+    pub fn new() -> Self {
+        Self {
             params: FilterParams::new(),
             sample_rate: 0.0,
             last_adsr_input_sample_bits: 0,
@@ -92,24 +92,22 @@ impl Filter
             // Get next selected note, if there is one.
             let next_event = engine_event_iter.next();
 
-            // This match block continues on events that are unimportant to this processor.
-            match next_event {
-                Some((frame_num, engine_event)) => {
-                    match engine_event {
-                        EngineEvent::ModulateParameter { parameter, .. } => match parameter {
-                            ModulatableParameter::FilterFrequency => (),
-                            ModulatableParameter::FilterQuality => (),
-                            ModulatableParameter::FilterSweepRange => (),
-                            _ => continue,
-                        },
+            // This block continues on events that are unimportant to this processor.
+            if let Some((frame_num, engine_event)) = next_event {
+                match engine_event {
+                    EngineEvent::ModulateParameter { parameter, .. } => match parameter {
+                        // All filter events will trigger keyframes
+                        ModulatableParameter::FilterFrequency |
+                        ModulatableParameter::FilterQuality |
+                        ModulatableParameter::FilterSweepRange => (),
                         _ => continue,
-                    }
-                    next_keyframe = *frame_num;
-                },
-                None => {
-                    // No more note change events, so we'll process to the end of the buffer.
-                    next_keyframe = output_buffer.len();
-                },
+                    },
+                    _ => continue,
+                }
+                next_keyframe = *frame_num;
+            } else {
+                // No more note change events, so we'll process to the end of the buffer.
+                next_keyframe = output_buffer.len();
             };
 
             // Apply the old parameters up until next_keyframe.
@@ -124,7 +122,7 @@ impl Filter
                 let adsr_sweep_octaves = self.params.adsr_sweep_octaves.get();
 
                 // This forces the biquad coefficients to be computed at least once this slice:
-                self.last_adsr_input_sample_bits = std::u32::MAX;
+                self.last_adsr_input_sample_bits = u32::max_value();
 
                 // Iterate over two buffer slices at once using a zip method
                 slice::zip_map_in_place(output_buffer_slice, adsr_input_buffer_slice,
@@ -197,8 +195,8 @@ pub struct BiquadCoefficients {
 }
 
 impl BiquadCoefficients {
-    pub fn new() -> BiquadCoefficients {
-        Default::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
@@ -213,8 +211,8 @@ pub struct BiquadSampleHistory {
 }
 
 impl BiquadSampleHistory {
-    pub fn new() -> BiquadSampleHistory {
-        Default::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn reset(&mut self) {

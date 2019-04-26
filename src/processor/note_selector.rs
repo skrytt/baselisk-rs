@@ -15,8 +15,8 @@ pub enum MidiEventResult {
 }
 
 impl MonoNoteSelector {
-    pub fn new() -> MonoNoteSelector {
-        MonoNoteSelector {
+    pub fn new() -> Self {
+        Self {
             notes_held: vec![false; 128],
             note_priority_stack: Vec::with_capacity(128),
             note_selected: None,
@@ -26,7 +26,7 @@ impl MonoNoteSelector {
     pub fn midi_panic(&mut self) {
         // Small optimization: if no notes are on, there's nothing to do.
         if self.note_selected.is_some() {
-            for note in self.notes_held.iter_mut() {
+            for note in &mut self.notes_held {
                 *note = false;
             }
             self.note_priority_stack.clear();

@@ -30,7 +30,7 @@ where
     }
 }
 
-pub fn update_parameter_from_tokens(parameter: ModulatableParameter,
+pub fn update_parameter_from_tokens(parameter: &ModulatableParameter,
                                     token_iter: &mut SplitWhitespace) -> Result<PatchEvent, String>
 {
     let field_name: String = match parse_from_next_token(token_iter) {
@@ -104,7 +104,7 @@ fn build_tree() -> Tree
         oscillator.add_child("pitch", Node::new_dispatch_event(
             |mut token_iter| {
                 update_parameter_from_tokens(
-                    ModulatableParameter::OscillatorPitch,
+                    &ModulatableParameter::OscillatorPitch,
                     &mut token_iter)
             },
             Some(String::from("<octaves>")),
@@ -113,7 +113,7 @@ fn build_tree() -> Tree
         oscillator.add_child("pulsewidth", Node::new_dispatch_event(
             |mut token_iter| {
                 update_parameter_from_tokens(
-                    ModulatableParameter::OscillatorPulseWidth,
+                    &ModulatableParameter::OscillatorPulseWidth,
                     &mut token_iter)
             },
             Some(String::from("<width>")),
@@ -125,7 +125,7 @@ fn build_tree() -> Tree
         adsr.add_child("attack", Node::new_dispatch_event(
             |mut token_iter| {
                 update_parameter_from_tokens(
-                    ModulatableParameter::AdsrAttack,
+                    &ModulatableParameter::AdsrAttack,
                     &mut token_iter)
             },
             Some(String::from("<duration>")),
@@ -134,7 +134,7 @@ fn build_tree() -> Tree
         adsr.add_child("decay", Node::new_dispatch_event(
             |mut token_iter| {
                 update_parameter_from_tokens(
-                    ModulatableParameter::AdsrDecay,
+                    &ModulatableParameter::AdsrDecay,
                     &mut token_iter)
             },
             Some(String::from("<duration>")),
@@ -143,7 +143,7 @@ fn build_tree() -> Tree
         adsr.add_child("sustain", Node::new_dispatch_event(
             |mut token_iter| {
                 update_parameter_from_tokens(
-                    ModulatableParameter::AdsrSustain,
+                    &ModulatableParameter::AdsrSustain,
                     &mut token_iter)
             },
             Some(String::from("<level>")),
@@ -152,7 +152,7 @@ fn build_tree() -> Tree
         adsr.add_child("release", Node::new_dispatch_event(
             |mut token_iter| {
                 update_parameter_from_tokens(
-                    ModulatableParameter::AdsrRelease,
+                    &ModulatableParameter::AdsrRelease,
                     &mut token_iter)
             },
             Some(String::from("<duration>")),
@@ -168,7 +168,7 @@ fn build_tree() -> Tree
             lowpass.add_child("frequency", Node::new_dispatch_event(
                 |mut token_iter| {
                     update_parameter_from_tokens(
-                        ModulatableParameter::DelayLowPassFilterFrequency,
+                        &ModulatableParameter::DelayLowPassFilterFrequency,
                         &mut token_iter)
                 },
                 Some(String::from("<Hz>")),
@@ -177,7 +177,7 @@ fn build_tree() -> Tree
             lowpass.add_child("quality", Node::new_dispatch_event(
                 |mut token_iter| {
                     update_parameter_from_tokens(
-                        ModulatableParameter::DelayLowPassFilterQuality,
+                        &ModulatableParameter::DelayLowPassFilterQuality,
                         &mut token_iter)
                 },
                 Some(String::from("<Hz>")),
@@ -189,7 +189,7 @@ fn build_tree() -> Tree
             highpass.add_child("frequency", Node::new_dispatch_event(
                 |mut token_iter| {
                     update_parameter_from_tokens(
-                        ModulatableParameter::DelayHighPassFilterFrequency,
+                        &ModulatableParameter::DelayHighPassFilterFrequency,
                         &mut token_iter)
                 },
                 Some(String::from("<Hz>")),
@@ -198,7 +198,7 @@ fn build_tree() -> Tree
             highpass.add_child("quality", Node::new_dispatch_event(
                 |mut token_iter| {
                     update_parameter_from_tokens(
-                        ModulatableParameter::DelayHighPassFilterQuality,
+                        &ModulatableParameter::DelayHighPassFilterQuality,
                         &mut token_iter)
                 },
                 Some(String::from("<Hz>")),
@@ -208,7 +208,7 @@ fn build_tree() -> Tree
         delay.add_child("feedback", Node::new_dispatch_event(
             |mut token_iter| {
                 update_parameter_from_tokens(
-                    ModulatableParameter::DelayFeedback,
+                    &ModulatableParameter::DelayFeedback,
                     &mut token_iter)
             },
             Some(String::from("<Hz>")),
@@ -220,7 +220,7 @@ fn build_tree() -> Tree
         filter.add_child("frequency", Node::new_dispatch_event(
             |mut token_iter| {
                 update_parameter_from_tokens(
-                    ModulatableParameter::FilterFrequency,
+                    &ModulatableParameter::FilterFrequency,
                     &mut token_iter)
             },
             Some(String::from("<Hz>")),
@@ -229,7 +229,7 @@ fn build_tree() -> Tree
         filter.add_child("sweeprange", Node::new_dispatch_event(
             |mut token_iter| {
                 update_parameter_from_tokens(
-                    ModulatableParameter::FilterSweepRange,
+                    &ModulatableParameter::FilterSweepRange,
                     &mut token_iter)
             },
             Some(String::from("<octaves>")),
@@ -238,7 +238,7 @@ fn build_tree() -> Tree
         filter.add_child("quality", Node::new_dispatch_event(
             |mut token_iter| {
                 update_parameter_from_tokens(
-                    ModulatableParameter::FilterQuality,
+                    &ModulatableParameter::FilterQuality,
                     &mut token_iter)
             },
             Some(String::from("<q>")),
@@ -250,7 +250,7 @@ fn build_tree() -> Tree
         waveshaper.add_child("inputgain", Node::new_dispatch_event(
             |mut token_iter| {
                 update_parameter_from_tokens(
-                    ModulatableParameter::WaveshaperInputGain,
+                    &ModulatableParameter::WaveshaperInputGain,
                     &mut token_iter)
             },
             Some(String::from("<gain>")),
@@ -259,7 +259,7 @@ fn build_tree() -> Tree
         waveshaper.add_child("outputgain", Node::new_dispatch_event(
             |mut token_iter| {
                 update_parameter_from_tokens(
-                    ModulatableParameter::WaveshaperOutputGain,
+                    &ModulatableParameter::WaveshaperOutputGain,
                     &mut token_iter)
             },
             Some(String::from("<gain>")),

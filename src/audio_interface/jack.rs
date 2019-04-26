@@ -1,3 +1,5 @@
+#![allow(clippy::cast_precision_loss)]
+
 extern crate jack;
 
 use defs;
@@ -51,6 +53,7 @@ where
 
             let mut engine_callback = engine_callback.write().unwrap();
             engine_callback.apply_patch_events(&rx_audio_thread, &tx_audio_thread);
+
             engine_callback.audio_requested(buffer,
                                             raw_midi_iter,
                                             client.sample_rate() as defs::Sample);

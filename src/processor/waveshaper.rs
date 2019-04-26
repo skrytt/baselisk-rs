@@ -11,8 +11,8 @@ pub struct Waveshaper {
 }
 
 impl Waveshaper {
-    pub fn new() -> Waveshaper {
-        Waveshaper{
+    pub fn new() -> Self {
+        Self {
             input_gain: LinearParameter::new(0.0, 1.0, 0.333),
             output_gain: LinearParameter::new(0.0, 1.0, 0.2),
         }
@@ -39,23 +39,20 @@ impl Waveshaper {
             // Get next selected note, if there is one.
             let next_event = engine_event_iter.next();
 
-            // This match block continues on events that are unimportant to this processor.
-            match next_event {
-                Some((frame_num, engine_event)) => {
-                    match engine_event {
-                        EngineEvent::ModulateParameter { parameter, .. } => match parameter {
-                            ModulatableParameter::WaveshaperInputGain => (),
-                            ModulatableParameter::WaveshaperOutputGain => (),
-                            _ => continue,
-                        },
+            if let Some((frame_num, engine_event)) = next_event {
+                match engine_event {
+                    EngineEvent::ModulateParameter { parameter, .. } => match parameter {
+                        // Waveshaper parameter events will trigger keyframes
+                        ModulatableParameter::WaveshaperInputGain |
+                        ModulatableParameter::WaveshaperOutputGain => (),
                         _ => continue,
-                    }
-                    next_keyframe = *frame_num;
-                },
-                None => {
-                    // No more note change events, so we'll process to the end of the buffer.
-                    next_keyframe = buffer.len();
-                },
+                    },
+                    _ => continue,
+                }
+                next_keyframe = *frame_num;
+            } else {
+                // No more note change events, so we'll process to the end of the buffer.
+                next_keyframe = buffer.len();
             };
 
             // Apply the old parameters up until next_keyframe.

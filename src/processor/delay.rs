@@ -32,8 +32,8 @@ pub struct DelayParams {
 
 impl DelayParams {
     /// Constructor for DelayParams instances
-    fn new() -> DelayParams {
-        DelayParams {
+    fn new() -> Self {
+        Self {
             highpass_frequency: FrequencyParameter::new(1.0, 22000.0, 125.0),
             highpass_quality: LinearParameter::new(0.5, 10.0, 0.707),
             lowpass_frequency: FrequencyParameter::new(1.0, 22000.0, 5000.0),
@@ -53,7 +53,7 @@ pub struct Delay {
 }
 
 impl Delay {
-    pub fn new() -> Delay {
+    pub fn new() -> Self {
         let delay_buffer_size = 24000;
         let mut delay_buffer_vec = Vec::with_capacity(delay_buffer_size);
         for _ in 0..delay_buffer_size {
@@ -62,7 +62,7 @@ impl Delay {
 
         let delay_buffer = ring_buffer::Fixed::from(delay_buffer_vec);
 
-        Delay {
+        Self {
             delay_buffer,
             params: DelayParams::new(),
             highpass_history: BiquadSampleHistory::new(),
@@ -114,27 +114,23 @@ impl Delay {
             // Get next selected note, if there is one.
             let next_event = engine_event_iter.next();
 
-            // This match block continues on events that are unimportant to this processor.
-            match next_event {
-                Some((frame_num, engine_event)) => {
-                    match engine_event {
-                        // Placeholder for actual event handling, but does nothing for now
-                        EngineEvent::ModulateParameter { parameter, .. } => match parameter {
-                            ModulatableParameter::DelayFeedback => (),
-                            ModulatableParameter::DelayHighPassFilterFrequency => (),
-                            ModulatableParameter::DelayHighPassFilterQuality => (),
-                            ModulatableParameter::DelayLowPassFilterFrequency => (),
-                            ModulatableParameter::DelayLowPassFilterQuality => (),
-                            _ => continue,
-                        },
+            if let Some((frame_num, engine_event)) = next_event {
+                match engine_event {
+                    EngineEvent::ModulateParameter { parameter, .. } => match parameter {
+                        // All delay events will trigger keyframes
+                        ModulatableParameter::DelayFeedback |
+                        ModulatableParameter::DelayHighPassFilterFrequency |
+                        ModulatableParameter::DelayHighPassFilterQuality |
+                        ModulatableParameter::DelayLowPassFilterFrequency |
+                        ModulatableParameter::DelayLowPassFilterQuality => (),
                         _ => continue,
-                    };
-                    next_keyframe = *frame_num;
-                }
-                None => {
-                    // No more note change events, so we'll process to the end of the buffer.
-                    next_keyframe = buffer.len();
-                },
+                    },
+                    _ => continue,
+                };
+                next_keyframe = *frame_num;
+            } else {
+                // No more note change events, so we'll process to the end of the buffer.
+                next_keyframe = buffer.len();
             };
 
             let lowpass_frequency_hz = self.params.lowpass_frequency.get();

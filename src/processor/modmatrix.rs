@@ -10,8 +10,8 @@ pub struct ModulationMatrix
 
 impl ModulationMatrix
 {
-    pub fn new() -> ModulationMatrix {
-        ModulationMatrix {
+    pub fn new() -> Self {
+        Self {
             controllers: vec![SingleController::new(); 128], // Space for CCs 0 through 127
             parameter_to_learn: None,
         }
@@ -64,8 +64,8 @@ struct SingleController
 
 impl SingleController
 {
-    pub fn new() -> SingleController {
-        SingleController {
+    pub fn new() -> Self {
+        Self {
             parameter: None,
         }
     }

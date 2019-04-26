@@ -20,8 +20,8 @@ impl<F> ResizableFrameBuffer<F>
 where
     F: Frame,
 {
-    pub fn new() -> ResizableFrameBuffer<F> {
-        ResizableFrameBuffer {
+    pub fn new() -> Self {
+        Self {
             data: Vec::with_capacity(BUFFER_DEFAULT_CAPACITY),
         }
     }
