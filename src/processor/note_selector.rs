@@ -8,6 +8,12 @@ pub struct MonoNoteSelector {
     note_selected: Option<u8>,
 }
 
+/// Struct to indicate whether a MIDI event resulted in a 
+pub enum MidiEventResult {
+    NoteChange(Option<u8>),
+    Ignore,
+}
+
 impl MonoNoteSelector {
     pub fn new() -> MonoNoteSelector {
         MonoNoteSelector {
@@ -40,17 +46,17 @@ impl MonoNoteSelector {
             MidiEvent::NoteOff { note } => {
                 self.note_off(*note)
             }
-            _ => None,
+            _ => MidiEventResult::Ignore,
         };
         match result {
-            Some(note_change) => Some(EngineEvent::NoteChange{ note: note_change }),
-            None => None,
+            MidiEventResult::NoteChange(note_change) => Some(EngineEvent::NoteChange{ note: note_change }),
+            MidiEventResult::Ignore => None,
         }
     }
 
     /// Return Some(Option<u8>) if the note changed as a result of this event.
     /// Otherwise, return None.
-    fn note_on(&mut self, note: u8) -> Option<Option<u8>> {
+    fn note_on(&mut self, note: u8) -> MidiEventResult {
         if let Some(note_held_ref) = self.notes_held.get_mut(note as usize) {
             // It's possible (due to dropped note events)
             // that the note was not actually off. Check for that here.
@@ -66,15 +72,15 @@ impl MonoNoteSelector {
                 self.note_selected = Some(*self.note_priority_stack.last().unwrap());
 
                 // Indicate that the note held changed.
-                return Some(self.note_selected)
+                return MidiEventResult::NoteChange(self.note_selected)
             }
         }
-        None
+        MidiEventResult::Ignore
     }
 
     /// Return Some(Option<u8>) if the note changed as a result of this event.
     /// Otherwise, return None.
-    fn note_off(&mut self, note: u8) -> Option<Option<u8>> {
+    fn note_off(&mut self, note: u8) -> MidiEventResult {
         if let Some(note_held_ref) = self.notes_held.get_mut(note as usize) {
             // It's possible (due to dropped note events or midi panics)
             // that the note was not actually on. Check for that here.
@@ -90,9 +96,9 @@ impl MonoNoteSelector {
                     None => None,
                 };
                 // Indicate that the note held changed.
-                return Some(self.note_selected)
+                return MidiEventResult::NoteChange(self.note_selected)
             }
         }
-        None
+        MidiEventResult::Ignore
     }
 }
