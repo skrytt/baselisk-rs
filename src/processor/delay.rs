@@ -1,5 +1,6 @@
 extern crate sample;
 
+use buffer::ResizableFrameBuffer;
 use defs;
 use event::{
     EngineEvent,
@@ -28,6 +29,7 @@ pub struct DelayParams {
     lowpass_frequency: FrequencyParameter,
     lowpass_quality: LinearParameter,
     feedback: LinearParameter,
+    wet_gain: LinearParameter,
 }
 
 impl DelayParams {
@@ -39,6 +41,7 @@ impl DelayParams {
             lowpass_frequency: FrequencyParameter::new(1.0, 22000.0, 5000.0),
             lowpass_quality: LinearParameter::new(0.5, 10.0, 0.707),
             feedback: LinearParameter::new(0.0, 1.0, 0.6),
+            wet_gain: LinearParameter::new(0.0, 1.0, 0.4),
         }
     }
 }
@@ -50,6 +53,7 @@ pub struct Delay {
     highpass_coeffs: BiquadCoefficients,
     lowpass_history: BiquadSampleHistory,
     lowpass_coeffs: BiquadCoefficients,
+    wet_buffer: ResizableFrameBuffer<defs::MonoFrame>,
 }
 
 impl Delay {
@@ -69,6 +73,7 @@ impl Delay {
             highpass_coeffs: BiquadCoefficients::new(),
             lowpass_history: BiquadSampleHistory::new(),
             lowpass_coeffs: BiquadCoefficients::new(),
+            wet_buffer: ResizableFrameBuffer::new(),
         }
     }
 
@@ -102,11 +107,19 @@ impl Delay {
         self.params.feedback.update_patch(data)
     }
 
+    pub fn update_wet_gain(&mut self, data: ModulatableParameterUpdateData)
+                            -> Result<(), &'static str>
+    {
+        self.params.wet_gain.update_patch(data)
+    }
+
     pub fn process_buffer(&mut self,
                           buffer: &mut defs::MonoFrameBufferSlice,
                           mut engine_event_iter: Iter<(usize, EngineEvent)>,
                           sample_rate: defs::Sample)
     {
+        let wet_buffer = self.wet_buffer.get_sized_mut(buffer.len());
+
         // Calculate the output values per-frame
         let mut this_keyframe: usize = 0;
         let mut next_keyframe: usize;
@@ -122,7 +135,8 @@ impl Delay {
                         ModulatableParameter::DelayHighPassFilterFrequency |
                         ModulatableParameter::DelayHighPassFilterQuality |
                         ModulatableParameter::DelayLowPassFilterFrequency |
-                        ModulatableParameter::DelayLowPassFilterQuality => (),
+                        ModulatableParameter::DelayLowPassFilterQuality |
+                        ModulatableParameter::DelayWetGain => (),
                         _ => continue,
                     },
                     _ => continue,
@@ -157,28 +171,32 @@ impl Delay {
 
             // Apply the old parameters up until next_keyframe.
             {
-                let buffer_slice = buffer.get_mut(this_keyframe..next_keyframe).unwrap();
-                for frame in buffer_slice {
-                    for sample in frame {
-                        // Combine the original sample with an attenuated copy of the
-                        // delayed sample.
-                        let mut delayed_sample = feedback * self.delay_buffer.get(0);
+                let wet_gain = self.params.wet_gain.get();
 
-                        // Apply highpass
-                        delayed_sample = process_biquad(
-                            &mut self.highpass_history,
-                            &self.highpass_coeffs,
-                            delayed_sample);
+                for frame_num in this_keyframe..next_keyframe {
+                    let mut delayed_sample = feedback * self.delay_buffer.get(0);
 
-                        // Apply lowpass
-                        delayed_sample = process_biquad(
-                            &mut self.lowpass_history,
-                            &self.lowpass_coeffs,
-                            delayed_sample);
+                    // Apply highpass to delayed sample
+                    delayed_sample = process_biquad(
+                        &mut self.highpass_history,
+                        &self.highpass_coeffs,
+                        delayed_sample);
 
-                        *sample += delayed_sample;
-                        self.delay_buffer.push(*sample);
-                    }
+                    // Apply lowpass to delayed sample
+                    delayed_sample = process_biquad(
+                        &mut self.lowpass_history,
+                        &self.lowpass_coeffs,
+                        delayed_sample);
+
+                    wet_buffer[frame_num] = [delayed_sample];
+
+                    // Mix in the dry signal and push back to the delay buffer
+                    let dry_sample = buffer[frame_num][0];
+                    self.delay_buffer.push(
+                        dry_sample + delayed_sample);
+
+                    // Mix the wet signal into the output buffer with the dry signal.
+                    buffer[frame_num][0] += wet_gain * wet_buffer[frame_num][0];
                 }
             } // end borrow of buffer
 
@@ -210,6 +228,9 @@ impl Delay {
                         ModulatableParameter::DelayLowPassFilterQuality => {
                             self.params.lowpass_quality.update_cc(*value);
                         },
+                        ModulatableParameter::DelayWetGain => {
+                            self.params.wet_gain.update_cc(*value);
+                        }
                         _ => (),
                     }
                 };

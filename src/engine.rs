@@ -104,6 +104,9 @@ impl Engine
                     ModulatableParameter::DelayLowPassFilterQuality => {
                         self.delay.update_lowpass_quality(data)
                     },
+                    ModulatableParameter::DelayWetGain => {
+                        self.delay.update_wet_gain(data)
+                    },
                     ModulatableParameter::FilterFrequency => {
                         self.filter.update_frequency(data)
                     },

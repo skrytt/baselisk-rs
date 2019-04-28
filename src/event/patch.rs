@@ -18,6 +18,7 @@ pub enum ModulatableParameter {
     AdsrDecay,
     AdsrSustain,
     AdsrRelease,
+    DelayWetGain,
     DelayFeedback,
     DelayHighPassFilterFrequency,
     DelayHighPassFilterQuality,

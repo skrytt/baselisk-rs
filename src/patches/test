@@ -8,13 +8,13 @@ adsr attack base 0.02
 adsr attack max 2
 adsr attack cc 74
 
-adsr decay base 0.02
+adsr decay base 0.5
 adsr decay max 2
 adsr decay cc 71
 
-adsr sustain base 1.0
+adsr sustain base 0.0
 
-adsr release base 0.02
+adsr release base 0.5
 adsr release max 2
 adsr release cc 93
 

@@ -213,6 +213,15 @@ fn build_tree() -> Tree
             },
             Some(String::from("<Hz>")),
         ));
+
+        delay.add_child("wetgain", Node::new_dispatch_event(
+            |mut token_iter| {
+                update_parameter_from_tokens(
+                    &ModulatableParameter::DelayWetGain,
+                    &mut token_iter)
+            },
+            Some(String::from("<gain>")),
+        ));
     }
     {
         let filter = root.add_child("filter", Node::new_with_children());
