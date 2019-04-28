@@ -162,6 +162,9 @@ impl Oscillator {
             "sine" => sine_generator,
             "saw" => sawtooth_generator,
             "pulse" => pulse_generator,
+            // Remaining entries aren't intended for use by users
+            // but are useful for testing purposes
+            "__test_high_signal" => high_signal_generator,
             _ => return Err("Unknown oscillator type specified"),
         };
         self.generator_func = generator_func;
@@ -304,5 +307,13 @@ fn sawtooth_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice
         }
 
         *frame = [res as defs::Sample]
+    }
+}
+
+/// For testing purposes. Always outputs 1.0.
+fn high_signal_generator(_state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
+{
+    for frame in buffer {
+        *frame = [1.0];
     }
 }

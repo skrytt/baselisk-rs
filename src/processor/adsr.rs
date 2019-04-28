@@ -210,8 +210,8 @@ impl Adsr {
                         let any_notes_held_next = note.is_some();
                         let current_note_changed_next = *note != self.state.selected_note;
 
-                        // If any note is pressed, assume this means there will be some output
-                        any_nonzero_output = any_notes_held_next;
+                        // If any note is pressed, assume this means there will be some output.
+                        any_nonzero_output |= any_notes_held_next;
 
                         self.update_state(any_notes_held_next, current_note_changed_next);
 
