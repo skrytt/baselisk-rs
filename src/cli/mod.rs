@@ -118,6 +118,24 @@ fn build_tree() -> Tree
             },
             Some(String::from("<width>")),
         ));
+
+        oscillator.add_child("modfreqratio", Node::new_dispatch_event(
+            |mut token_iter| {
+                update_parameter_from_tokens(
+                    &ModulatableParameter::OscillatorModFrequencyRatio,
+                    &mut token_iter)
+            },
+            Some(String::from("<freq_ratio>")),
+        ));
+
+        oscillator.add_child("modindex", Node::new_dispatch_event(
+            |mut token_iter| {
+                update_parameter_from_tokens(
+                    &ModulatableParameter::OscillatorModIndex,
+                    &mut token_iter)
+            },
+            Some(String::from("<index>")),
+        ));
     }
     {
         let adsr = root.add_child("adsr", Node::new_with_children());

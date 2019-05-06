@@ -29,6 +29,8 @@ pub enum ModulatableParameter {
     FilterSweepRange,
     OscillatorPitch,
     OscillatorPulseWidth,
+    OscillatorModFrequencyRatio,
+    OscillatorModIndex,
     WaveshaperInputGain,
     WaveshaperOutputGain,
 }

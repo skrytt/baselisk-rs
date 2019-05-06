@@ -12,18 +12,33 @@ fn get_frequency(note: defs::Sample) -> defs::Sample {
     440.0 * ((note - 69.0) / 12.0).exp2()
 }
 
-/// Internal state used by oscillator types.
-pub struct State {
+pub struct Params {
     pitch_offset: LinearParameter, // Semitones
     pulse_width: LinearParameter,
     mod_frequency_ratio: LinearParameter,
-    //mod_index: LinearParameter,
+    mod_index: LinearParameter,
+}
 
+impl Params {
+    pub fn new() -> Self {
+        Self {
+            pitch_offset: LinearParameter::new(-36.0, 36.0, 0.0),
+            pulse_width: LinearParameter::new(0.01, 0.99, 0.5),
+            mod_frequency_ratio: LinearParameter::new(1.0, 8.0, 1.0),
+            mod_index: LinearParameter::new(0.0, 8.0, 1.0),
+        }
+    }
+}
+
+/// Internal state used by oscillator types.
+pub struct State {
     sample_rate: defs::Sample,
     note: u8,
     pitch_bend: defs::Sample,   // Semitones
+    pulse_width: defs::Sample,
     base_frequency: defs::Sample,
     mod_frequency: defs::Sample,
+    mod_index: defs::Sample,
     main_phase: defs::Sample, // 0 <= main_phase <= 1
     mod_phase: defs::Sample,  // 0 <= mod_phase <= 1
 }
@@ -31,13 +46,12 @@ pub struct State {
 impl State {
     pub fn new() -> Self {
         Self {
-            pitch_offset: LinearParameter::new(-36.0, 36.0, 0.0),
-            pulse_width: LinearParameter::new(0.01, 0.99, 0.5),
-            mod_frequency_ratio: LinearParameter::new(1.0, 8.0, 1.0),
             note: 69,
             pitch_bend: 0.0,
+            pulse_width: 0.5,
             base_frequency: 0.0,
             mod_frequency: 0.0,
+            mod_index: 4.0,
             main_phase: 0.0,
             mod_phase: 0.0,
             sample_rate: 0.0,
@@ -55,6 +69,7 @@ impl State {
 
 /// Oscillator type that will be used for audio processing.
 pub struct Oscillator {
+    params: Params,
     state: State,
     generator_func: fn(&mut State, &mut defs::MonoFrameBufferSlice),
 }
@@ -64,6 +79,7 @@ impl Oscillator {
     pub fn new() -> Self
     {
         Self {
+            params: Params::new(),
             state: State::new(),
             generator_func: sine_generator,
         }
@@ -92,13 +108,25 @@ impl Oscillator {
     pub fn update_pitch(&mut self, data: ModulatableParameterUpdateData)
                         -> Result<(), &'static str>
     {
-        self.state.pitch_offset.update_patch(data)
+        self.params.pitch_offset.update_patch(data)
     }
 
     pub fn update_pulse_width(&mut self, data: ModulatableParameterUpdateData)
                               -> Result<(), &'static str>
     {
-        self.state.pulse_width.update_patch(data)
+        self.params.pulse_width.update_patch(data)
+    }
+
+    pub fn update_mod_frequency_ratio(&mut self, data: ModulatableParameterUpdateData)
+                              -> Result<(), &'static str>
+    {
+        self.params.mod_frequency_ratio.update_patch(data)
+    }
+
+    pub fn update_mod_index(&mut self, data: ModulatableParameterUpdateData)
+                              -> Result<(), &'static str>
+    {
+        self.params.mod_index.update_patch(data)
     }
 
     pub fn process_buffer(&mut self,
@@ -129,7 +157,9 @@ impl Oscillator {
                     EngineEvent::PitchBend{ .. } => (),
                     EngineEvent::ModulateParameter { parameter, .. } => match parameter {
                         ModulatableParameter::OscillatorPitch |
-                        ModulatableParameter::OscillatorPulseWidth => (),
+                        ModulatableParameter::OscillatorPulseWidth |
+                        ModulatableParameter::OscillatorModFrequencyRatio |
+                        ModulatableParameter::OscillatorModIndex => (),
                         _ => continue,
                     },
                 }
@@ -141,10 +171,10 @@ impl Oscillator {
 
             // Apply the old parameters up until next_keyframe.
             self.state.base_frequency = get_frequency(defs::Sample::from(self.state.note)
-                                                + self.state.pitch_offset.get()
+                                                + self.params.pitch_offset.get()
                                                 + self.state.pitch_bend);
             self.state.mod_frequency = self.state.base_frequency
-                                       * self.state.mod_frequency_ratio.get();
+                                       * self.params.mod_frequency_ratio.get();
 
             // Generate all the samples for this buffer
             let buffer_slice = buffer.get_mut(this_keyframe..next_keyframe).unwrap();
@@ -172,11 +202,19 @@ impl Oscillator {
                     },
                     EngineEvent::ModulateParameter { parameter, value } => match parameter {
                         ModulatableParameter::OscillatorPitch => {
-                            self.state.pitch_offset.update_cc(*value);
+                            self.params.pitch_offset.update_cc(*value);
                         },
                         ModulatableParameter::OscillatorPulseWidth => {
-                            self.state.pulse_width.update_cc(*value);
+                            self.params.pulse_width.update_cc(*value);
+                            self.state.pulse_width = self.params.pulse_width.get();
                         },
+                        ModulatableParameter::OscillatorModFrequencyRatio => {
+                            self.params.mod_frequency_ratio.update_cc(*value);
+                        }
+                        ModulatableParameter::OscillatorModIndex => {
+                            self.params.mod_index.update_cc(*value);
+                            self.state.mod_index = self.params.mod_index.get();
+                        }
                         _ => (),
                     },
                 };
@@ -223,7 +261,7 @@ fn pulse_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
         }
 
         // Get the aliasing pulse value
-        let mut res = if main_phase < state.pulse_width.get() {
+        let mut res = if main_phase < state.pulse_width {
             1.0
         } else {
             -1.0
@@ -251,7 +289,7 @@ fn pulse_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
         // Apply PolyBLEP to the first (upward) discontinuity
         res += polyblep(main_phase, step);
         // Apply PolyBLEP to the second (downward) discontinuity
-        res -= polyblep((main_phase + 1.0 - state.pulse_width.get()) % 1.0, step);
+        res -= polyblep((main_phase + 1.0 - state.pulse_width) % 1.0, step);
 
         // Done
         buffer[frame_num][0] = res;
@@ -322,7 +360,7 @@ fn frequency_modulated_generator(state: &mut State, buffer: &mut defs::MonoFrame
         }
 
         let mod_res = defs::Sample::sin(2.0 as defs::Sample * defs::PI * mod_phase);
-        let mod_freq_offset = 4.0 * mod_res * mod_freq;
+        let mod_freq_offset = state.mod_index * mod_res * mod_freq;
 
         // Advance main_phase of main oscillator
         // Enforce range 0.0 <= main_phase < 1.0

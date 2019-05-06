@@ -122,6 +122,12 @@ impl Engine
                     ModulatableParameter::OscillatorPulseWidth => {
                         self.oscillator.update_pulse_width(data)
                     },
+                    ModulatableParameter::OscillatorModFrequencyRatio => {
+                        self.oscillator.update_mod_frequency_ratio(data)
+                    },
+                    ModulatableParameter::OscillatorModIndex => {
+                        self.oscillator.update_mod_index(data)
+                    },
                     ModulatableParameter::WaveshaperInputGain => {
                         self.waveshaper.update_input_gain(data)
                     },
