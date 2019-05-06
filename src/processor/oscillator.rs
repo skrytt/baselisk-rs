@@ -1,6 +1,5 @@
 extern crate sample;
 
-use buffer::ResizableFrameBuffer;
 use defs;
 use event::{EngineEvent, ModulatableParameter, ModulatableParameterUpdateData};
 use parameter::{Parameter, LinearParameter};
@@ -17,13 +16,16 @@ fn get_frequency(note: defs::Sample) -> defs::Sample {
 pub struct State {
     pitch_offset: LinearParameter, // Semitones
     pulse_width: LinearParameter,
-    note: u8,
+    mod_frequency_ratio: LinearParameter,
+    //mod_index: LinearParameter,
 
-    pitch_bend: defs::Sample,   // Semitones
-    frequency: defs::Sample,
-    phase: defs::Sample,        // 0 <= phase <= 1
     sample_rate: defs::Sample,
-    frequency_buffer: ResizableFrameBuffer<defs::MonoFrame>,
+    note: u8,
+    pitch_bend: defs::Sample,   // Semitones
+    base_frequency: defs::Sample,
+    mod_frequency: defs::Sample,
+    main_phase: defs::Sample, // 0 <= main_phase <= 1
+    mod_phase: defs::Sample,  // 0 <= mod_phase <= 1
 }
 
 impl State {
@@ -31,108 +33,23 @@ impl State {
         Self {
             pitch_offset: LinearParameter::new(-36.0, 36.0, 0.0),
             pulse_width: LinearParameter::new(0.01, 0.99, 0.5),
+            mod_frequency_ratio: LinearParameter::new(1.0, 8.0, 1.0),
             note: 69,
             pitch_bend: 0.0,
-            frequency: 0.0,
-            phase: 0.0,
+            base_frequency: 0.0,
+            mod_frequency: 0.0,
+            main_phase: 0.0,
+            mod_phase: 0.0,
             sample_rate: 0.0,
-            frequency_buffer: ResizableFrameBuffer::new(),
         }
     }
 
     pub fn reset(&mut self) {
-        self.frequency = 0.0;
+        self.base_frequency = 0.0;
         self.pitch_bend = 0.0;
-        self.phase = 0.0;
+        self.main_phase = 0.0;
+        self.mod_phase = 0.0;
         self.sample_rate = 0.0;
-    }
-
-    /// Process any events and update the internal state accordingly.
-    fn update(&mut self,
-              mut engine_event_iter: slice::Iter<(usize, EngineEvent)>,
-              sample_rate: defs::Sample,
-              buffer_size: usize)
-    {
-        // Sample rate used by the generator functions
-        self.sample_rate = sample_rate;
-
-        // Calculate the frequencies per-frame
-        let frequency_buffer = self.frequency_buffer.get_sized_mut(buffer_size);
-        let mut this_keyframe: usize = 0;
-        let mut next_keyframe: usize;
-        loop {
-            // Get next selected note, if there is one.
-            let next_event = engine_event_iter.next();
-
-            if let Some((frame_num, engine_event)) = next_event {
-                match engine_event {
-                    // Note changes will trigger keyframes only if there is a new note
-                    // (i.e. not None)
-                    EngineEvent::NoteChange{ note } => {
-                        if note.is_none() {
-                            continue
-                        }
-                    },
-                    // Pitch bends and oscillator parameter changes will also trigger keyframes
-                    EngineEvent::PitchBend{ .. } => (),
-                    EngineEvent::ModulateParameter { parameter, .. } => match parameter {
-                        ModulatableParameter::OscillatorPitch |
-                        ModulatableParameter::OscillatorPulseWidth => (),
-                        _ => continue,
-                    },
-                }
-                next_keyframe = *frame_num;
-            } else {
-                // No more note change events, so we'll process to the end of the buffer.
-                next_keyframe = buffer_size;
-            };
-
-            // Apply the old parameters up until next_keyframe.
-            if let Some(frequency_buffer_slice) = frequency_buffer.get_mut(
-                    this_keyframe..next_keyframe)
-            {
-                self.frequency = get_frequency(defs::Sample::from(self.note)
-                                               + self.pitch_offset.get()
-                                               + self.pitch_bend);
-                for frequency_frame in frequency_buffer_slice {
-                    for frequency_sample in frequency_frame {
-                        *frequency_sample = self.frequency;
-                    }
-                }
-            }
-
-            // We've reached the next_keyframe.
-            this_keyframe = next_keyframe;
-
-            // What we do now depends on whether we reached the end of the buffer.
-            if this_keyframe == buffer_size {
-                // Loop exit condition: reached the end of the buffer.
-                break
-            } else {
-                // Before the next iteration, use the event at this keyframe
-                // to update the current state.
-                let (_, event) = next_event.unwrap();
-                match event {
-                    EngineEvent::NoteChange{ note } => {
-                        if let Some(note) = note {
-                            self.note = *note;
-                        }
-                    },
-                    EngineEvent::PitchBend{ semitones } => {
-                        self.pitch_bend = *semitones;
-                    },
-                    EngineEvent::ModulateParameter { parameter, value } => match parameter {
-                        ModulatableParameter::OscillatorPitch => {
-                            self.pitch_offset.update_cc(*value);
-                        },
-                        ModulatableParameter::OscillatorPulseWidth => {
-                            self.pulse_width.update_cc(*value);
-                        },
-                        _ => (),
-                    },
-                };
-            }
-        }
     }
 }
 
@@ -162,6 +79,7 @@ impl Oscillator {
             "sine" => sine_generator,
             "saw" => sawtooth_generator,
             "pulse" => pulse_generator,
+            "fm" => frequency_modulated_generator,
             // Remaining entries aren't intended for use by users
             // but are useful for testing purposes
             "__test_high_signal" => high_signal_generator,
@@ -185,129 +103,244 @@ impl Oscillator {
 
     pub fn process_buffer(&mut self,
                buffer: &mut defs::MonoFrameBufferSlice,
-               engine_event_iter: slice::Iter<(usize, EngineEvent)>,
+               mut engine_event_iter: slice::Iter<(usize, EngineEvent)>,
                sample_rate: defs::Sample,
     ) {
-        self.state.update(engine_event_iter, sample_rate, buffer.len());
+        let buffer_size = buffer.len();
+        self.state.sample_rate = sample_rate;
 
-        // Generate all the samples for this buffer
-        (self.generator_func)(&mut self.state, buffer);
+        // Generate the outputs per-frame
+        let mut this_keyframe: usize = 0;
+        let mut next_keyframe: usize;
+        loop {
+            // Get next selected note, if there is one.
+            let next_event = engine_event_iter.next();
+
+            if let Some((frame_num, engine_event)) = next_event {
+                match engine_event {
+                    // Note changes will trigger keyframes only if there is a new note
+                    // (i.e. not None)
+                    EngineEvent::NoteChange{ note } => {
+                        if note.is_none() {
+                            continue
+                        }
+                    },
+                    // Pitch bends and oscillator parameter changes will also trigger keyframes
+                    EngineEvent::PitchBend{ .. } => (),
+                    EngineEvent::ModulateParameter { parameter, .. } => match parameter {
+                        ModulatableParameter::OscillatorPitch |
+                        ModulatableParameter::OscillatorPulseWidth => (),
+                        _ => continue,
+                    },
+                }
+                next_keyframe = *frame_num;
+            } else {
+                // No more note change events, so we'll process to the end of the buffer.
+                next_keyframe = buffer.len();
+            };
+
+            // Apply the old parameters up until next_keyframe.
+            self.state.base_frequency = get_frequency(defs::Sample::from(self.state.note)
+                                                + self.state.pitch_offset.get()
+                                                + self.state.pitch_bend);
+            self.state.mod_frequency = self.state.base_frequency
+                                       * self.state.mod_frequency_ratio.get();
+
+            // Generate all the samples for this buffer
+            let buffer_slice = buffer.get_mut(this_keyframe..next_keyframe).unwrap();
+            (self.generator_func)(&mut self.state, buffer_slice);
+
+            // We've reached the next_keyframe.
+            this_keyframe = next_keyframe;
+
+            // What we do now depends on whether we reached the end of the buffer.
+            if this_keyframe == buffer_size {
+                // Loop exit condition: reached the end of the buffer.
+                break
+            } else {
+                // Before the next iteration, use the event at this keyframe
+                // to update the current state.
+                let (_, event) = next_event.unwrap();
+                match event {
+                    EngineEvent::NoteChange{ note } => {
+                        if let Some(note) = note {
+                            self.state.note = *note;
+                        }
+                    },
+                    EngineEvent::PitchBend{ semitones } => {
+                        self.state.pitch_bend = *semitones;
+                    },
+                    EngineEvent::ModulateParameter { parameter, value } => match parameter {
+                        ModulatableParameter::OscillatorPitch => {
+                            self.state.pitch_offset.update_cc(*value);
+                        },
+                        ModulatableParameter::OscillatorPulseWidth => {
+                            self.state.pulse_width.update_cc(*value);
+                        },
+                        _ => (),
+                    },
+                };
+            }
+        }
     }
 }
 
 /// Generator function that produces a sine wave.
 fn sine_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
 {
-    let frequency_buffer = state.frequency_buffer.get_sized_mut(buffer.len());
+    let step = state.base_frequency / state.sample_rate;
+    let mut main_phase = state.main_phase;
 
-    for (frame_num, frame) in buffer.iter_mut().enumerate() {
-        // Advance phase
-        // Enforce range 0.0 <= phase < 1.0
-        let step = frequency_buffer.get(frame_num).unwrap()[0] / state.sample_rate;
-        let mut phase = state.phase + step;
-        while phase >= 1.0 {
-            phase -= 1.0;
+    for frame_num in 0..buffer.len() {
+        // Advance main_phase
+        // Enforce range 0.0 <= main_phase < 1.0
+        main_phase += step;
+        while main_phase >= 1.0 {
+            main_phase -= 1.0;
         }
-        // Store the phase for next iteration
-        state.phase = phase;
 
-        let res = defs::Sample::sin(2.0 as defs::Sample * defs::PI * phase);
-        *frame = [res];
+        // Compute the output
+        buffer[frame_num][0] = defs::Sample::sin(2.0 as defs::Sample * defs::PI * main_phase);
     }
+
+    // Store the main_phase for next iteration
+    state.main_phase = main_phase;
 }
 
 /// Generator function that produces a pulse wave.
 /// Uses PolyBLEP smoothing to reduce aliasing.
 fn pulse_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
 {
-    let frequency_buffer = state.frequency_buffer.get_sized_mut(buffer.len());
+    let step = state.base_frequency / state.sample_rate;
+    let mut main_phase = state.main_phase;
 
-    for (frame_num, frame) in buffer.iter_mut().enumerate() {
-        // Advance phase
-        // Enforce range 0.0 <= phase < 1.0
-        let step = frequency_buffer.get(frame_num).unwrap()[0] / state.sample_rate;
-        let mut phase = state.phase + step;
-        while phase >= 1.0 {
-            phase -= 1.0;
+    for frame_num in 0..buffer.len() {
+        // Advance main_phase
+        // Enforce range 0.0 <= main_phase < 1.0
+        main_phase += step;
+        while main_phase >= 1.0 {
+            main_phase -= 1.0;
         }
-        // Store the phase for next iteration
-        state.phase = phase;
 
         // Get the aliasing pulse value
-        let mut res = if phase < state.pulse_width.get() {
+        let mut res = if main_phase < state.pulse_width.get() {
             1.0
         } else {
             -1.0
         };
 
         // PolyBLEP smoothing algorithm to reduce aliasing by smoothing discontinuities.
-        let polyblep = |phase: defs::Sample, step: defs::Sample| -> defs::Sample {
-            // Apply PolyBLEP Smoothing for 0 < phase < (freq / sample_rate)
-            //   phase == 0:    x = 0.0
-            //   phase == step: x = 1.0
-            if phase < step {
-                let x = phase / step;
+        let polyblep = |main_phase: defs::Sample, step: defs::Sample| -> defs::Sample {
+            // Apply PolyBLEP Smoothing for 0 < main_phase < (freq / sample_rate)
+            //   main_phase == 0:    x = 0.0
+            //   main_phase == step: x = 1.0
+            if main_phase < step {
+                let x = main_phase / step;
                 2.0 * x - x * x - 1.0
             }
-            // Apply PolyBLEP Smoothing for (1.0 - (freq / sample_rate)) < phase < 1.0:
-            //   phase == (1.0 - step): x = 1.0
-            //   phase == 1.0:          x = 0.0
-            else if phase > (1.0 - step) {
-                let x = (phase - 1.0) / step;
+            // Apply PolyBLEP Smoothing for (1.0 - (freq / sample_rate)) < main_phase < 1.0:
+            //   main_phase == (1.0 - step): x = 1.0
+            //   main_phase == 1.0:          x = 0.0
+            else if main_phase > (1.0 - step) {
+                let x = (main_phase - 1.0) / step;
                 2.0 * x + x * x + 1.0
             } else {
                 0.0
             }
         };
         // Apply PolyBLEP to the first (upward) discontinuity
-        res += polyblep(phase, step);
+        res += polyblep(main_phase, step);
         // Apply PolyBLEP to the second (downward) discontinuity
-        res -= polyblep((phase + 1.0 - state.pulse_width.get()) % 1.0, step);
+        res -= polyblep((main_phase + 1.0 - state.pulse_width.get()) % 1.0, step);
 
         // Done
-        *frame = [res as defs::Sample];
+        buffer[frame_num][0] = res;
     }
+
+    // Store the main_phase for next iteration
+    state.main_phase = main_phase;
 }
 
 /// Generator function that produces a sawtooth wave.
 /// Uses PolyBLEP smoothing to reduce aliasing.
 fn sawtooth_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
 {
-    let frequency_buffer = state.frequency_buffer.get_sized_mut(buffer.len());
+    let step = state.base_frequency / state.sample_rate;
+    let mut main_phase = state.main_phase;
 
-    for (frame_num, frame) in buffer.iter_mut().enumerate() {
-        // Advance phase
-        // Enforce range 0.0 <= phase < 1.0
-        let step = frequency_buffer.get(frame_num).unwrap()[0] / state.sample_rate;
-        let mut phase = state.phase + step;
-        while phase >= 1.0 {
-            phase -= 1.0;
+    for frame_num in 0..buffer.len() {
+        // Advance main_phase
+        // Enforce range 0.0 <= main_phase < 1.0
+        main_phase += step;
+        while main_phase >= 1.0 {
+            main_phase -= 1.0;
         }
-        // Store the phase for next iteration
-        state.phase = phase;
 
         // Get the aliasing saw value
-        let mut res = 1.0 - 2.0 * phase;
+        let mut res = 1.0 - 2.0 * main_phase;
 
         // PolyBLEP smoothing to reduce aliasing by smoothing discontinuities,
-        // which always occur at phase == 0.0.
-        // Apply PolyBLEP Smoothing for 0 < phase < (freq / sample_rate)
-        //   phase == 0:    x = 0.0
-        //   phase == step: x = 1.0
-        if phase < step {
-            let x = phase / step;
+        // which always occur at main_phase == 0.0.
+        // Apply PolyBLEP Smoothing for 0 < main_phase < (freq / sample_rate)
+        //   main_phase == 0:    x = 0.0
+        //   main_phase == step: x = 1.0
+        if main_phase < step {
+            let x = main_phase / step;
             res += 2.0 * x - x * x - 1.0;
         }
-        // Apply PolyBLEP Smoothing for (1.0 - (freq / sample_rate)) < phase < 1.0:
-        //   phase == (1.0 - step): x = 1.0
-        //   phase == 1.0:          x = 0.0
-        else if phase > (1.0 - step) {
-            let x = (phase - 1.0) / step;
+        // Apply PolyBLEP Smoothing for (1.0 - (freq / sample_rate)) < main_phase < 1.0:
+        //   main_phase == (1.0 - step): x = 1.0
+        //   main_phase == 1.0:          x = 0.0
+        else if main_phase > (1.0 - step) {
+            let x = (main_phase - 1.0) / step;
             res += 2.0 * x + x * x + 1.0;
         }
 
-        *frame = [res as defs::Sample]
+        // Done
+        buffer[frame_num][0] = res;
     }
+
+    // Store the main_phase for next iteration
+    state.main_phase = main_phase;
+}
+
+/// Generator function that produces a sine wave.
+fn frequency_modulated_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
+{
+    let mod_freq = state.mod_frequency;
+    let mod_step = mod_freq / state.sample_rate;
+    let mut mod_phase = state.mod_phase;
+
+    let mut main_phase = state.main_phase;
+
+    for frame_num in 0..buffer.len() {
+        // Advance main_phase of mod oscillator
+        // Enforce range 0.0 <= main_phase < 1.0
+        mod_phase += mod_step;
+        while mod_phase >= 1.0 {
+            mod_phase -= 1.0;
+        }
+
+        let mod_res = defs::Sample::sin(2.0 as defs::Sample * defs::PI * mod_phase);
+        let mod_freq_offset = 4.0 * mod_res * mod_freq;
+
+        // Advance main_phase of main oscillator
+        // Enforce range 0.0 <= main_phase < 1.0
+        let main_step = (state.base_frequency + mod_freq_offset) / state.sample_rate;
+        main_phase += main_step;
+        // Due to rate modulation main_phase can go backwards as well as forwards
+        while main_phase < 0.0 {
+            main_phase += 1.0;
+        }
+        while main_phase >= 1.0 {
+            main_phase -= 1.0;
+        }
+        buffer[frame_num][0] = defs::Sample::sin(2.0 as defs::Sample * defs::PI * main_phase);
+    }
+
+    // Store the phases for next iteration
+    state.mod_phase = mod_phase;
+    state.main_phase = main_phase;
 }
 
 /// For testing purposes. Always outputs 1.0.
