@@ -1,8 +1,9 @@
 use std::f32;
 use sample::frame;
 
+pub const RAW_MIDI_BUF_LEN: usize = 1024;
 pub const ENGINE_EVENT_BUF_LEN: usize = 1024;
-pub const JACK_CLIENT_NAME: &str = "baselisk";
+pub const PLUGIN_NAME: &str = "baselisk";
 pub const PROMPT: &str = "baselisk> ";
 
 pub type Sample = f32;                       // A single sample

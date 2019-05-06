@@ -1,4 +1,21 @@
-use jack;
+pub struct RawMidi {
+    time: usize,
+    status: u8,
+    data1: u8,
+    data2: u8,
+}
+
+impl RawMidi {
+    #[cfg(feature = "jack")]
+    pub fn from_jack_raw_midi(raw_event: &jack::RawMidi) -> Self {
+        Self {
+            time: raw_event.time as usize,
+            status: raw_event.bytes[0],
+            data1: raw_event.bytes[1],
+            data2: raw_event.bytes[2],
+        }
+    }
+}
 
 /// Enumeration of MIDI event types
 pub enum MidiEvent {
@@ -40,16 +57,16 @@ impl MidiEvent {
     /// Process a portmidi::MidiEvent into our format of midi event.
     /// If the event is recognised, return Some((usize, Event)).
     /// Otherwise, return None.
-    pub fn parse(raw_event: jack::RawMidi,
+    pub fn parse(raw_event: &RawMidi,
                  filter_by_channel: Option<u8>) -> Option<(usize, Self)> {
         let time = raw_event.time as usize;
 
-        let status = raw_event.bytes[0];
+        let status = raw_event.status;
         let status_category = status & 0xF0;
         let status_extra = status & 0x0F;
 
-        let data1 = raw_event.bytes[1];
-        let data2 = raw_event.bytes[2];
+        let data1 = raw_event.data1;
+        let data2 = raw_event.data2;
 
         // Suppress MIDI messages according to the filter_by_channel parameter.
         if let Some(channel_requested) = filter_by_channel {

@@ -1,10 +1,16 @@
-//! Synthesizer based on dsp-graph, portaudio and portmidi.
+//! Synthesizer.
 //!
 extern crate clap;
-extern crate jack;
 extern crate sample;
 extern crate rustyline;
 extern crate time;
+
+#[cfg(feature = "vst")]
+#[macro_use]
+extern crate vst;
+
+#[cfg(feature = "jack")]
+extern crate jack;
 
 mod audio_interface;
 mod buffer;
@@ -39,7 +45,18 @@ fn main() {
     )));
 
     // Initialize the audio interface
-    audio_interface::jack::connect_and_run(&mut engine, |tx, rx| {
+    // Behaviour depends on what plugin format we're compiling for
+    #[cfg(all(not(feature = "vst"), not(feature = "jack")))]
+    panic!("Need to specify one of 'jack' or 'vst' as a compilation feature");
+
+    #[cfg(all(feature = "vst", feature = "jack"))]
+    panic!("Cannot specify both 'jack' and 'vst' as compilation features");
+
+    #[cfg(feature = "vst")]
+    panic!("VST unimplemented yet");
+
+    #[cfg(feature = "jack")]
+    audio_interface::connect_and_run(&mut engine, |tx, rx| {
         let mut cli = cli::new(tx, rx);
 
         // If a patchfile is specified, load and process it now.

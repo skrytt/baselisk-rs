@@ -1,7 +1,5 @@
 #![allow(clippy::cast_precision_loss)]
 
-extern crate jack;
-
 use defs;
 use engine;
 use event::PatchEvent;
@@ -18,7 +16,7 @@ where
         mpsc::Receiver<Result<(), &'static str>>,
     ),
 {
-    let (client, _status) = match jack::Client::new(defs::JACK_CLIENT_NAME,
+    let (client, _status) = match jack::Client::new(defs::PLUGIN_NAME,
                                                     jack::ClientOptions::NO_START_SERVER)
     {
         Err(_) => return Err("Failed to connect to JACK server"),
@@ -54,9 +52,9 @@ where
             let mut engine_callback = engine_callback.write().unwrap();
             engine_callback.apply_patch_events(&rx_audio_thread, &tx_audio_thread);
 
-            engine_callback.audio_requested(buffer,
-                                            raw_midi_iter,
-                                            client.sample_rate() as defs::Sample);
+            engine_callback.jack_audio_requested(buffer,
+                                                 raw_midi_iter,
+                                                 client.sample_rate() as defs::Sample);
 
             jack::Control::Continue
         }

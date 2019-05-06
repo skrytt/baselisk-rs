@@ -2,7 +2,7 @@
 
 use buffer::ResizableFrameBuffer;
 use defs;
-use event::{ControllerBindData, EngineEvent, MidiEvent, ModulatableParameter, PatchEvent};
+use event::{ControllerBindData, EngineEvent, MidiEvent, ModulatableParameter, PatchEvent, RawMidi};
 use processor::{Adsr, Delay, Gain, Oscillator, Filter,
                 ModulationMatrix, MonoNoteSelector, PitchBend, Waveshaper};
 use sample::slice;
@@ -10,6 +10,7 @@ use sample::slice;
 pub struct Engine
 {
     // Misc
+    raw_midi_buffer: Vec<RawMidi>,
     engine_event_buffer: Vec<(usize, EngineEvent)>,
     note_selector: MonoNoteSelector,
     pitch_bend: PitchBend,
@@ -32,6 +33,7 @@ impl Engine
     pub fn new(dump_timing_info: bool) -> Self {
         Self {
             // Engine Event Processing
+            raw_midi_buffer: Vec::with_capacity(defs::RAW_MIDI_BUF_LEN),
             engine_event_buffer: Vec::with_capacity(defs::ENGINE_EVENT_BUF_LEN),
             note_selector: MonoNoteSelector::new(),
             pitch_bend: PitchBend::new(),
@@ -142,12 +144,25 @@ impl Engine
         }
     }
 
+    #[cfg(feature = "jack")]
+    pub fn jack_audio_requested(&mut self,
+                                main_buffer: &mut defs::MonoFrameBufferSlice,
+                                jack_raw_midi_iter: jack::MidiIter,
+                                sample_rate: defs::Sample)
+    {
+        // Convert JACK raw MIDI into a generic format
+        for jack_raw_midi_event in jack_raw_midi_iter {
+            self.raw_midi_buffer.push(RawMidi::from_jack_raw_midi(&jack_raw_midi_event));
+        }
+
+        self.audio_requested(main_buffer, sample_rate);
+    }
+
     /// Request audio.
     /// Buffer is a mutable slice of frames,
     /// where each frame is a slice containing a single sample.
     pub fn audio_requested(&mut self,
                            main_buffer: &mut defs::MonoFrameBufferSlice,
-                           raw_midi_iter: jack::MidiIter,
                            sample_rate: defs::Sample)
     {
         let engine_start_time = time::precise_time_ns();
@@ -157,8 +172,8 @@ impl Engine
 
         self.engine_event_buffer.clear();
         let mut midi_panic = false;
-        for raw_midi_event in raw_midi_iter {
-            if let Some((frame_num, midi_event)) = MidiEvent::parse(raw_midi_event, None) {
+        for raw_midi_event in self.raw_midi_buffer.iter() {
+            if let Some((frame_num, midi_event)) = MidiEvent::parse(&raw_midi_event, None) {
                 // Check for MIDI panics.
                 match midi_event {
                     MidiEvent::AllNotesOff | MidiEvent::AllSoundOff => {
