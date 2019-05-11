@@ -23,3 +23,14 @@ opt-level = 3
 debug = true
 debug-assertions = true
 overflow-checks = false
+
+[lib]
+required-features = ["plugin_vst"]
+name = "baselisk_vst"
+path = "src/vst_lib.rs"
+crate-type = ["dylib"]
+
+[[bin]]
+required-features = ["plugin_jack"]
+name = "baselisk_jack"
+path = "src/jack_main.rs"

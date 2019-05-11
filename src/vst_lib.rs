@@ -1,12 +1,24 @@
-#![allow(clippy::cast_precision_loss)]
+//! Synthesizer.
+//!
 
-use defs;
+#[cfg(feature = "vst")]
+#[macro_use]
+extern crate vst;
 
+extern crate sample;
+
+mod defs;
+
+#[cfg(feature = "vst")]
 use vst::plugin::{Info, Plugin};
 
+#[allow(clippy::cast_precision_loss)]
+
+#[cfg(feature = "vst")]
 #[derive(Default)]
 struct BaseliskPlugin;
 
+#[cfg(feature = "vst")]
 impl Plugin for BaseliskPlugin {
     fn get_info(&self) -> Info {
         Info {
@@ -18,8 +30,5 @@ impl Plugin for BaseliskPlugin {
     }
 }
 
-struct BaseliskPluginParameters {
-    // To do...
-}
-
+#[cfg(feature = "vst")]
 plugin_main!(BaseliskPlugin);
