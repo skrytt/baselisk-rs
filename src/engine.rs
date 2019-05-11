@@ -150,7 +150,8 @@ impl Engine
                                 jack_raw_midi_iter: jack::MidiIter,
                                 sample_rate: defs::Sample)
     {
-        // Convert JACK raw MIDI into a generic format
+        // Clear old MIDI events and convert new JACK raw MIDI into a generic format
+        self.raw_midi_buffer.clear();
         for jack_raw_midi_event in jack_raw_midi_iter {
             self.raw_midi_buffer.push(RawMidi::from_jack_raw_midi(&jack_raw_midi_event));
         }
