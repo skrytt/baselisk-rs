@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["skrytt"]
 
 [features]
-default = ["plugin_jack"]
+default = ["plugin_vst"]
 plugin_jack = ["jack"]
 plugin_vst = ["vst"]
 
@@ -28,7 +28,7 @@ overflow-checks = false
 required-features = ["plugin_vst"]
 name = "baselisk_vst"
 path = "src/vst_lib.rs"
-crate-type = ["dylib"]
+crate-type = ["cdylib"]
 
 [[bin]]
 required-features = ["plugin_jack"]
