@@ -15,6 +15,8 @@ mod parameter;
 mod processor;
 
 #[cfg(feature = "plugin_vst")]
+use sample::ToFrameSliceMut;
+#[cfg(feature = "plugin_vst")]
 use vst::{
     api::Events,
     buffer::AudioBuffer,
