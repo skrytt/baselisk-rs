@@ -47,7 +47,7 @@ impl DelayParams {
 }
 
 pub struct Delay {
-    delay_buffer: ring_buffer::Fixed<Vec<defs::Sample>>,
+    delay_buffer: Option<ring_buffer::Fixed<Vec<defs::Sample>>>,
     params: DelayParams,
     highpass_history: BiquadSampleHistory,
     highpass_coeffs: BiquadCoefficients,
@@ -64,7 +64,7 @@ impl Delay {
             delay_buffer_vec.push(0.0);
         }
 
-        let delay_buffer = ring_buffer::Fixed::from(delay_buffer_vec);
+        let delay_buffer = Some(ring_buffer::Fixed::from(delay_buffer_vec));
 
         Self {
             delay_buffer,
@@ -170,11 +170,11 @@ impl Delay {
             let feedback = self.params.feedback.get();
 
             // Apply the old parameters up until next_keyframe.
-            {
+            if let Some(delay_buffer) = &mut self.delay_buffer {
                 let wet_gain = self.params.wet_gain.get();
 
                 for frame_num in this_keyframe..next_keyframe {
-                    let mut delayed_sample = feedback * self.delay_buffer.get(0);
+                    let mut delayed_sample = feedback * delay_buffer.get(0);
 
                     // Apply highpass to delayed sample
                     delayed_sample = process_biquad(
@@ -192,7 +192,7 @@ impl Delay {
 
                     // Mix in the dry signal and push back to the delay buffer
                     let dry_sample = buffer[frame_num][0];
-                    self.delay_buffer.push(
+                    delay_buffer.push(
                         dry_sample + delayed_sample);
 
                     // Mix the wet signal into the output buffer with the dry signal.
