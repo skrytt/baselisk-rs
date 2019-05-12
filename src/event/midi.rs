@@ -7,7 +7,7 @@ pub struct RawMidi {
 }
 
 impl RawMidi {
-    #[cfg(feature = "jack")]
+    #[cfg(feature = "plugin_jack")]
     pub fn from_jack_raw_midi(raw_event: &jack::RawMidi) -> Self {
         Self {
             time: raw_event.time as usize,
@@ -17,7 +17,7 @@ impl RawMidi {
         }
     }
 
-    #[cfg(feature = "vst")]
+    #[cfg(feature = "plugin_vst")]
     pub fn from_vst_raw_midi(raw_event: &vst::event::MidiEvent) -> Self {
         Self {
             time: raw_event.delta_frames as usize,
