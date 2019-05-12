@@ -32,7 +32,7 @@ pub struct Filter
     params: FilterParams,
     sample_rate: defs::Sample,
     last_adsr_input_sample_bits: u32,
-    biquad_coefficient_func: BiquadCoefficientGeneratorFunc,
+    biquad_coefficient_func: Option<BiquadCoefficientGeneratorFunc>,
     history: BiquadSampleHistory,
     coeffs: BiquadCoefficients,
 }
@@ -45,7 +45,7 @@ impl Filter
             params: FilterParams::new(),
             sample_rate: 0.0,
             last_adsr_input_sample_bits: 0,
-            biquad_coefficient_func: get_lowpass_second_order_biquad_consts,
+            biquad_coefficient_func: Some(get_lowpass_second_order_biquad_consts),
             history: BiquadSampleHistory::new(),
             coeffs: BiquadCoefficients::new(),
         }
@@ -124,35 +124,37 @@ impl Filter
                 // This forces the biquad coefficients to be computed at least once this slice:
                 self.last_adsr_input_sample_bits = u32::max_value();
 
-                // Iterate over two buffer slices at once using a zip method
-                slice::zip_map_in_place(output_buffer_slice, adsr_input_buffer_slice,
-                                        |output_frame, adsr_input_frame|
-                {
-                    // Iterate over the samples in each frame using a zip method
-                    output_frame.zip_map(adsr_input_frame,
-                                         |sample, adsr_input_sample|
+                if let Some(biquad_coefficient_func) = self.biquad_coefficient_func {
+                    // Iterate over two buffer slices at once using a zip method
+                    slice::zip_map_in_place(output_buffer_slice, adsr_input_buffer_slice,
+                                            |output_frame, adsr_input_frame|
                     {
-                        // Optimization: don't recompute the coefficients if they haven't changed
-                        // since last iteration.
-                        let adsr_input_sample_bits = adsr_input_sample.to_bits();
-                        if self.last_adsr_input_sample_bits != adsr_input_sample_bits {
-                            self.last_adsr_input_sample_bits = adsr_input_sample_bits;
+                        // Iterate over the samples in each frame using a zip method
+                        output_frame.zip_map(adsr_input_frame,
+                                             |sample, adsr_input_sample|
+                        {
+                            // Optimization: don't recompute the coefficients if they haven't changed
+                            // since last iteration.
+                            let adsr_input_sample_bits = adsr_input_sample.to_bits();
+                            if self.last_adsr_input_sample_bits != adsr_input_sample_bits {
+                                self.last_adsr_input_sample_bits = adsr_input_sample_bits;
 
-                            // Use adsr_input (0 <= x <= 1) to determine the influence
-                            // of self.params.adsr_sweep_octaves on the filter frequency.
-                            let frequency_hz = base_frequency_hz
-                                * defs::Sample::exp2(adsr_sweep_octaves * adsr_input_sample);
+                                // Use adsr_input (0 <= x <= 1) to determine the influence
+                                // of self.params.adsr_sweep_octaves on the filter frequency.
+                                let frequency_hz = base_frequency_hz
+                                    * defs::Sample::exp2(adsr_sweep_octaves * adsr_input_sample);
 
-                            (self.biquad_coefficient_func)(
-                                    frequency_hz, quality_factor, self.sample_rate, &mut self.coeffs);
-                        }
+                                (biquad_coefficient_func)(
+                                        frequency_hz, quality_factor, self.sample_rate, &mut self.coeffs);
+                            }
 
-                        process_biquad(
-                            &mut self.history,
-                            &self.coeffs,
-                            sample)
-                    })
-                });
+                            process_biquad(
+                                &mut self.history,
+                                &self.coeffs,
+                                sample)
+                        })
+                    });
+                }
             } // output_buffer_slice exits scope
 
             // We've reached the next_keyframe.
