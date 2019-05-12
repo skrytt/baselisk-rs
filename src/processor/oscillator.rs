@@ -71,7 +71,7 @@ impl State {
 pub struct Oscillator {
     params: Params,
     state: State,
-    generator_func: fn(&mut State, &mut defs::MonoFrameBufferSlice),
+    generator_func: Option<fn(&mut State, &mut defs::MonoFrameBufferSlice)>,
 }
 
 impl Oscillator {
@@ -81,7 +81,7 @@ impl Oscillator {
         Self {
             params: Params::new(),
             state: State::new(),
-            generator_func: sine_generator,
+            generator_func: Some(sine_generator),
         }
     }
 
@@ -101,7 +101,7 @@ impl Oscillator {
             "__test_high_signal" => high_signal_generator,
             _ => return Err("Unknown oscillator type specified"),
         };
-        self.generator_func = generator_func;
+        self.generator_func = Some(generator_func);
         Ok(())
     }
 
@@ -134,7 +134,6 @@ impl Oscillator {
                mut engine_event_iter: slice::Iter<(usize, EngineEvent)>,
                sample_rate: defs::Sample,
     ) {
-        let buffer_size = buffer.len();
         self.state.sample_rate = sample_rate;
 
         // Generate the outputs per-frame
@@ -178,13 +177,15 @@ impl Oscillator {
 
             // Generate all the samples for this buffer
             let buffer_slice = buffer.get_mut(this_keyframe..next_keyframe).unwrap();
-            (self.generator_func)(&mut self.state, buffer_slice);
+            if let Some(generator_func) = self.generator_func {
+                (generator_func)(&mut self.state, buffer_slice);
+            }
 
             // We've reached the next_keyframe.
             this_keyframe = next_keyframe;
 
             // What we do now depends on whether we reached the end of the buffer.
-            if this_keyframe == buffer_size {
+            if this_keyframe == buffer.len() {
                 // Loop exit condition: reached the end of the buffer.
                 break
             } else {
