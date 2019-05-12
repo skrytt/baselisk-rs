@@ -8,7 +8,6 @@ use std::slice;
 
 /// States that ADSR can be in
 enum AdsrStages {
-    Off,         // No note is held and any release phase has ended
     HeldAttack,  // Attack
     HeldDecay,   // Decay
     HeldSustain, // Sustain
@@ -36,7 +35,7 @@ impl AdsrParams {
 
 /// Struct to hold the current state of an ADSR processor
 struct AdsrState {
-    stage: AdsrStages,
+    stage: Option<AdsrStages>,
     notes_held_count: i32,
     gain_at_stage_start: f32,
     relative_gain_at_stage_end: f32,
@@ -56,7 +55,7 @@ impl Adsr {
         Self {
             params: AdsrParams::new(),
             state: AdsrState {
-                stage: AdsrStages::Off,
+                stage: None,
                 notes_held_count: 0,
                 gain_at_stage_start: 0.0,
                 relative_gain_at_stage_end: 0.0,
@@ -103,35 +102,33 @@ impl Adsr {
                     self.state.phase_time = 0.0;
                 }
             }
-            self.state.stage = AdsrStages::HeldAttack;
+            self.state.stage = Some(AdsrStages::HeldAttack);
         } else if !any_notes_held {
             // Transition to release stage
-            if let AdsrStages::Off = self.state.stage {
-                // This case shouldn't generally happen and is ignored
-            } else {
+            if self.state.stage.is_some() {
                 self.state.gain_at_stage_start = self.get_gain();
                 self.state.relative_gain_at_stage_end = -self.state.gain_at_stage_start;
                 self.state.phase_time = 0.0;
             }
-            self.state.stage = AdsrStages::Released;
+            self.state.stage = Some(AdsrStages::Released);
         }
     }
 
     fn get_gain(&self) -> f32 {
         match self.state.stage {
-            AdsrStages::Off => 0.0,
-            AdsrStages::HeldAttack => {
+            None => 0.0,
+            Some(AdsrStages::HeldAttack) => {
                 self.state.gain_at_stage_start
                 + self.state.relative_gain_at_stage_end * (
                     self.state.phase_time / self.params.attack_duration.get())
             }
-            AdsrStages::HeldDecay => {
+            Some(AdsrStages::HeldDecay) => {
                 self.state.gain_at_stage_start
                 + self.state.relative_gain_at_stage_end * (
                     self.state.phase_time / self.params.decay_duration.get())
             }
-            AdsrStages::HeldSustain => self.params.sustain_level.get(),
-            AdsrStages::Released => {
+            Some(AdsrStages::HeldSustain) => self.params.sustain_level.get(),
+            Some(AdsrStages::Released) => {
                 self.state.gain_at_stage_start
                 + self.state.relative_gain_at_stage_end * (
                     self.state.phase_time / self.params.release_duration.get())
@@ -142,7 +139,7 @@ impl Adsr {
     pub fn midi_panic(&mut self) {
         // Release all notes and reset state to "Off"
         self.state.notes_held_count = 0;
-        self.state.stage = AdsrStages::Off;
+        self.state.stage = None;
     }
 
     // Process the buffer of audio.
@@ -154,10 +151,7 @@ impl Adsr {
     {
         self.state.sample_duration = 1.0 / sample_rate as f32;
 
-        let mut any_nonzero_output = match self.state.stage {
-            AdsrStages::Off => false,
-            _ => true,
-        };
+        let mut any_nonzero_output = self.state.stage.is_some();
 
         // Calculate the output values per-frame
         let mut this_keyframe: usize = 0;
@@ -245,24 +239,24 @@ impl Adsr {
         self.state.phase_time += self.state.sample_duration;
         // Handle phase advancing
         match self.state.stage {
-            AdsrStages::HeldAttack => {
+            Some(AdsrStages::HeldAttack) => {
                 if self.state.phase_time >= self.params.attack_duration.get() {
-                    self.state.stage = AdsrStages::HeldDecay;
+                    self.state.stage = Some(AdsrStages::HeldDecay);
                     self.state.gain_at_stage_start = 1.0;
                     self.state.relative_gain_at_stage_end =
                         self.params.sustain_level.get() - self.state.gain_at_stage_start;
                     self.state.phase_time -= self.params.attack_duration.get();
                 }
             }
-            AdsrStages::HeldDecay => {
+            Some(AdsrStages::HeldDecay) => {
                 if self.state.phase_time >= self.params.decay_duration.get() {
-                    self.state.stage = AdsrStages::HeldSustain;
+                    self.state.stage = Some(AdsrStages::HeldSustain);
                 }
             }
-            AdsrStages::HeldSustain => return self.params.sustain_level.get(),
-            AdsrStages::Released => {
+            Some(AdsrStages::HeldSustain) => return self.params.sustain_level.get(),
+            Some(AdsrStages::Released) => {
                 if self.state.phase_time >= self.params.release_duration.get() {
-                    self.state.stage = AdsrStages::Off;
+                    self.state.stage = None;
                 }
             }
             _ => (),
