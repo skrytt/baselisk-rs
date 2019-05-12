@@ -16,6 +16,16 @@ impl RawMidi {
             data2: raw_event.bytes[2],
         }
     }
+
+    #[cfg(feature = "vst")]
+    pub fn from_vst_raw_midi(raw_event: &vst::event::MidiEvent) -> Self {
+        Self {
+            time: raw_event.delta_frames as usize,
+            status: raw_event.data[0],
+            data1: raw_event.data[1],
+            data2: raw_event.data[2],
+        }
+    }
 }
 
 /// Enumeration of MIDI event types

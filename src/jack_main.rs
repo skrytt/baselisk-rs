@@ -66,11 +66,9 @@ where
             let raw_midi_iter = midi_input_port.iter(process_scope);
 
             let mut engine_callback = engine_callback.write().unwrap();
+            engine_callback.set_sample_rate(client.sample_rate() as defs::Sample);
             engine_callback.apply_patch_events(&rx_audio_thread, &tx_audio_thread);
-
-            engine_callback.jack_audio_requested(buffer,
-                                                 raw_midi_iter,
-                                                 client.sample_rate() as defs::Sample);
+            engine_callback.jack_audio_requested(buffer, raw_midi_iter);
 
             jack::Control::Continue
         }

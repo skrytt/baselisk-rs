@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["skrytt"]
 
 [features]
-default = ["plugin_vst"]
+default = ["plugin_jack"]
 plugin_jack = ["jack"]
 plugin_vst = ["vst"]
 
