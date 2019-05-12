@@ -138,6 +138,8 @@ impl Oscillator {
                sample_rate: defs::Sample,
     ) {
         self.state.sample_rate = sample_rate;
+        // Store buffer len to avoid multiple mutable buffer accesses later on
+        let buffer_len = buffer.len();
 
         // Generate the outputs per-frame
         let mut this_keyframe: usize = 0;
@@ -168,7 +170,7 @@ impl Oscillator {
                 next_keyframe = *frame_num;
             } else {
                 // No more note change events, so we'll process to the end of the buffer.
-                next_keyframe = buffer.len();
+                next_keyframe = buffer_len;
             };
 
             // Apply the old parameters up until next_keyframe.
@@ -188,7 +190,7 @@ impl Oscillator {
             this_keyframe = next_keyframe;
 
             // What we do now depends on whether we reached the end of the buffer.
-            if this_keyframe == buffer.len() {
+            if this_keyframe == buffer_len {
                 // Loop exit condition: reached the end of the buffer.
                 break
             } else {
