@@ -12,6 +12,7 @@ pub trait Parameter {
 
 /// A parameter that can be modulated.
 /// Its base value is the "unmodulated" value of the parameter.
+#[derive(Default)]
 pub struct LinearParameter
 {
     low_limit: defs::Sample,
@@ -79,6 +80,7 @@ impl Parameter for LinearParameter {
 
 /// A parameter that can be modulated.
 /// Its base value is the "unmodulated" value of the parameter.
+#[derive(Default)]
 pub struct FrequencyParameter
 {
     low_limit: defs::Sample,

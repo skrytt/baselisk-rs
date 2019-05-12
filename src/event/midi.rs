@@ -1,3 +1,4 @@
+#[derive(Default)]
 pub struct RawMidi {
     time: usize,
     status: u8,

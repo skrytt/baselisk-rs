@@ -7,7 +7,12 @@ extern crate vst;
 
 extern crate sample;
 
+mod buffer;
 mod defs;
+mod engine;
+mod event;
+mod parameter;
+mod processor;
 
 #[cfg(feature = "vst")]
 use vst::plugin::{Info, Plugin};
@@ -16,7 +21,9 @@ use vst::plugin::{Info, Plugin};
 
 #[cfg(feature = "vst")]
 #[derive(Default)]
-struct BaseliskPlugin;
+struct BaseliskPlugin {
+    engine: engine::Engine,
+}
 
 #[cfg(feature = "vst")]
 impl Plugin for BaseliskPlugin {

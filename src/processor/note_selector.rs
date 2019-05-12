@@ -2,6 +2,7 @@
 use event::{EngineEvent, MidiEvent};
 
 /// A note selector with high-note-priority selection.
+#[derive(Default)]
 pub struct MonoNoteSelector {
     notes_held: Vec<bool>,
     note_priority_stack: Vec<u8>,

@@ -3,6 +3,7 @@ extern crate sample;
 use defs;
 use sample::{Frame, Sample, slice};
 
+#[derive(Default)]
 pub struct Gain {
     amplitude: defs::Sample,
 }

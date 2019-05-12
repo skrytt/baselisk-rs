@@ -2,6 +2,7 @@ use event::{EngineEvent, MidiEvent, ModulatableParameter};
 
 /// A modulation matrix implementation.
 /// Routes MIDI CC message data to the appropriate SingleController instance.
+#[derive(Default)]
 pub struct ModulationMatrix
 {
     controllers: Vec<SingleController>,
@@ -56,7 +57,7 @@ impl ModulationMatrix
 
 /// A handler for messages from a single MIDI CC controller.
 /// A SingleController can modulate a single parameter.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 struct SingleController
 {
     parameter: Option<ModulatableParameter>,

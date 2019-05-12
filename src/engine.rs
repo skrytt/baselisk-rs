@@ -7,6 +7,7 @@ use processor::{Adsr, Delay, Gain, Oscillator, Filter,
                 ModulationMatrix, MonoNoteSelector, PitchBend, Waveshaper};
 use sample::slice;
 
+#[derive(Default)]
 pub struct Engine
 {
     // Misc

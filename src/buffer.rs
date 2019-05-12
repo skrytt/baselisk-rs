@@ -4,6 +4,7 @@ use sample::Frame;
 
 /// Buffer: a container for a buffer needed for processing,
 /// and a means to manage its size.
+#[derive(Default)]
 pub struct ResizableFrameBuffer<F>
 where
     F: Frame,

@@ -15,6 +15,7 @@ enum AdsrStages {
 }
 
 /// Struct to hold user configurable parameters for an ADSR processor
+#[derive(Default)]
 pub struct AdsrParams {
     attack_duration: LinearParameter,
     decay_duration: LinearParameter,
@@ -34,6 +35,7 @@ impl AdsrParams {
 }
 
 /// Struct to hold the current state of an ADSR processor
+#[derive(Default)]
 struct AdsrState {
     stage: Option<AdsrStages>,
     notes_held_count: i32,
@@ -45,6 +47,7 @@ struct AdsrState {
 }
 
 /// An ADSR struct with all the bits plugged together:
+#[derive(Default)]
 pub struct Adsr {
     params: AdsrParams,
     state: AdsrState,
