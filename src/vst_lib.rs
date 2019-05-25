@@ -52,6 +52,7 @@ impl Plugin for BaseliskPlugin {
             name: defs::PLUGIN_NAME.to_string(),
             unique_id: 5211,
             category: Category::Synth,
+            parameters: NUM_PARAMS,
             ..Default::default()
         }
     }
@@ -72,6 +73,10 @@ impl Plugin for BaseliskPlugin {
             .to_frame_slice_mut().unwrap();
 
         self.engine.audio_requested(output_buffer)
+    }
+
+    fn get_parameter_object(&mut self) -> Arc<dyn PluginParameters> {
+            Arc::clone(&self.params) as Arc<dyn PluginParameters>
     }
 }
 
@@ -94,6 +99,7 @@ const PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO: i32 = 15;
 const PARAM_OSCILLATOR_MOD_INDEX: i32 = 16;
 const PARAM_WAVESHAPER_INPUT_GAIN: i32 = 17;
 const PARAM_WAVESHAPER_OUTPUT_GAIN: i32 = 18;
+const NUM_PARAMS: i32 = 19;
 
 #[cfg(feature = "plugin_vst")]
 struct BaseliskPluginParameters {
