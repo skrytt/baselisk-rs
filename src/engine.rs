@@ -7,7 +7,6 @@ use processor::{Adsr, Delay, Gain, Oscillator, Filter,
                 ModulationMatrix, MonoNoteSelector, PitchBend, Waveshaper};
 use sample::slice;
 
-#[derive(Default)]
 pub struct Engine
 {
     // Misc
@@ -153,7 +152,7 @@ impl Engine
         self.sample_rate = sample_rate;
     }
 
-    #[cfg(feature = "jack")]
+    #[cfg(feature = "plugin_jack")]
     pub fn jack_audio_requested(&mut self,
                                 main_buffer: &mut defs::MonoFrameBufferSlice,
                                 jack_raw_midi_iter: jack::MidiIter)
@@ -167,7 +166,7 @@ impl Engine
         self.audio_requested(main_buffer);
     }
 
-    #[cfg(feature = "vst")]
+    #[cfg(feature = "plugin_vst")]
     pub fn vst_process_events(&mut self,
                               vst_raw_events: &vst::api::Events)
     {

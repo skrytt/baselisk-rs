@@ -23,7 +23,6 @@ use sample::ring_buffer;
 use std::slice::Iter;
 
 /// Parameters available for delay-specific filters.
-#[derive(Default)]
 pub struct DelayParams {
     highpass_frequency: FrequencyParameter,
     highpass_quality: LinearParameter,
@@ -47,7 +46,6 @@ impl DelayParams {
     }
 }
 
-#[derive(Default)]
 pub struct Delay {
     delay_buffer: Option<ring_buffer::Fixed<Vec<defs::Sample>>>,
     params: DelayParams,

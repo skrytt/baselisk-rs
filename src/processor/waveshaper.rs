@@ -5,7 +5,6 @@ use event::{EngineEvent, ModulatableParameter, ModulatableParameterUpdateData};
 use parameter::{Parameter, LinearParameter};
 use std::slice::Iter;
 
-#[derive(Default)]
 pub struct Waveshaper {
     input_gain: LinearParameter,
     output_gain: LinearParameter,

@@ -2,7 +2,6 @@ use defs;
 use event::{EngineEvent, MidiEvent, ModulatableParameterUpdateData};
 use parameter::{Parameter, LinearParameter};
 
-#[derive(Default)]
 pub struct PitchBend {
     range_semitones: LinearParameter,
 }

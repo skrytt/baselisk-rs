@@ -7,7 +7,6 @@ use sample::{Frame, slice};
 use std::default::Default;
 
 /// Parameters available for filters.
-#[derive(Default)]
 struct FilterParams {
     frequency: FrequencyParameter,
     adsr_sweep_octaves: LinearParameter,
@@ -28,7 +27,6 @@ impl FilterParams {
 /// A low pass filter type that can be used for audio processing.
 /// This is to be a constant-peak-gain two-pole resonator with
 /// parameterized cutoff frequency and resonance.
-#[derive(Default)]
 pub struct Filter
 {
     params: FilterParams,

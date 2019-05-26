@@ -6,7 +6,7 @@ authors = ["skrytt"]
 [features]
 default = ["plugin_jack"]
 plugin_jack = ["jack"]
-plugin_vst = ["vst"]
+plugin_vst = []
 
 [dependencies]
 clap = "2.33"
@@ -14,7 +14,7 @@ jack = { version = "0.6", optional = true }
 rustyline = "3.0.0"
 sample = "0.10.0"
 time = "0.1"
-vst = { git = "https://github.com/rust-dsp/rust-vst", optional = true }
+vst = { git = "https://github.com/rust-dsp/rust-vst" }
 
 [profile.dev]
 codegen-units = 1

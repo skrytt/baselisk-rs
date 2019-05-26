@@ -5,6 +5,9 @@ extern crate sample;
 extern crate rustyline;
 extern crate time;
 
+// vst crate used here for AtomicFloat type
+extern crate vst;
+
 #[cfg(feature = "jack")]
 extern crate jack;
 

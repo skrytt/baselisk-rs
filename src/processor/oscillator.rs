@@ -12,7 +12,6 @@ fn get_frequency(note: defs::Sample) -> defs::Sample {
     440.0 * ((note - 69.0) / 12.0).exp2()
 }
 
-#[derive(Default)]
 pub struct Params {
     pitch_offset: LinearParameter, // Semitones
     pulse_width: LinearParameter,
@@ -32,7 +31,6 @@ impl Params {
 }
 
 /// Internal state used by oscillator types.
-#[derive(Default)]
 pub struct State {
     sample_rate: defs::Sample,
     note: u8,
@@ -70,7 +68,6 @@ impl State {
 }
 
 /// Oscillator type that will be used for audio processing.
-#[derive(Default)]
 pub struct Oscillator {
     params: Params,
     state: State,
