@@ -28,7 +28,7 @@ impl PitchBend {
                 // 0 => -2
                 // 8192 => 0
                 // 16383 => ~= +2 (0.012% of a semitone below 2; but who's going to notice?)
-                let semitones = self.range_semitones.get() * (
+                let semitones = self.range_semitones.get_real_value() * (
                         defs::Sample::from(*value) - 8192.0) / 8192.0;
                 Some(EngineEvent::PitchBend{ semitones })
             },

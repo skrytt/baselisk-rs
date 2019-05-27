@@ -5,34 +5,10 @@ use defs;
 pub enum PatchEvent {
     PitchBendRangeSet { semitones: defs::Sample },
     OscillatorTypeSet { type_name: String },
-    ModulatableParameterUpdate { parameter: ModulatableParameter,
+    ModulatableParameterUpdate { param_id: i32,
                                  data: ModulatableParameterUpdateData },
-    ControllerBindUpdate { parameter: ModulatableParameter,
+    ControllerBindUpdate { param_id: i32,
                            bind_type: ControllerBindData },
-}
-
-/// Enum of modulatable parameters.
-#[derive(Clone, Debug)]
-pub enum ModulatableParameter {
-    AdsrAttack,
-    AdsrDecay,
-    AdsrSustain,
-    AdsrRelease,
-    DelayWetGain,
-    DelayFeedback,
-    DelayHighPassFilterFrequency,
-    DelayHighPassFilterQuality,
-    DelayLowPassFilterFrequency,
-    DelayLowPassFilterQuality,
-    FilterFrequency,
-    FilterQuality,
-    FilterSweepRange,
-    OscillatorPitch,
-    OscillatorPulseWidth,
-    OscillatorModFrequencyRatio,
-    OscillatorModIndex,
-    WaveshaperInputGain,
-    WaveshaperOutputGain,
 }
 
 /// Types of float parameter updates

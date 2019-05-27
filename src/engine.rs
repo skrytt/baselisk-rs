@@ -2,15 +2,19 @@
 
 use buffer::ResizableFrameBuffer;
 use defs;
-use event::{ControllerBindData, EngineEvent, MidiEvent, ModulatableParameter, PatchEvent, RawMidi};
+use event::{ControllerBindData, EngineEvent, MidiEvent, PatchEvent, RawMidi};
+use parameter;
 use processor::{Adsr, Delay, Gain, Oscillator, Filter,
                 ModulationMatrix, MonoNoteSelector, PitchBend, Waveshaper};
 use sample::slice;
+use std::sync::Arc;
+use vst::plugin::PluginParameters;
 
 pub struct Engine
 {
     // Misc
     sample_rate: defs::Sample,
+    params: Arc<parameter::BaseliskPluginParameters>,
     raw_midi_buffer: Vec<RawMidi>,
     engine_event_buffer: Vec<(usize, EngineEvent)>,
     note_selector: MonoNoteSelector,
@@ -35,6 +39,7 @@ impl Engine
         Self {
             // Engine Event Processing
             sample_rate: 0.0,
+            params: Default::default(),
             raw_midi_buffer: Vec::with_capacity(defs::RAW_MIDI_BUF_LEN),
             engine_event_buffer: Vec::with_capacity(defs::ENGINE_EVENT_BUF_LEN),
             note_selector: MonoNoteSelector::new(),
@@ -49,9 +54,14 @@ impl Engine
             adsr: Adsr::new(),
             gain: Gain::new(1.0),
             filter: Filter::new(),
-            waveshaper: Waveshaper::new(),
+            waveshaper: Waveshaper{},
             delay: Delay::new(),
         }
+    }
+
+    #[cfg(feature = "plugin_vst")]
+    pub fn get_parameter_object(&self) -> Arc<dyn PluginParameters> {
+        Arc::clone(&self.params) as Arc<dyn PluginParameters>
     }
 
     pub fn apply_patch_events(&mut self,
@@ -70,74 +80,18 @@ impl Engine
                 PatchEvent::OscillatorTypeSet { type_name } => {
                     self.oscillator.set_type(&type_name)
                 },
-                PatchEvent::ControllerBindUpdate { parameter, bind_type } => {
+                PatchEvent::ControllerBindUpdate { param_id, bind_type } => {
                     match bind_type {
                         ControllerBindData::MidiLearn => {
-                            self.modulation_matrix.learn_parameter(parameter)
+                            self.modulation_matrix.learn_parameter(param_id)
                         },
                         ControllerBindData::CliInput(cc_number) => {
-                            self.modulation_matrix.bind_parameter(cc_number, parameter)
+                            self.modulation_matrix.bind_parameter(cc_number, param_id)
                         },
                     }
                 },
-                PatchEvent::ModulatableParameterUpdate { parameter, data } => match parameter {
-                    ModulatableParameter::AdsrAttack => {
-                        self.adsr.update_attack(data)
-                    },
-                    ModulatableParameter::AdsrDecay => {
-                        self.adsr.update_decay(data)
-                    },
-                    ModulatableParameter::AdsrSustain => {
-                        self.adsr.update_sustain(data)
-                    },
-                    ModulatableParameter::AdsrRelease => {
-                        self.adsr.update_release(data)
-                    },
-                    ModulatableParameter::DelayFeedback => {
-                        self.delay.update_feedback(data)
-                    },
-                    ModulatableParameter::DelayHighPassFilterFrequency => {
-                        self.delay.update_highpass_frequency(data)
-                    },
-                    ModulatableParameter::DelayHighPassFilterQuality => {
-                        self.delay.update_highpass_quality(data)
-                    },
-                    ModulatableParameter::DelayLowPassFilterFrequency => {
-                        self.delay.update_lowpass_frequency(data)
-                    },
-                    ModulatableParameter::DelayLowPassFilterQuality => {
-                        self.delay.update_lowpass_quality(data)
-                    },
-                    ModulatableParameter::DelayWetGain => {
-                        self.delay.update_wet_gain(data)
-                    },
-                    ModulatableParameter::FilterFrequency => {
-                        self.filter.update_frequency(data)
-                    },
-                    ModulatableParameter::FilterSweepRange => {
-                        self.filter.update_sweep(data)
-                    },
-                    ModulatableParameter::FilterQuality => {
-                        self.filter.update_quality(data)
-                    },
-                    ModulatableParameter::OscillatorPitch => {
-                        self.oscillator.update_pitch(data)
-                    },
-                    ModulatableParameter::OscillatorPulseWidth => {
-                        self.oscillator.update_pulse_width(data)
-                    },
-                    ModulatableParameter::OscillatorModFrequencyRatio => {
-                        self.oscillator.update_mod_frequency_ratio(data)
-                    },
-                    ModulatableParameter::OscillatorModIndex => {
-                        self.oscillator.update_mod_index(data)
-                    },
-                    ModulatableParameter::WaveshaperInputGain => {
-                        self.waveshaper.update_input_gain(data)
-                    },
-                    ModulatableParameter::WaveshaperOutputGain => {
-                        self.waveshaper.update_output_gain(data)
-                    },
+                PatchEvent::ModulatableParameterUpdate { param_id, data } => {
+                    self.params.update_patch(param_id, data)
                 },
             };
             // TODO: either fix this, or refactor it out
@@ -228,7 +182,8 @@ impl Engine
         let adsr_buffer = self.adsr_buffer.get_sized_mut(frames_this_buffer);
         let adsr_any_nonzero_output = self.adsr.process_buffer(adsr_buffer,
                                  self.engine_event_buffer.iter(),
-                                 self.sample_rate);
+                                 self.sample_rate,
+                                 &self.params);
         self.timing_data.adsr = (time::precise_time_ns() - adsr_start_time) / 1000;
 
         // Optimization: when ADSR is in the off state for a whole buffer,
@@ -239,7 +194,8 @@ impl Engine
             let oscillator_start_time = time::precise_time_ns();
             self.oscillator.process_buffer(main_buffer,
                                            self.engine_event_buffer.iter(),
-                                           self.sample_rate);
+                                           self.sample_rate,
+                                           &self.params);
             self.timing_data.oscillator = (time::precise_time_ns() - oscillator_start_time) / 1000;
 
             // Use ADSR to apply gain to oscillator output
@@ -255,20 +211,23 @@ impl Engine
         self.filter.process_buffer(adsr_buffer,
                                    main_buffer,
                                    self.engine_event_buffer.iter(),
-                                   self.sample_rate);
+                                   self.sample_rate,
+                                   &self.params);
         self.timing_data.filter = (time::precise_time_ns() - filter_start_time) / 1000;
 
         // Waveshaper
         let waveshaper_start_time = time::precise_time_ns();
         self.waveshaper.process_buffer(main_buffer,
-                                       self.engine_event_buffer.iter());
+                                       self.engine_event_buffer.iter(),
+                                       &self.params);
         self.timing_data.waveshaper = (time::precise_time_ns() - waveshaper_start_time) / 1000;
 
         // Delay
         let delay_start_time = time::precise_time_ns();
         self.delay.process_buffer(main_buffer,
                                   self.engine_event_buffer.iter(),
-                                  self.sample_rate);
+                                  self.sample_rate,
+                                  &self.params);
         self.timing_data.delay = (time::precise_time_ns() - delay_start_time) / 1000;
 
         self.timing_data.total = (time::precise_time_ns() - engine_start_time) / 1000;

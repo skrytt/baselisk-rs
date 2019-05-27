@@ -30,7 +30,6 @@ use std::sync::Arc;
 #[cfg(feature = "plugin_vst")]
 struct BaseliskPlugin {
     engine: engine::Engine,
-    params: Arc<parameter::BaseliskPluginParameters>,
 }
 
 #[cfg(feature = "plugin_vst")]
@@ -38,7 +37,6 @@ impl Default for BaseliskPlugin {
     fn default() -> BaseliskPlugin {
         BaseliskPlugin {
             engine: engine::Engine::new(false),
-            params: Default::default(),
         }
     }
 }
@@ -74,7 +72,7 @@ impl Plugin for BaseliskPlugin {
     }
 
     fn get_parameter_object(&mut self) -> Arc<dyn PluginParameters> {
-            Arc::clone(&self.params) as Arc<dyn PluginParameters>
+        self.engine.get_parameter_object()
     }
 }
 

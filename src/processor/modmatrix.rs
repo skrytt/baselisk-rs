@@ -1,4 +1,5 @@
-use event::{EngineEvent, MidiEvent, ModulatableParameter};
+use defs;
+use event::{EngineEvent, MidiEvent};
 
 /// A modulation matrix implementation.
 /// Routes MIDI CC message data to the appropriate SingleController instance.
@@ -6,7 +7,7 @@ use event::{EngineEvent, MidiEvent, ModulatableParameter};
 pub struct ModulationMatrix
 {
     controllers: Vec<SingleController>,
-    parameter_to_learn: Option<ModulatableParameter>,
+    parameter_to_learn: Option<i32>,
 }
 
 impl ModulationMatrix
@@ -19,14 +20,14 @@ impl ModulationMatrix
     }
 
     /// Set that a parameter should be bound to the next MIDI CC received.
-    pub fn learn_parameter(&mut self, parameter: ModulatableParameter)
+    pub fn learn_parameter(&mut self, parameter: i32)
                            -> Result<(), &'static str>
     {
         self.parameter_to_learn = Some(parameter);
         Ok(())
     }
 
-    pub fn bind_parameter(&mut self, number: u8, parameter: ModulatableParameter)
+    pub fn bind_parameter(&mut self, number: u8, parameter: i32)
                           -> Result<(), &'static str>
     {
         let controller = self.controllers.get_mut(number as usize).unwrap();
@@ -60,28 +61,32 @@ impl ModulationMatrix
 #[derive(Clone, Default)]
 struct SingleController
 {
-    parameter: Option<ModulatableParameter>,
+    param_id: Option<i32>,
 }
 
 impl SingleController
 {
     pub fn new() -> Self {
         Self {
-            parameter: None,
+            param_id: None,
         }
     }
 
     /// Bind this controller to a ModulatableParameter.
-    pub fn bind(&mut self, parameter: ModulatableParameter) {
-        self.parameter = Some(parameter);
+    pub fn bind(&mut self, param_id: i32) {
+        self.param_id = Some(param_id);
     }
 
     /// Process an incoming MIDI CC value.
     /// Maybe emit an EngineEvent::ModulateParameter.
-    pub fn process(&self, value: u8) -> Option<EngineEvent> {
-        if let Some(ref parameter) = self.parameter {
-            let parameter = parameter.clone();
-            return Some(EngineEvent::ModulateParameter{ parameter, value })
+    pub fn process(&self, cc_value: u8) -> Option<EngineEvent> {
+        if let Some(ref param_id) = self.param_id {
+            let param_id = param_id.clone();
+
+            // Convert the MIDI value into a value in the range 0.0 <= val <= 1.0
+            let value = defs::Sample::from(cc_value) / 127.0;
+
+            return Some(EngineEvent::ModulateParameter{ param_id, value })
         }
         None
     }

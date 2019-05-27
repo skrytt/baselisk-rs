@@ -1,36 +1,22 @@
 extern crate sample;
 
 use defs;
-use event::{EngineEvent, ModulatableParameter, ModulatableParameterUpdateData};
-use parameter::{Parameter, LinearParameter};
+use event::EngineEvent;
+use parameter::{
+    BaseliskPluginParameters,
+    PARAM_WAVESHAPER_INPUT_GAIN,
+    PARAM_WAVESHAPER_OUTPUT_GAIN,
+};
 use std::slice::Iter;
+use vst::plugin::PluginParameters;
 
-pub struct Waveshaper {
-    input_gain: LinearParameter,
-    output_gain: LinearParameter,
-}
+pub struct Waveshaper;
 
 impl Waveshaper {
-    pub fn new() -> Self {
-        Self {
-            input_gain: LinearParameter::new(0.0, 1.0, 0.333),
-            output_gain: LinearParameter::new(0.0, 1.0, 0.2),
-        }
-    }
-
-    pub fn update_input_gain(&mut self, data: ModulatableParameterUpdateData)
-                          -> Result<(), &'static str> {
-        self.input_gain.update_patch(data)
-    }
-
-    pub fn update_output_gain(&mut self, data: ModulatableParameterUpdateData)
-                           -> Result<(), &'static str> {
-        self.output_gain.update_patch(data)
-    }
-
     pub fn process_buffer(&mut self,
                           buffer: &mut defs::MonoFrameBufferSlice,
-                          mut engine_event_iter: Iter<(usize, EngineEvent)>)
+                          mut engine_event_iter: Iter<(usize, EngineEvent)>,
+                          params: &BaseliskPluginParameters)
     {
         // Calculate the output values per-frame
         let mut this_keyframe: usize = 0;
@@ -41,10 +27,10 @@ impl Waveshaper {
 
             if let Some((frame_num, engine_event)) = next_event {
                 match engine_event {
-                    EngineEvent::ModulateParameter { parameter, .. } => match parameter {
+                    EngineEvent::ModulateParameter { param_id, .. } => match *param_id {
                         // Waveshaper parameter events will trigger keyframes
-                        ModulatableParameter::WaveshaperInputGain |
-                        ModulatableParameter::WaveshaperOutputGain => (),
+                        PARAM_WAVESHAPER_INPUT_GAIN |
+                        PARAM_WAVESHAPER_OUTPUT_GAIN => (),
                         _ => continue,
                     },
                     _ => continue,
@@ -57,13 +43,15 @@ impl Waveshaper {
 
             // Apply the old parameters up until next_keyframe.
             if let Some(buffer_slice) = buffer.get_mut(this_keyframe..next_keyframe) {
+                let input_gain = params.get_real_value(PARAM_WAVESHAPER_INPUT_GAIN);
+                let output_gain = params.get_real_value(PARAM_WAVESHAPER_OUTPUT_GAIN);
                 for frame in buffer_slice {
                     for sample in frame {
                         *sample = {
                             // Polynomial: -x^3 + x^2 + x
                             // With input and output gain scaling
-                            let x = sample.abs().min(1.0) * self.input_gain.get();
-                            self.output_gain.get() * sample.signum() * (
+                            let x = sample.abs().min(1.0) * input_gain;
+                            output_gain * sample.signum() * (
                                 -x.powi(3) + x.powi(2) + x)
                         };
                     }
@@ -81,13 +69,11 @@ impl Waveshaper {
                 // Before the next iteration, use the event at this keyframe
                 // to update the current state.
                 let (_, event) = next_event.unwrap();
-                if let EngineEvent::ModulateParameter { parameter, value } = event {
-                    match parameter {
-                        ModulatableParameter::WaveshaperInputGain => {
-                            self.input_gain.update_cc(*value);
-                        },
-                        ModulatableParameter::WaveshaperOutputGain => {
-                            self.output_gain.update_cc(*value);
+                if let EngineEvent::ModulateParameter { param_id, value } = event {
+                    match *param_id {
+                        PARAM_WAVESHAPER_INPUT_GAIN |
+                        PARAM_WAVESHAPER_OUTPUT_GAIN => {
+                            params.set_parameter(*param_id, *value);
                         },
                         _ => (),
                     }

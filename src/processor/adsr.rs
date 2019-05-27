@@ -1,10 +1,16 @@
 use defs;
-use event::{EngineEvent,
-            ModulatableParameter,
-            ModulatableParameterUpdateData,
+use event::{
+    EngineEvent,
 };
-use parameter::{Parameter, LinearParameter};
 use std::slice;
+use parameter::{
+    BaseliskPluginParameters,
+    PARAM_ADSR_ATTACK,
+    PARAM_ADSR_DECAY,
+    PARAM_ADSR_SUSTAIN,
+    PARAM_ADSR_RELEASE,
+};
+use vst::plugin::PluginParameters;
 
 /// States that ADSR can be in
 enum AdsrStages {
@@ -12,25 +18,6 @@ enum AdsrStages {
     HeldDecay,   // Decay
     HeldSustain, // Sustain
     Released,    // Release
-}
-
-/// Struct to hold user configurable parameters for an ADSR processor
-pub struct AdsrParams {
-    attack_duration: LinearParameter,
-    decay_duration: LinearParameter,
-    sustain_level: LinearParameter,
-    release_duration: LinearParameter,
-}
-
-impl AdsrParams {
-    pub fn new() -> Self {
-        Self {
-            attack_duration: LinearParameter::new(0.0, 10.0, 0.02),
-            decay_duration: LinearParameter::new(0.0, 10.0, 0.707),
-            sustain_level: LinearParameter::new(0.0, 1.0, 0.0),
-            release_duration: LinearParameter::new(0.0, 10.0, 0.4),
-        }
-    }
 }
 
 /// Struct to hold the current state of an ADSR processor
@@ -46,14 +33,12 @@ struct AdsrState {
 
 /// An ADSR struct with all the bits plugged together:
 pub struct Adsr {
-    params: AdsrParams,
     state: AdsrState,
 }
 
 impl Adsr {
     pub fn new() -> Self {
         Self {
-            params: AdsrParams::new(),
             state: AdsrState {
                 stage: None,
                 notes_held_count: 0,
@@ -66,30 +51,10 @@ impl Adsr {
         }
     }
 
-    pub fn update_attack(&mut self, data: ModulatableParameterUpdateData)
-                         -> Result<(), &'static str>
-    {
-        self.params.attack_duration.update_patch(data)
-    }
-
-    pub fn update_decay(&mut self, data: ModulatableParameterUpdateData)
-                        -> Result<(), &'static str> {
-        self.params.decay_duration.update_patch(data)
-    }
-
-    pub fn update_sustain(&mut self, data: ModulatableParameterUpdateData)
-                          -> Result<(), &'static str> {
-        self.params.sustain_level.update_patch(data)
-    }
-
-    pub fn update_release(&mut self, data: ModulatableParameterUpdateData)
-                          -> Result<(), &'static str> {
-        self.params.release_duration.update_patch(data)
-    }
-
     pub fn update_state(&mut self,
                         any_notes_held: bool,
-                        current_note_changed: bool)
+                        current_note_changed: bool,
+                        params: &BaseliskPluginParameters)
     {
         // Percussive algorithm
         if any_notes_held && current_note_changed {
@@ -97,7 +62,7 @@ impl Adsr {
             match self.state.stage {
                 // Otherwise, avoid discontinuities
                 _ => {
-                    self.state.gain_at_stage_start = self.get_gain();
+                    self.state.gain_at_stage_start = self.get_gain(params);
                     self.state.relative_gain_at_stage_end = 1.0 - self.state.gain_at_stage_start;
                     self.state.phase_time = 0.0;
                 }
@@ -106,7 +71,7 @@ impl Adsr {
         } else if !any_notes_held {
             // Transition to release stage
             if self.state.stage.is_some() {
-                self.state.gain_at_stage_start = self.get_gain();
+                self.state.gain_at_stage_start = self.get_gain(params);
                 self.state.relative_gain_at_stage_end = -self.state.gain_at_stage_start;
                 self.state.phase_time = 0.0;
             }
@@ -114,24 +79,24 @@ impl Adsr {
         }
     }
 
-    fn get_gain(&self) -> f32 {
+    fn get_gain(&self, params: &BaseliskPluginParameters) -> f32 {
         match self.state.stage {
             None => 0.0,
             Some(AdsrStages::HeldAttack) => {
                 self.state.gain_at_stage_start
                 + self.state.relative_gain_at_stage_end * (
-                    self.state.phase_time / self.params.attack_duration.get())
+                    self.state.phase_time / params.get_real_value(PARAM_ADSR_ATTACK))
             }
             Some(AdsrStages::HeldDecay) => {
                 self.state.gain_at_stage_start
                 + self.state.relative_gain_at_stage_end * (
-                    self.state.phase_time / self.params.decay_duration.get())
+                    self.state.phase_time / params.get_real_value(PARAM_ADSR_DECAY))
             }
-            Some(AdsrStages::HeldSustain) => self.params.sustain_level.get(),
+            Some(AdsrStages::HeldSustain) => params.get_real_value(PARAM_ADSR_SUSTAIN),
             Some(AdsrStages::Released) => {
                 self.state.gain_at_stage_start
                 + self.state.relative_gain_at_stage_end * (
-                    self.state.phase_time / self.params.release_duration.get())
+                    self.state.phase_time / params.get_real_value(PARAM_ADSR_RELEASE))
             }
         }
     }
@@ -147,7 +112,8 @@ impl Adsr {
     pub fn process_buffer(&mut self,
                           buffer: &mut defs::MonoFrameBufferSlice,
                           mut engine_event_iter: slice::Iter<(usize, EngineEvent)>,
-                          sample_rate: defs::Sample) -> bool
+                          sample_rate: defs::Sample,
+                          params: &BaseliskPluginParameters) -> bool
     {
         self.state.sample_duration = 1.0 / sample_rate as f32;
 
@@ -164,11 +130,11 @@ impl Adsr {
                 match engine_event {
                     // All note changes and ADSR parameter changes will trigger keyframes
                     EngineEvent::NoteChange{ .. } => (),
-                    EngineEvent::ModulateParameter { parameter, .. } => match parameter {
-                        ModulatableParameter::AdsrAttack |
-                        ModulatableParameter::AdsrDecay |
-                        ModulatableParameter::AdsrSustain |
-                        ModulatableParameter::AdsrRelease => (),
+                    EngineEvent::ModulateParameter { param_id, .. } => match *param_id {
+                        PARAM_ADSR_ATTACK |
+                        PARAM_ADSR_DECAY |
+                        PARAM_ADSR_SUSTAIN |
+                        PARAM_ADSR_RELEASE => (),
                         _ => continue,
                     },
                     _ => continue,
@@ -183,7 +149,7 @@ impl Adsr {
             if let Some(buffer_slice) = buffer.get_mut(this_keyframe..next_keyframe) {
                 for frame in buffer_slice {
                     for sample in frame {
-                        *sample = self.advance();
+                        *sample = self.advance(params);
                     }
                 }
             }
@@ -207,23 +173,17 @@ impl Adsr {
                         // If any note is pressed, assume this means there will be some output.
                         any_nonzero_output |= any_notes_held_next;
 
-                        self.update_state(any_notes_held_next, current_note_changed_next);
+                        self.update_state(any_notes_held_next,
+                                          current_note_changed_next,
+                                          params);
 
                         self.state.selected_note = *note;
                     },
-                    EngineEvent::ModulateParameter { parameter, value } => match parameter {
-                        ModulatableParameter::AdsrAttack => {
-                            self.params.attack_duration.update_cc(*value);
-                        },
-                        ModulatableParameter::AdsrDecay => {
-                            self.params.decay_duration.update_cc(*value);
-                        },
-                        ModulatableParameter::AdsrSustain => {
-                            self.params.sustain_level.update_cc(*value);
-                        },
-                        ModulatableParameter::AdsrRelease => {
-                            self.params.release_duration.update_cc(*value);
-                        },
+                    EngineEvent::ModulateParameter { param_id, value } => match *param_id {
+                        PARAM_ADSR_ATTACK |
+                        PARAM_ADSR_DECAY |
+                        PARAM_ADSR_SUSTAIN |
+                        PARAM_ADSR_RELEASE => params.set_parameter(*param_id, *value),
                         _ => (),
                     },
                     _ => (),
@@ -235,32 +195,32 @@ impl Adsr {
         any_nonzero_output
     }
 
-    fn advance(&mut self) -> defs::Sample {
+    fn advance(&mut self, params: &BaseliskPluginParameters) -> defs::Sample {
         self.state.phase_time += self.state.sample_duration;
         // Handle phase advancing
         match self.state.stage {
             Some(AdsrStages::HeldAttack) => {
-                if self.state.phase_time >= self.params.attack_duration.get() {
+                if self.state.phase_time >= params.get_real_value(PARAM_ADSR_ATTACK) {
                     self.state.stage = Some(AdsrStages::HeldDecay);
                     self.state.gain_at_stage_start = 1.0;
                     self.state.relative_gain_at_stage_end =
-                        self.params.sustain_level.get() - self.state.gain_at_stage_start;
-                    self.state.phase_time -= self.params.attack_duration.get();
+                        params.get_real_value(PARAM_ADSR_SUSTAIN) - self.state.gain_at_stage_start;
+                    self.state.phase_time -= params.get_real_value(PARAM_ADSR_ATTACK);
                 }
             }
             Some(AdsrStages::HeldDecay) => {
-                if self.state.phase_time >= self.params.decay_duration.get() {
+                if self.state.phase_time >= params.get_real_value(PARAM_ADSR_DECAY) {
                     self.state.stage = Some(AdsrStages::HeldSustain);
                 }
             }
-            Some(AdsrStages::HeldSustain) => return self.params.sustain_level.get(),
+            Some(AdsrStages::HeldSustain) => return params.get_real_value(PARAM_ADSR_SUSTAIN),
             Some(AdsrStages::Released) => {
-                if self.state.phase_time >= self.params.release_duration.get() {
+                if self.state.phase_time >= params.get_real_value(PARAM_ADSR_RELEASE) {
                     self.state.stage = None;
                 }
             }
             _ => (),
         }
-        self.get_gain()
+        self.get_gain(params)
     }
 }

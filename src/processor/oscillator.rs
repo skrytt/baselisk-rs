@@ -1,33 +1,21 @@
 extern crate sample;
 
 use defs;
-use event::{EngineEvent, ModulatableParameter, ModulatableParameterUpdateData};
-use parameter::{Parameter, LinearParameter};
+use event::EngineEvent;
+use parameter::{
+    BaseliskPluginParameters,
+    PARAM_OSCILLATOR_PITCH,
+    PARAM_OSCILLATOR_PULSE_WIDTH,
+    PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO,
+    PARAM_OSCILLATOR_MOD_INDEX,
+};
 use std::slice;
-
+use vst::plugin::PluginParameters;
 
 /// Convert a u8 note number to a corresponding frequency,
 /// using 440 Hz as the pitch of the A above middle C.
 fn get_frequency(note: defs::Sample) -> defs::Sample {
     440.0 * ((note - 69.0) / 12.0).exp2()
-}
-
-pub struct Params {
-    pitch_offset: LinearParameter, // Semitones
-    pulse_width: LinearParameter,
-    mod_frequency_ratio: LinearParameter,
-    mod_index: LinearParameter,
-}
-
-impl Params {
-    pub fn new() -> Self {
-        Self {
-            pitch_offset: LinearParameter::new(-36.0, 36.0, 0.0),
-            pulse_width: LinearParameter::new(0.01, 0.99, 0.5),
-            mod_frequency_ratio: LinearParameter::new(1.0, 8.0, 1.0),
-            mod_index: LinearParameter::new(0.0, 8.0, 1.0),
-        }
-    }
 }
 
 /// Internal state used by oscillator types.
@@ -69,7 +57,6 @@ impl State {
 
 /// Oscillator type that will be used for audio processing.
 pub struct Oscillator {
-    params: Params,
     state: State,
     generator_func: Option<fn(&mut State, &mut defs::MonoFrameBufferSlice)>,
 }
@@ -79,7 +66,6 @@ impl Oscillator {
     pub fn new() -> Self
     {
         Self {
-            params: Params::new(),
             state: State::new(),
             generator_func: Some(sine_generator),
         }
@@ -105,34 +91,11 @@ impl Oscillator {
         Ok(())
     }
 
-    pub fn update_pitch(&mut self, data: ModulatableParameterUpdateData)
-                        -> Result<(), &'static str>
-    {
-        self.params.pitch_offset.update_patch(data)
-    }
-
-    pub fn update_pulse_width(&mut self, data: ModulatableParameterUpdateData)
-                              -> Result<(), &'static str>
-    {
-        self.params.pulse_width.update_patch(data)
-    }
-
-    pub fn update_mod_frequency_ratio(&mut self, data: ModulatableParameterUpdateData)
-                              -> Result<(), &'static str>
-    {
-        self.params.mod_frequency_ratio.update_patch(data)
-    }
-
-    pub fn update_mod_index(&mut self, data: ModulatableParameterUpdateData)
-                              -> Result<(), &'static str>
-    {
-        self.params.mod_index.update_patch(data)
-    }
-
     pub fn process_buffer(&mut self,
                buffer: &mut defs::MonoFrameBufferSlice,
                mut engine_event_iter: slice::Iter<(usize, EngineEvent)>,
                sample_rate: defs::Sample,
+               params: &BaseliskPluginParameters,
     ) {
         self.state.sample_rate = sample_rate;
         // Store buffer len to avoid multiple mutable buffer accesses later on
@@ -156,11 +119,11 @@ impl Oscillator {
                     },
                     // Pitch bends and oscillator parameter changes will also trigger keyframes
                     EngineEvent::PitchBend{ .. } => (),
-                    EngineEvent::ModulateParameter { parameter, .. } => match parameter {
-                        ModulatableParameter::OscillatorPitch |
-                        ModulatableParameter::OscillatorPulseWidth |
-                        ModulatableParameter::OscillatorModFrequencyRatio |
-                        ModulatableParameter::OscillatorModIndex => (),
+                    EngineEvent::ModulateParameter { param_id, .. } => match *param_id {
+                        PARAM_OSCILLATOR_PITCH |
+                        PARAM_OSCILLATOR_PULSE_WIDTH |
+                        PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO |
+                        PARAM_OSCILLATOR_MOD_INDEX => (),
                         _ => continue,
                     },
                 }
@@ -172,10 +135,10 @@ impl Oscillator {
 
             // Apply the old parameters up until next_keyframe.
             self.state.base_frequency = get_frequency(defs::Sample::from(self.state.note)
-                                                + self.params.pitch_offset.get()
+                                                + params.get_real_value(PARAM_OSCILLATOR_PITCH)
                                                 + self.state.pitch_bend);
             self.state.mod_frequency = self.state.base_frequency
-                                       * self.params.mod_frequency_ratio.get();
+                                       * params.get_real_value(PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO);
 
             // Generate all the samples for this buffer
             let buffer_slice = buffer.get_mut(this_keyframe..next_keyframe).unwrap();
@@ -203,20 +166,21 @@ impl Oscillator {
                     EngineEvent::PitchBend{ semitones } => {
                         self.state.pitch_bend = *semitones;
                     },
-                    EngineEvent::ModulateParameter { parameter, value } => match parameter {
-                        ModulatableParameter::OscillatorPitch => {
-                            self.params.pitch_offset.update_cc(*value);
+                    EngineEvent::ModulateParameter { param_id, value } => match *param_id {
+                        PARAM_OSCILLATOR_PITCH => {
+                            params.set_parameter(*param_id, *value);
                         },
-                        ModulatableParameter::OscillatorPulseWidth => {
-                            self.params.pulse_width.update_cc(*value);
-                            self.state.pulse_width = self.params.pulse_width.get();
+                        PARAM_OSCILLATOR_PULSE_WIDTH => {
+                            params.set_parameter(*param_id, *value);
+                            self.state.pulse_width = params.get_real_value(
+                                PARAM_OSCILLATOR_PULSE_WIDTH);
                         },
-                        ModulatableParameter::OscillatorModFrequencyRatio => {
-                            self.params.mod_frequency_ratio.update_cc(*value);
+                        PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO => {
+                            params.set_parameter(*param_id, *value);
                         }
-                        ModulatableParameter::OscillatorModIndex => {
-                            self.params.mod_index.update_cc(*value);
-                            self.state.mod_index = self.params.mod_index.get();
+                        PARAM_OSCILLATOR_MOD_INDEX => {
+                            params.set_parameter(*param_id, *value);
+                            self.state.mod_index = params.get_real_value(PARAM_OSCILLATOR_MOD_INDEX);
                         }
                         _ => (),
                     },

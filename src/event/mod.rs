@@ -9,7 +9,6 @@ pub use event::midi::{
 };
 pub use event::patch::{
     ControllerBindData as ControllerBindData,
-    ModulatableParameter as ModulatableParameter,
     ModulatableParameterUpdateData as ModulatableParameterUpdateData,
     PatchEvent as PatchEvent,
 };
