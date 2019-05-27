@@ -67,7 +67,7 @@ impl Oscillator {
     {
         Self {
             state: State::new(),
-            generator_func: Some(sine_generator),
+            generator_func: Some(sawtooth_generator),
         }
     }
 
