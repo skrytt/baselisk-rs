@@ -19,7 +19,7 @@ impl PitchBend {
     pub fn set_range(&mut self, range: defs::Sample)
         -> Result<(), &'static str> {
         let position = range / 36.0;
-        self.range_semitones.update_position(position);
+        self.range_semitones.update_param(position);
         Ok(())
     }
 

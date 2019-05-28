@@ -91,7 +91,7 @@ impl Engine
                     }
                 },
                 PatchEvent::ModulatableParameterUpdate { param_id, value } => {
-                    self.params.set_parameter(param_id, value);
+                    self.params.update_real_value(param_id, value);
                     Ok(())
                 },
             };

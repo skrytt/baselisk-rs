@@ -49,23 +49,23 @@ pub struct BaseliskPluginParameters {
 impl Default for BaseliskPluginParameters {
     fn default() -> BaseliskPluginParameters {
         BaseliskPluginParameters {
-            adsr_attack: LinearParameter::new(0.001, 10.0, 0.002),
-            adsr_decay: LinearParameter::new(0.001, 10.0, 0.0707),
+            adsr_attack: LinearParameter::new(0.001, 10.0, 0.02),
+            adsr_decay: LinearParameter::new(0.001, 10.0, 0.707),
             adsr_sustain: LinearParameter::new(0.0, 1.0, 0.0),
-            adsr_release: LinearParameter::new(0.001, 10.0, 0.04),
+            adsr_release: LinearParameter::new(0.001, 10.0, 0.4),
             delay_feedback: LinearParameter::new(0.0, 1.0, 0.6),
-            delay_high_pass_filter_frequency: FrequencyParameter::new(20.0, 22000.0, 0.22),
-            delay_high_pass_filter_quality: LinearParameter::new(0.5, 10.0, 0.0),
-            delay_low_pass_filter_frequency: FrequencyParameter::new(20.0, 22000.0, 0.78),
-            delay_low_pass_filter_quality: LinearParameter::new(0.5, 10.0, 0.0),
+            delay_high_pass_filter_frequency: FrequencyParameter::new(20.0, 22000.0, 100.0),
+            delay_high_pass_filter_quality: LinearParameter::new(0.5, 10.0, 0.707),
+            delay_low_pass_filter_frequency: FrequencyParameter::new(20.0, 22000.0, 5000.0),
+            delay_low_pass_filter_quality: LinearParameter::new(0.5, 10.0, 0.707),
             delay_wet_gain: LinearParameter::new(0.0, 1.0, 0.4),
-            filter_frequency: FrequencyParameter::new(20.0, 22000.0, 0.2),
-            filter_sweep_range: LinearParameter::new(0.0, 10.0, 0.8),
-            filter_quality: LinearParameter::new(0.5, 10.0, 0.0),
-            oscillator_pitch: LinearParameter::new(-36.0, 36.0, 0.5),
+            filter_frequency: FrequencyParameter::new(20.0, 22000.0, 100.0),
+            filter_sweep_range: LinearParameter::new(0.0, 10.0, 8.0),
+            filter_quality: LinearParameter::new(0.5, 10.0, 0.707),
+            oscillator_pitch: LinearParameter::new(-36.0, 36.0, 0.0),
             oscillator_pulse_width: LinearParameter::new(0.01, 0.99, 0.5),
-            oscillator_mod_frequency_ratio: LinearParameter::new(1.0, 8.0, 0.0),
-            oscillator_mod_index: LinearParameter::new(0.0, 8.0, 0.125),
+            oscillator_mod_frequency_ratio: LinearParameter::new(1.0, 8.0, 1.0),
+            oscillator_mod_index: LinearParameter::new(0.0, 8.0, 1.0),
             waveshaper_input_gain: LinearParameter::new(0.0, 1.0, 0.333),
             waveshaper_output_gain: LinearParameter::new(0.0, 1.0, 1.0),
 
@@ -176,27 +176,28 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
         }
     }
 
+    /// set_parameter is called when a VST parameter is changed.
     fn set_parameter(&self, index: i32, val: defs::Sample) {
         match index {
-            PARAM_ADSR_ATTACK => self.adsr_attack.update_position(val),
-            PARAM_ADSR_DECAY => self.adsr_decay.update_position(val),
-            PARAM_ADSR_SUSTAIN => self.adsr_sustain.update_position(val),
-            PARAM_ADSR_RELEASE => self.adsr_release.update_position(val),
-            PARAM_DELAY_FEEDBACK => self.delay_feedback.update_position(val),
-            PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY => self.delay_high_pass_filter_frequency.update_position(val),
-            PARAM_DELAY_HIGH_PASS_FILTER_QUALITY => self.delay_high_pass_filter_quality.update_position(val),
-            PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY => self.delay_low_pass_filter_frequency.update_position(val),
-            PARAM_DELAY_LOW_PASS_FILTER_QUALITY => self.delay_low_pass_filter_quality.update_position(val),
-            PARAM_DELAY_WET_GAIN => self.delay_wet_gain.update_position(val),
-            PARAM_FILTER_FREQUENCY => self.filter_frequency.update_position(val),
-            PARAM_FILTER_SWEEP_RANGE => self.filter_sweep_range.update_position(val),
-            PARAM_FILTER_QUALITY => self.filter_quality.update_position(val),
-            PARAM_OSCILLATOR_PITCH => self.oscillator_pitch.update_position(val),
-            PARAM_OSCILLATOR_PULSE_WIDTH => self.oscillator_pulse_width.update_position(val),
-            PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO => self.oscillator_mod_frequency_ratio.update_position(val),
-            PARAM_OSCILLATOR_MOD_INDEX => self.oscillator_mod_index.update_position(val),
-            PARAM_WAVESHAPER_INPUT_GAIN => self.waveshaper_input_gain.update_position(val),
-            PARAM_WAVESHAPER_OUTPUT_GAIN => self.waveshaper_output_gain.update_position(val),
+            PARAM_ADSR_ATTACK => self.adsr_attack.update_param(val),
+            PARAM_ADSR_DECAY => self.adsr_decay.update_param(val),
+            PARAM_ADSR_SUSTAIN => self.adsr_sustain.update_param(val),
+            PARAM_ADSR_RELEASE => self.adsr_release.update_param(val),
+            PARAM_DELAY_FEEDBACK => self.delay_feedback.update_param(val),
+            PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY => self.delay_high_pass_filter_frequency.update_param(val),
+            PARAM_DELAY_HIGH_PASS_FILTER_QUALITY => self.delay_high_pass_filter_quality.update_param(val),
+            PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY => self.delay_low_pass_filter_frequency.update_param(val),
+            PARAM_DELAY_LOW_PASS_FILTER_QUALITY => self.delay_low_pass_filter_quality.update_param(val),
+            PARAM_DELAY_WET_GAIN => self.delay_wet_gain.update_param(val),
+            PARAM_FILTER_FREQUENCY => self.filter_frequency.update_param(val),
+            PARAM_FILTER_SWEEP_RANGE => self.filter_sweep_range.update_param(val),
+            PARAM_FILTER_QUALITY => self.filter_quality.update_param(val),
+            PARAM_OSCILLATOR_PITCH => self.oscillator_pitch.update_param(val),
+            PARAM_OSCILLATOR_PULSE_WIDTH => self.oscillator_pulse_width.update_param(val),
+            PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO => self.oscillator_mod_frequency_ratio.update_param(val),
+            PARAM_OSCILLATOR_MOD_INDEX => self.oscillator_mod_index.update_param(val),
+            PARAM_WAVESHAPER_INPUT_GAIN => self.waveshaper_input_gain.update_param(val),
+            PARAM_WAVESHAPER_OUTPUT_GAIN => self.waveshaper_output_gain.update_param(val),
             _ => (),
         }
     }
@@ -204,6 +205,31 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
 
 impl BaseliskPluginParameters
 {
+    pub fn update_real_value(&self, index: i32, value: f32) {
+        match index {
+            PARAM_ADSR_ATTACK => self.adsr_attack.update_real_value(value),
+            PARAM_ADSR_DECAY => self.adsr_decay.update_real_value(value),
+            PARAM_ADSR_SUSTAIN => self.adsr_sustain.update_real_value(value),
+            PARAM_ADSR_RELEASE => self.adsr_release.update_real_value(value),
+            PARAM_DELAY_FEEDBACK => self.delay_feedback.update_real_value(value),
+            PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY => self.delay_high_pass_filter_frequency.update_real_value(value),
+            PARAM_DELAY_HIGH_PASS_FILTER_QUALITY => self.delay_high_pass_filter_quality.update_real_value(value),
+            PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY => self.delay_low_pass_filter_frequency.update_real_value(value),
+            PARAM_DELAY_LOW_PASS_FILTER_QUALITY => self.delay_low_pass_filter_quality.update_real_value(value),
+            PARAM_DELAY_WET_GAIN => self.delay_wet_gain.update_real_value(value),
+            PARAM_FILTER_FREQUENCY => self.filter_frequency.update_real_value(value),
+            PARAM_FILTER_SWEEP_RANGE => self.filter_sweep_range.update_real_value(value),
+            PARAM_FILTER_QUALITY => self.filter_quality.update_real_value(value),
+            PARAM_OSCILLATOR_PITCH => self.oscillator_pitch.update_real_value(value),
+            PARAM_OSCILLATOR_PULSE_WIDTH => self.oscillator_pulse_width.update_real_value(value),
+            PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO => self.oscillator_mod_frequency_ratio.update_real_value(value),
+            PARAM_OSCILLATOR_MOD_INDEX => self.oscillator_mod_index.update_real_value(value),
+            PARAM_WAVESHAPER_INPUT_GAIN => self.waveshaper_input_gain.update_real_value(value),
+            PARAM_WAVESHAPER_OUTPUT_GAIN => self.waveshaper_output_gain.update_real_value(value),
+            _ => (),
+        }
+    }
+
     pub fn get_real_value(&self, index: i32) -> defs::Sample {
         match index {
             PARAM_ADSR_ATTACK => self.adsr_attack.get_real_value(),
@@ -231,11 +257,16 @@ impl BaseliskPluginParameters
 }
 
 pub trait Parameter {
-    fn update_position(&self, value: defs::Sample);
+    /// Update the parameter using the value the audio engine will use.
+    fn update_real_value(&self,value: defs::Sample);
 
-    /// Get the current value of the parameter.
+    /// Update the parameter using a control with range 0.0 > value > 1.0.
+    fn update_param(&self, value: defs::Sample);
+
+    /// Get the value the audio engine will use.
     fn get_real_value(&self) -> defs::Sample;
 
+    /// Get the value for a control with range 0.0 > value > 1.0.
     fn get_vst_param(&self) -> defs::Sample;
 }
 
@@ -245,7 +276,7 @@ pub struct LinearParameter
 {
     base_value: AtomicFloat,
     param_influence_range: AtomicFloat,
-    position: AtomicFloat,
+    param: AtomicFloat,
 }
 
 /// Parameter with a frequency as the low_limit and a
@@ -254,37 +285,44 @@ impl LinearParameter
 {
     pub fn new(low_limit: defs::Sample,
                high_limit: defs::Sample,
-               default_position: defs::Sample) -> Self
+               default_real_value: defs::Sample) -> Self
     {
-        Self {
+        let result = Self {
             base_value: AtomicFloat::new(low_limit),
             param_influence_range: AtomicFloat::new(high_limit - low_limit),
-            position: AtomicFloat::new(default_position),
-        }
+            param: AtomicFloat::new(0.0),
+        };
+        result.update_real_value(default_real_value);
+        result
     }
 }
 impl Parameter for LinearParameter {
-    fn update_position(&self, value: defs::Sample) {
+    fn update_real_value(&self, value: defs::Sample) {
+        let new_param = (value - self.base_value.get()) / self.param_influence_range.get();
+        self.update_param(new_param);
+    }
+
+    fn update_param(&self, value: defs::Sample) {
         let mut value = defs::Sample::min(value, 1.0);
         value = defs::Sample::max(value, 0.0);
 
         assert!(value >= 0.0);
         assert!(value <= 1.0);
 
-        self.position.set(value);
+        self.param.set(value);
     }
 
     /// Get the real value of the parameter,
     /// the one that will be used for computation in the audio callback
     fn get_real_value(&self) -> defs::Sample {
         self.base_value.get() + (
-            self.param_influence_range.get() * self.position.get())
+            self.param_influence_range.get() * self.param.get())
     }
 
     /// VST param is a value in the range 0.0 <= value <= 1.0 ,
-    /// representing the position shown on the fader/slider/etc
+    /// representing the param shown on the fader/slider/etc
     fn get_vst_param(&self) -> defs::Sample {
-        self.position.get()
+        self.param.get()
     }
 }
 
@@ -294,7 +332,7 @@ pub struct FrequencyParameter
 {
     base_value: AtomicFloat,
     param_influence_range_octaves: AtomicFloat,
-    position: AtomicFloat,
+    param: AtomicFloat,
 }
 
 /// Parameter with a frequency as the low_limit and a
@@ -303,35 +341,43 @@ impl FrequencyParameter
 {
     pub fn new(low_limit: defs::Sample,
                high_limit: defs::Sample,
-               default_position: defs::Sample) -> Self
+               default_real_value: defs::Sample) -> Self
     {
-        Self {
+        let result = Self {
             base_value: AtomicFloat::new(low_limit),
             param_influence_range_octaves: AtomicFloat::new(
                 defs::Sample::log2(high_limit / low_limit)),
-            position: AtomicFloat::new(default_position),
-        }
+            param: AtomicFloat::new(0.0),
+        };
+        result.update_real_value(default_real_value);
+        result
     }
 }
 
 impl Parameter for FrequencyParameter {
-    fn update_position(&self, value: defs::Sample) {
+    fn update_real_value(&self, value: defs::Sample) {
+        let new_param = defs::Sample::log2(value / self.base_value.get())
+                        / self.param_influence_range_octaves.get();
+        self.update_param(new_param);
+    }
+
+    fn update_param(&self, value: defs::Sample) {
         let mut value = defs::Sample::min(value, 1.0);
         value = defs::Sample::max(value, 0.0);
 
         assert!(value >= 0.0);
         assert!(value <= 1.0);
 
-        self.position.set(value);
+        self.param.set(value);
     }
 
     /// Get the current value of the parameter.
     fn get_real_value(&self) -> defs::Sample {
         self.base_value.get() * defs::Sample::exp2(
-            self.param_influence_range_octaves.get() * self.position.get())
+            self.param_influence_range_octaves.get() * self.param.get())
     }
 
     fn get_vst_param(&self) -> defs::Sample {
-        self.position.get()
+        self.param.get()
     }
 }

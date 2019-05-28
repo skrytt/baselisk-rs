@@ -76,7 +76,7 @@ pub fn update_parameter_from_tokens(param_id: i32,
             }
         },
         _ => {
-            // Try to get a value (0.0 < value < 1.0)
+            // Try to get a value
             let value: defs::Sample = match parse_from_next_token(token_iter) {
                 Ok(value) => value,
                 Err(_) => return Err(String::from("Could not parse parameter value")),
