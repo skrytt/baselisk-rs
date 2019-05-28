@@ -42,11 +42,18 @@ where
         Ok((client, status)) => (client, status),
     };
 
-    let mut output_port = match client.register_port("output",
+    let mut left_output_port = match client.register_port("output_left",
                                                      jack::AudioOut::default())
     {
         Err(_) => return Err("Failed to open output audio port"),
-        Ok(output_port) => output_port,
+        Ok(left_output_port) => left_output_port,
+    };
+
+    let mut right_output_port = match client.register_port("output_right",
+                                                     jack::AudioOut::default())
+    {
+        Err(_) => return Err("Failed to open output audio port"),
+        Ok(right_output_port) => right_output_port,
     };
 
     let midi_input_port = match client.register_port("midi_input",
@@ -63,7 +70,9 @@ where
 
     let process = jack::ClosureProcessHandler::new(
         move |client: &jack::Client, process_scope: &jack::ProcessScope| -> jack::Control {
-            let buffer = output_port.as_mut_slice(process_scope)
+            let left_output_buffer = left_output_port.as_mut_slice(process_scope)
+                .to_frame_slice_mut().unwrap();
+            let right_output_buffer = right_output_port.as_mut_slice(process_scope)
                 .to_frame_slice_mut().unwrap();
 
             let raw_midi_iter = midi_input_port.iter(process_scope);
@@ -71,7 +80,7 @@ where
             let mut engine_callback = engine_callback.write().unwrap();
             engine_callback.set_sample_rate(client.sample_rate() as defs::Sample);
             engine_callback.apply_patch_events(&rx_audio_thread, &tx_audio_thread);
-            engine_callback.jack_audio_requested(buffer, raw_midi_iter);
+            engine_callback.jack_audio_requested(left_output_buffer, right_output_buffer, raw_midi_iter);
 
             jack::Control::Continue
         }

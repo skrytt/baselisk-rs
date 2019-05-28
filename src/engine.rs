@@ -109,7 +109,8 @@ impl Engine
 
     #[cfg(feature = "plugin_jack")]
     pub fn jack_audio_requested(&mut self,
-                                main_buffer: &mut defs::MonoFrameBufferSlice,
+                                left_output_buffer: &mut defs::MonoFrameBufferSlice,
+                                right_output_buffer: &mut defs::MonoFrameBufferSlice,
                                 jack_raw_midi_iter: jack::MidiIter)
     {
         // Clear old MIDI events and convert new JACK raw MIDI into a generic format
@@ -118,7 +119,7 @@ impl Engine
             self.raw_midi_buffer.push(RawMidi::from_jack_raw_midi(&jack_raw_midi_event));
         }
 
-        self.audio_requested(main_buffer);
+        self.audio_requested(left_output_buffer, right_output_buffer);
     }
 
     #[cfg(feature = "plugin_vst")]
@@ -137,12 +138,13 @@ impl Engine
     /// Buffer is a mutable slice of frames,
     /// where each frame is a slice containing a single sample.
     pub fn audio_requested(&mut self,
-                           main_buffer: &mut defs::MonoFrameBufferSlice)
+                           left_output_buffer: &mut defs::MonoFrameBufferSlice,
+                           right_output_buffer: &mut defs::MonoFrameBufferSlice)
     {
         let engine_start_time = time::precise_time_ns();
 
-        // Zero the buffer
-        slice::equilibrium(main_buffer);
+        slice::equilibrium(left_output_buffer);
+        slice::equilibrium(right_output_buffer);
 
         self.engine_event_buffer.clear();
         let mut midi_panic = false;
@@ -179,7 +181,7 @@ impl Engine
 
         // ADSR buffer for Gain and Filter (shared for now).
         let adsr_start_time = time::precise_time_ns();
-        let frames_this_buffer = main_buffer.len();
+        let frames_this_buffer = left_output_buffer.len();
         let adsr_buffer = self.adsr_buffer.get_sized_mut(frames_this_buffer);
         let adsr_any_nonzero_output = self.adsr.process_buffer(adsr_buffer,
                                  self.engine_event_buffer.iter(),
@@ -193,7 +195,7 @@ impl Engine
 
             // Oscillator
             let oscillator_start_time = time::precise_time_ns();
-            self.oscillator.process_buffer(main_buffer,
+            self.oscillator.process_buffer(left_output_buffer,
                                            self.engine_event_buffer.iter(),
                                            self.sample_rate,
                                            &self.params);
@@ -202,7 +204,7 @@ impl Engine
             // Use ADSR to apply gain to oscillator output
             let gain_start_time = time::precise_time_ns();
             self.gain.process_buffer(adsr_buffer,
-                                     main_buffer);
+                                     left_output_buffer);
             self.timing_data.gain = (time::precise_time_ns() - gain_start_time) / 1000;
 
         }
@@ -210,7 +212,7 @@ impl Engine
         // Filter
         let filter_start_time = time::precise_time_ns();
         self.filter.process_buffer(adsr_buffer,
-                                   main_buffer,
+                                   left_output_buffer,
                                    self.engine_event_buffer.iter(),
                                    self.sample_rate,
                                    &self.params);
@@ -218,22 +220,25 @@ impl Engine
 
         // Waveshaper
         let waveshaper_start_time = time::precise_time_ns();
-        self.waveshaper.process_buffer(main_buffer,
+        self.waveshaper.process_buffer(left_output_buffer,
                                        self.engine_event_buffer.iter(),
                                        &self.params);
         self.timing_data.waveshaper = (time::precise_time_ns() - waveshaper_start_time) / 1000;
 
         // Delay
         let delay_start_time = time::precise_time_ns();
-        self.delay.process_buffer(main_buffer,
+        self.delay.process_buffer(left_output_buffer,
                                   self.engine_event_buffer.iter(),
                                   self.sample_rate,
                                   &self.params);
         self.timing_data.delay = (time::precise_time_ns() - delay_start_time) / 1000;
 
+        // Currently the output is pure mono; so copy the left output to the right output
+        sample::slice::write(right_output_buffer, left_output_buffer);
+
         self.timing_data.total = (time::precise_time_ns() - engine_start_time) / 1000;
 
-        self.timing_data.window = 1_000_000.0 * main_buffer.len() as f32 / self.sample_rate;
+        self.timing_data.window = 1_000_000.0 * left_output_buffer.len() as f32 / self.sample_rate;
 
         if self.dump_timing_info {
             self.timing_data.dump_to_stderr();

@@ -48,6 +48,8 @@ impl Plugin for BaseliskPlugin {
             name: defs::PLUGIN_NAME.to_string(),
             unique_id: 5211,
             category: Category::Synth,
+            inputs: 0,
+            outputs: 2,
             parameters: parameter::NUM_PARAMS,
             ..Default::default()
         }
@@ -65,10 +67,12 @@ impl Plugin for BaseliskPlugin {
         let (_, outputs) = vst_audio_buffer.split();
 
         // Currently will only output audio to first output buffer
-        let output_buffer = outputs.get_mut(0)
+        let left_output_buffer = outputs.get_mut(0)
+            .to_frame_slice_mut().unwrap();
+        let right_output_buffer = outputs.get_mut(1)
             .to_frame_slice_mut().unwrap();
 
-        self.engine.audio_requested(output_buffer)
+        self.engine.audio_requested(left_output_buffer, right_output_buffer)
     }
 
     fn get_parameter_object(&mut self) -> Arc<dyn PluginParameters> {
