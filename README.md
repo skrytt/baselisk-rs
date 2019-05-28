@@ -27,8 +27,7 @@ This application uses [Rustyline](https://github.com/kkawakam/rustyline) to prov
 
 Parameters that would take numeric values can currently be manipulated in these ways:
 
-- `filter frequency base <value>`: Sets the value of the parameter when the modulating CC controller's value is minimum (0).
-- `filter frequency max <value>`: Sets the value of the parameter when the modulating CC controller's value is maximum (127).
+- `filter frequency <value>`: Sets the value of the parameter. Useful only if the parameter isn't assigned to a controller.
 - `filter frequency learn`: Enables MIDI learn for this parameter; the next MIDI CC event will bind that CC to this parameter.
 - `filter frequency cc <controller>`: Binds the CC number `controller` to this parameter.
 
