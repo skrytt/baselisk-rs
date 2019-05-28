@@ -1,5 +1,5 @@
 use defs;
-use event::{EngineEvent, MidiEvent, ModulatableParameterUpdateData};
+use event::{EngineEvent, MidiEvent};
 use parameter::{Parameter, LinearParameter};
 
 pub struct PitchBend {
@@ -8,16 +8,19 @@ pub struct PitchBend {
 
 impl PitchBend {
     pub fn new() -> Self {
-        Self {
-            range_semitones: LinearParameter::new(0.0, 36.0, 2.0),
-        }
+        let mut result = Self {
+            range_semitones: LinearParameter::new(0.0, 36.0, 0.0),
+        };
+        // Use set_range to set a default 2 semitone pitch bend instead
+        result.set_range(2.0).unwrap();
+        result
     }
 
     pub fn set_range(&mut self, range: defs::Sample)
         -> Result<(), &'static str> {
-        // TODO: improve on this hack...
-        let data = ModulatableParameterUpdateData::Base(range);
-        self.range_semitones.update_patch(data)
+        let position = range / 36.0;
+        self.range_semitones.update_position(position);
+        Ok(())
     }
 
     pub fn process_event(&self, midi_event: &MidiEvent) -> Option<EngineEvent> {

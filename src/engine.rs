@@ -90,8 +90,9 @@ impl Engine
                         },
                     }
                 },
-                PatchEvent::ModulatableParameterUpdate { param_id, data } => {
-                    self.params.update_patch(param_id, data)
+                PatchEvent::ModulatableParameterUpdate { param_id, value } => {
+                    self.params.set_parameter(param_id, value);
+                    Ok(())
                 },
             };
             // TODO: either fix this, or refactor it out

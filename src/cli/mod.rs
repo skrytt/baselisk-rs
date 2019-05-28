@@ -6,9 +6,9 @@ use cli::tree::{
     Node as Node,
 };
 use cli::completer::Cli as Cli;
-use event::{ModulatableParameterUpdateData,
-            ControllerBindData,
-            PatchEvent,
+use event::{
+    ControllerBindData,
+    PatchEvent,
 };
 use parameter::{
     PARAM_ADSR_ATTACK,
@@ -58,22 +58,6 @@ pub fn update_parameter_from_tokens(param_id: i32,
         Err(_) => return Err(String::from("Could not parse a field name")),
     };
     let patch_event: PatchEvent = match field_name.as_str() {
-        "base" | "max" => {
-            // Try to get a value
-            let field_value: defs::Sample = match parse_from_next_token(token_iter) {
-                Ok(val) => val,
-                Err(_) => return Err(String::from("Could not parse a field value")),
-            };
-            let parameter_update_data = match field_name.as_str() {
-                "base" => ModulatableParameterUpdateData::Base(field_value),
-                "max" => ModulatableParameterUpdateData::Max(field_value),
-                _ => panic!(), // Not actually possible - TODO refactor this
-            };
-            PatchEvent::ModulatableParameterUpdate {
-                param_id,
-                data: parameter_update_data,
-            }
-        },
         "cc" => {
             // Try to get a value
             let field_value: u8 = match parse_from_next_token(token_iter) {
@@ -91,7 +75,17 @@ pub fn update_parameter_from_tokens(param_id: i32,
                 bind_type: ControllerBindData::MidiLearn,
             }
         },
-        _ => return Err(String::from("Unknown field name")),
+        _ => {
+            // Try to get a value (0.0 < value < 1.0)
+            let value: defs::Sample = match parse_from_next_token(token_iter) {
+                Ok(value) => value,
+                Err(_) => return Err(String::from("Could not parse parameter value")),
+            };
+            PatchEvent::ModulatableParameterUpdate {
+                param_id,
+                value,
+            }
+        },
     };
 
     Ok(patch_event)

@@ -1,29 +1,11 @@
 oscillator type fm
-
-filter frequency base 20000
-
-adsr attack base 0.02
-adsr attack max 2
+filter frequency 20000
 adsr attack cc 74
-
-adsr decay base 0.5
-adsr decay max 2
 adsr decay cc 71
-
-adsr sustain base 1.0
-
-adsr release base 0.5
-adsr release max 2
+adsr sustain 1.0
 adsr release cc 93
-
-oscillator modfreqratio base 1
-oscillator modfreqratio max 8
 oscillator modfreqratio cc 73
-
-oscillator modindex base 1.0
-oscillator modindex max 32.0
 oscillator modindex cc 72
-
-waveshaper inputgain base 0.33
-waveshaper inputgain max 1.0
 waveshaper inputgain cc 5
+waveshaper outputgain cc 84
+delay feedback cc 7
