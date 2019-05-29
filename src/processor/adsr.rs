@@ -197,30 +197,211 @@ impl Adsr {
 
     fn advance(&mut self, params: &BaseliskPluginParameters) -> defs::Sample {
         self.state.phase_time += self.state.sample_duration;
-        // Handle phase advancing
-        match self.state.stage {
-            Some(AdsrStages::HeldAttack) => {
-                if self.state.phase_time >= params.get_real_value(PARAM_ADSR_ATTACK) {
-                    self.state.stage = Some(AdsrStages::HeldDecay);
-                    self.state.gain_at_stage_start = 1.0;
-                    self.state.relative_gain_at_stage_end =
-                        params.get_real_value(PARAM_ADSR_SUSTAIN) - self.state.gain_at_stage_start;
-                    self.state.phase_time -= params.get_real_value(PARAM_ADSR_ATTACK);
-                }
+
+        // Handle attack -> decay advancing
+        if let Some(AdsrStages::HeldAttack) = self.state.stage {
+            if self.state.phase_time >= params.get_real_value(PARAM_ADSR_ATTACK) {
+                self.state.stage = Some(AdsrStages::HeldDecay);
+                self.state.gain_at_stage_start = 1.0;
+                self.state.relative_gain_at_stage_end =
+                    params.get_real_value(PARAM_ADSR_SUSTAIN) - self.state.gain_at_stage_start;
+                self.state.phase_time -= params.get_real_value(PARAM_ADSR_ATTACK);
             }
-            Some(AdsrStages::HeldDecay) => {
-                if self.state.phase_time >= params.get_real_value(PARAM_ADSR_DECAY) {
-                    self.state.stage = Some(AdsrStages::HeldSustain);
-                }
-            }
-            Some(AdsrStages::HeldSustain) => return params.get_real_value(PARAM_ADSR_SUSTAIN),
-            Some(AdsrStages::Released) => {
-                if self.state.phase_time >= params.get_real_value(PARAM_ADSR_RELEASE) {
-                    self.state.stage = None;
-                }
-            }
-            _ => (),
         }
+        // Handle decay -> sustain advancing
+        if let Some(AdsrStages::HeldDecay) = self.state.stage {
+            if self.state.phase_time >= params.get_real_value(PARAM_ADSR_DECAY) {
+                self.state.stage = Some(AdsrStages::HeldSustain);
+            }
+        }
+        // Handle release -> off advancing
+        if let Some(AdsrStages::Released) = self.state.stage {
+            if self.state.phase_time >= params.get_real_value(PARAM_ADSR_RELEASE) {
+                self.state.stage = None;
+            }
+        }
+
+        // Return the output
         self.get_gain(params)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // All tests use a sample rate of 1 second, so each sample is the result of
+    // advancing the simulation time by 1 second.
+
+    #[test]
+    /// Test minimum-length attack and decay.
+    /// We advance 1 second before computing the first sample,
+    /// reaching the sustain immediately.
+    fn test_ar_impulse_sustain_zero_with_note_hold() {
+        let mut engine_events = Vec::new();
+        engine_events.push((0, EngineEvent::NoteChange {note: Some(0)} ));
+
+        let comparison_buffer = vec![[0.0], [0.0], [0.0], [0.0]];
+        _test(0.001, 0.001, 0.0, 0.001, engine_events, comparison_buffer);
+    }
+
+    #[test]
+    /// Test minimum-length attack and decay with high sustain.
+    /// We advance 1 second before computing the first sample,
+    /// reaching the sustain immediately.
+    fn test_ar_impulse_sustain_one_with_note_hold() {
+        let mut engine_events = Vec::new();
+        engine_events.push((0, EngineEvent::NoteChange {note: Some(0)} ));
+
+        let comparison_buffer = vec![[1.0], [1.0], [1.0], [1.0]];
+        _test(0.001, 0.001, 1.0, 0.001, engine_events, comparison_buffer);
+    }
+
+    #[test]
+    /// Test minimum-length attack and decay with half sustain.
+    /// We advance 1 second before computing the first sample,
+    /// reaching the sustain immediately.
+    fn test_ar_impulse_sustain_half_with_note_hold() {
+        let mut engine_events = Vec::new();
+        engine_events.push((0, EngineEvent::NoteChange {note: Some(0)} ));
+
+        let comparison_buffer = vec![[0.5], [0.5], [0.5], [0.5]];
+        _test(0.001, 0.001, 0.5, 0.001, engine_events, comparison_buffer);
+    }
+    #[test]
+    /// Test one-second attack and decay.
+    /// The frame duration used in the test is 1 second. We advance 1 second
+    /// before computing the first sample, reaching the end of the attack
+    /// on the first sample, and the end of the decay on the second sample.
+    fn test_ad_one_second_each_sustain_zero_with_note_held() {
+        let mut engine_events = Vec::new();
+        engine_events.push((0, EngineEvent::NoteChange {note: Some(0)} ));
+
+        let comparison_buffer = vec![[1.0], [0.0], [0.0], [0.0]];
+        _test(1.0, 1.0, 0.0, 0.001, engine_events, comparison_buffer);
+    }
+
+    #[test]
+    /// Test two-second attack and decay.
+    /// The frame duration used in the test is 1 second. We reach the end
+    /// of the attack on the second sample, and the end of the decay on the
+    /// fourth sample.
+    fn test_ad_two_seconds_each_sustain_zero_with_note_held() {
+        let mut engine_events = Vec::new();
+        engine_events.push((0, EngineEvent::NoteChange {note: Some(0)} ));
+
+        let comparison_buffer = vec![[0.5], [1.0], [0.5], [0.0], [0.0], [0.0]];
+        _test(2.0, 2.0, 0.0, 0.001, engine_events, comparison_buffer);
+    }
+
+    #[test]
+    /// Test minimum-length attack and decay with high sustain and note release
+    /// on fourth sample, minimum length release.
+    /// The frame duration used in the test is 1 second. We advance 1 second
+    /// before computing the first sample, reaching the sustain immediately.
+    fn test_ar_impulse_sustain_one_with_note_press_and_release_impulse() {
+        let mut engine_events = Vec::new();
+        engine_events.push((0, EngineEvent::NoteChange {note: Some(0)} ));
+        engine_events.push((3, EngineEvent::NoteChange {note: None} ));
+
+        let comparison_buffer = vec![[1.0], [1.0], [1.0], [0.0], [0.0], [0.0]];
+        _test(0.001, 0.001, 1.0, 0.001, engine_events, comparison_buffer);
+    }
+
+    #[test]
+    /// Test minimum-length attack and decay with high sustain and note release
+    /// on fourth sample, two-second release.
+    /// The frame duration used in the test is 1 second. We advance 1 second
+    /// before computing the first sample, reaching the sustain immediately.
+    fn test_ar_impulse_sustain_one_with_note_press_and_release_two_seconds() {
+        let mut engine_events = Vec::new();
+        engine_events.push((0, EngineEvent::NoteChange {note: Some(0)} ));
+        engine_events.push((3, EngineEvent::NoteChange {note: None} ));
+
+        let comparison_buffer = vec![[1.0], [1.0], [1.0], [0.5], [0.0], [0.0]];
+        _test(0.001, 0.001, 1.0, 2.000, engine_events, comparison_buffer);
+    }
+
+    #[test]
+    /// Test a slow attack interrupted by note release.
+    /// The release phase duration should not change, but its gradient will
+    /// start from the amplitude when the note was released (0.5).
+    fn test_release_mid_attack() {
+        let mut engine_events = Vec::new();
+        engine_events.push((0, EngineEvent::NoteChange {note: Some(0)} ));
+        engine_events.push((2, EngineEvent::NoteChange {note: None} ));
+
+        let comparison_buffer = vec![
+            [0.25], [0.5], [0.375], [0.25], [0.125], [0.0], [0.0]];
+        _test(4.0, 0.001, 0.0, 4.0, engine_events, comparison_buffer);
+    }
+
+    #[test]
+    /// Test a slow attack interrupted by note release.
+    /// The release phase duration should not change, but its gradient will
+    /// start from the amplitude when the note was released (0.5).
+    fn test_release_mid_decay() {
+        let mut engine_events = Vec::new();
+        engine_events.push((0, EngineEvent::NoteChange {note: Some(0)} ));
+        engine_events.push((3, EngineEvent::NoteChange {note: None} ));
+
+        let comparison_buffer = vec![
+            [1.0], [0.75], [0.5], [0.375], [0.25], [0.125], [0.0], [0.0]];
+        _test(1.0, 4.0, 0.0, 4.0, engine_events, comparison_buffer);
+    }
+
+    #[test]
+    /// Test pressing a note during a long release.
+    /// The attack phase duration should not change, but its gradient will
+    /// start from the amplitude when the note was released (0.5).
+    fn test_retrigger_mid_release() {
+        let mut engine_events = Vec::new();
+        engine_events.push((0, EngineEvent::NoteChange {note: Some(0)} ));
+        engine_events.push((4, EngineEvent::NoteChange {note: None} ));
+        engine_events.push((6, EngineEvent::NoteChange {note: Some(0)} ));
+
+        let comparison_buffer = vec![
+            [0.25], [0.5], [0.75], [1.0], // then note off
+            [0.75], [0.5], // then note on and hold
+            [0.625], [0.75], [0.875], [1.0]];
+        _test(4.0, 1.0, 0.0, 4.0, engine_events, comparison_buffer);
+    }
+
+    /// This function abstracts some test functionality around the Adsr.process_buffer method.
+    /// params: optional params where the Baselisk defaults need to be overridden
+    /// engine_events: a vector containing (frame_num, EngineEvent) pairs to iterate over.
+    /// comparison_buffer: a vector of MonoFrames to compare the results against.
+    ///                    the test will generate the same number of samples as the length
+    ///                    of the comparison buffer.
+    fn _test(attack_duration: defs::Sample,
+             decay_duration: defs::Sample,
+             sustain_level: defs::Sample,
+             release_duration: defs::Sample,
+             mut engine_events: Vec<(usize, EngineEvent)>,
+             comparison_buffer: Vec<defs::MonoFrame>) {
+
+        // setup
+        let mut adsr = Adsr::new();
+        let sample_rate = 1.0;
+
+        let mut params = BaseliskPluginParameters::default();
+        params.update_real_value(PARAM_ADSR_ATTACK, attack_duration);
+        params.update_real_value(PARAM_ADSR_DECAY, decay_duration);
+        params.update_real_value(PARAM_ADSR_SUSTAIN, sustain_level);
+        params.update_real_value(PARAM_ADSR_RELEASE, release_duration);
+
+        let mut buffer = vec![[0.0]; comparison_buffer.len()];
+
+        // test
+        adsr.process_buffer(&mut buffer, engine_events.iter(), sample_rate, &params);
+
+        // verify results
+        for i in 0..buffer.len() {
+            let error_abs = defs::Sample::abs(buffer[i][0] - comparison_buffer[i][0]);
+            if error_abs > std::f32::EPSILON {
+                panic!("For sample index {}, actual output == {}, expected == {}, absolute error = {}",
+                       i, buffer[i][0], comparison_buffer[i][0], error_abs);
+            }
+        }
     }
 }
