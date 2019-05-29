@@ -53,42 +53,46 @@ where
 pub fn update_parameter_from_tokens(param_id: i32,
                                     token_iter: &mut SplitWhitespace) -> Result<PatchEvent, String>
 {
-    let field_name: String = match parse_from_next_token(token_iter) {
-        Ok(val) => val,
-        Err(_) => return Err(String::from("Could not parse a field name")),
-    };
-    let patch_event: PatchEvent = match field_name.as_str() {
-        "cc" => {
-            // Try to get a value
-            let field_value: u8 = match parse_from_next_token(token_iter) {
-                Ok(val) => val,
-                Err(_) => return Err(String::from("Could not parse a field value")),
-            };
-            PatchEvent::ControllerBindUpdate {
-                param_id,
-                bind_type: ControllerBindData::CliInput(field_value),
-            }
-        },
-        "learn" => {
-            PatchEvent::ControllerBindUpdate {
-                param_id,
-                bind_type: ControllerBindData::MidiLearn,
-            }
-        },
-        _ => {
-            // Try to get a value
-            let value: defs::Sample = match parse_from_next_token(token_iter) {
-                Ok(value) => value,
-                Err(_) => return Err(String::from("Could not parse parameter value")),
-            };
-            PatchEvent::ModulatableParameterUpdate {
-                param_id,
-                value,
-            }
-        },
+    let token = match parse_from_next_token::<String>(token_iter) {
+        Ok(token) => token,
+        Err(reason) => return Err(reason),
     };
 
-    Ok(patch_event)
+    // Try to get a text token: either "cc" or "learn"
+    match token.as_str() {
+        "cc" => {
+            // Try to get a controller number
+            let field_value: u8 = match parse_from_next_token(token_iter) {
+                Ok(val) => val,
+                Err(reason) => return Err(reason),
+            };
+            return Ok(PatchEvent::ControllerBindUpdate {
+                param_id,
+                bind_type: ControllerBindData::CliInput(field_value),
+            })
+        },
+        "learn" => {
+            // No further parameters
+            return Ok(PatchEvent::ControllerBindUpdate {
+                param_id,
+                bind_type: ControllerBindData::MidiLearn,
+            })
+        },
+        _ => (),
+    }
+
+    // Try to get a numeric parameter value instead
+    match token.parse::<defs::Sample>() {
+        Ok(value) => {
+            return Ok(PatchEvent::ModulatableParameterUpdate {
+                param_id,
+                value,
+            })
+        }
+        Err(_) => (),
+    };
+
+    Err(String::from("Could not parse input"))
 }
 
 fn build_tree() -> Tree
