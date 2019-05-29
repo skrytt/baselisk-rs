@@ -50,9 +50,9 @@ impl Default for BaseliskPluginParameters {
     fn default() -> BaseliskPluginParameters {
         BaseliskPluginParameters {
             adsr_attack: ExponentialParameter::new(0.001, 10.0, 0.02),
-            adsr_decay: ExponentialParameter::new(0.001, 10.0, 0.707),
+            adsr_decay: ExponentialParameter::new(0.02, 10.0, 0.707),
             adsr_sustain: LinearParameter::new(0.0, 1.0, 0.0),
-            adsr_release: ExponentialParameter::new(0.001, 10.0, 0.4),
+            adsr_release: ExponentialParameter::new(0.02, 10.0, 0.4),
             delay_feedback: LinearParameter::new(0.0, 1.0, 0.6),
             delay_high_pass_filter_frequency: ExponentialParameter::new(20.0, 22000.0, 100.0),
             delay_high_pass_filter_quality: ExponentialParameter::new(0.5, 10.0, 0.707),

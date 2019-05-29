@@ -242,7 +242,7 @@ mod tests {
         engine_events.push((0, EngineEvent::NoteChange {note: Some(0)} ));
 
         let comparison_buffer = vec![[0.0], [0.0], [0.0], [0.0]];
-        _test(0.001, 0.001, 0.0, 0.001, engine_events, comparison_buffer);
+        _test(0.02, 0.02, 0.0, 0.02, engine_events, comparison_buffer);
     }
 
     #[test]
@@ -254,7 +254,7 @@ mod tests {
         engine_events.push((0, EngineEvent::NoteChange {note: Some(0)} ));
 
         let comparison_buffer = vec![[1.0], [1.0], [1.0], [1.0]];
-        _test(0.001, 0.001, 1.0, 0.001, engine_events, comparison_buffer);
+        _test(0.02, 0.02, 1.0, 0.02, engine_events, comparison_buffer);
     }
 
     #[test]
@@ -266,7 +266,7 @@ mod tests {
         engine_events.push((0, EngineEvent::NoteChange {note: Some(0)} ));
 
         let comparison_buffer = vec![[0.5], [0.5], [0.5], [0.5]];
-        _test(0.001, 0.001, 0.5, 0.001, engine_events, comparison_buffer);
+        _test(0.02, 0.02, 0.5, 0.02, engine_events, comparison_buffer);
     }
     #[test]
     /// Test one-second attack and decay.
@@ -278,7 +278,7 @@ mod tests {
         engine_events.push((0, EngineEvent::NoteChange {note: Some(0)} ));
 
         let comparison_buffer = vec![[1.0], [0.0], [0.0], [0.0]];
-        _test(1.0, 1.0, 0.0, 0.001, engine_events, comparison_buffer);
+        _test(1.0, 1.0, 0.0, 0.02, engine_events, comparison_buffer);
     }
 
     #[test]
@@ -291,7 +291,7 @@ mod tests {
         engine_events.push((0, EngineEvent::NoteChange {note: Some(0)} ));
 
         let comparison_buffer = vec![[0.5], [1.0], [0.5], [0.0], [0.0], [0.0]];
-        _test(2.0, 2.0, 0.0, 0.001, engine_events, comparison_buffer);
+        _test(2.0, 2.0, 0.0, 0.02, engine_events, comparison_buffer);
     }
 
     #[test]
@@ -305,7 +305,7 @@ mod tests {
         engine_events.push((3, EngineEvent::NoteChange {note: None} ));
 
         let comparison_buffer = vec![[1.0], [1.0], [1.0], [0.0], [0.0], [0.0]];
-        _test(0.001, 0.001, 1.0, 0.001, engine_events, comparison_buffer);
+        _test(0.02, 0.02, 1.0, 0.02, engine_events, comparison_buffer);
     }
 
     #[test]
@@ -319,7 +319,7 @@ mod tests {
         engine_events.push((3, EngineEvent::NoteChange {note: None} ));
 
         let comparison_buffer = vec![[1.0], [1.0], [1.0], [0.5], [0.0], [0.0]];
-        _test(0.001, 0.001, 1.0, 2.000, engine_events, comparison_buffer);
+        _test(0.02, 0.02, 1.0, 2.000, engine_events, comparison_buffer);
     }
 
     #[test]
@@ -333,7 +333,7 @@ mod tests {
 
         let comparison_buffer = vec![
             [0.25], [0.5], [0.375], [0.25], [0.125], [0.0], [0.0]];
-        _test(4.0, 0.001, 0.0, 4.0, engine_events, comparison_buffer);
+        _test(4.0, 0.02, 0.0, 4.0, engine_events, comparison_buffer);
     }
 
     #[test]
