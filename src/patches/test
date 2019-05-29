@@ -5,7 +5,7 @@ adsr decay cc 71
 adsr sustain cc 91
 adsr release cc 93
 filter sweeprange cc 73
-filter quality cc 72
+filter resonance cc 72
 waveshaper inputgain cc 5
 waveshaper outputgain cc 84
 delay feedback cc 7

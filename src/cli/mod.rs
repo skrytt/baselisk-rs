@@ -17,9 +17,7 @@ use parameter::{
     PARAM_ADSR_RELEASE,
     PARAM_DELAY_FEEDBACK,
     PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY,
-    PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE,
     PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY,
-    PARAM_DELAY_LOW_PASS_FILTER_RESONANCE,
     PARAM_DELAY_WET_GAIN,
     PARAM_FILTER_FREQUENCY,
     PARAM_FILTER_SWEEP_RANGE,
@@ -209,15 +207,6 @@ fn build_tree() -> Tree
                 },
                 Some(String::from("<Hz>")),
             ));
-
-            lowpass.add_child("resonance", Node::new_dispatch_event(
-                |mut token_iter| {
-                    update_parameter_from_tokens(
-                        PARAM_DELAY_LOW_PASS_FILTER_RESONANCE,
-                        &mut token_iter)
-                },
-                Some(String::from("<percent>")),
-            ));
         }
         {
             let highpass = delay.add_child("highpass", Node::new_with_children());
@@ -229,15 +218,6 @@ fn build_tree() -> Tree
                         &mut token_iter)
                 },
                 Some(String::from("<Hz>")),
-            ));
-
-            highpass.add_child("resonance", Node::new_dispatch_event(
-                |mut token_iter| {
-                    update_parameter_from_tokens(
-                        PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE,
-                        &mut token_iter)
-                },
-                Some(String::from("<percent>")),
             ));
         }
 

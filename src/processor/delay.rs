@@ -7,9 +7,7 @@ use parameter::{
     BaseliskPluginParameters,
     PARAM_DELAY_FEEDBACK,
     PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY,
-    PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE,
     PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY,
-    PARAM_DELAY_LOW_PASS_FILTER_RESONANCE,
     PARAM_DELAY_WET_GAIN,
 };
 use processor::filter::{
@@ -73,9 +71,7 @@ impl Delay {
                         // All delay events will trigger keyframes
                         PARAM_DELAY_FEEDBACK |
                         PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY |
-                        PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE |
                         PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY |
-                        PARAM_DELAY_LOW_PASS_FILTER_RESONANCE |
                         PARAM_DELAY_WET_GAIN => (),
                         _ => continue,
                     },
@@ -89,8 +85,7 @@ impl Delay {
 
             let lowpass_frequency_hz = params.get_real_value(
                 PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY);
-            let lowpass_quality = params.get_real_value(
-                PARAM_DELAY_LOW_PASS_FILTER_RESONANCE);
+            let lowpass_quality = 0.707;
 
             // Lowpass filter coefficients
             get_lowpass_second_order_biquad_consts(
@@ -101,8 +96,7 @@ impl Delay {
 
             let highpass_frequency_hz = params.get_real_value(
                 PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY);
-            let highpass_quality = params.get_real_value(
-                PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE);
+            let highpass_quality = 0.707;
 
             // Highpass filter coefficients
             get_highpass_second_order_biquad_consts(
@@ -159,9 +153,7 @@ impl Delay {
                     match *param_id {
                         PARAM_DELAY_FEEDBACK |
                         PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY |
-                        PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE |
                         PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY |
-                        PARAM_DELAY_LOW_PASS_FILTER_RESONANCE |
                         PARAM_DELAY_WET_GAIN => {
                             params.set_parameter(*param_id, *value);
                         }

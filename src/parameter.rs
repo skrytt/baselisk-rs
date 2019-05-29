@@ -9,20 +9,20 @@ pub const PARAM_ADSR_SUSTAIN: i32 = 2;
 pub const PARAM_ADSR_RELEASE: i32 = 3;
 pub const PARAM_DELAY_FEEDBACK: i32 = 4;
 pub const PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY: i32 = 5;
-pub const PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE: i32 = 6;
-pub const PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY: i32 = 7;
-pub const PARAM_DELAY_LOW_PASS_FILTER_RESONANCE: i32 = 8;
-pub const PARAM_DELAY_WET_GAIN: i32 = 9;
-pub const PARAM_FILTER_FREQUENCY: i32 = 10;
-pub const PARAM_FILTER_SWEEP_RANGE: i32 = 11;
-pub const PARAM_FILTER_RESONANCE: i32 = 12;
-pub const PARAM_OSCILLATOR_PITCH: i32 = 13;
-pub const PARAM_OSCILLATOR_PULSE_WIDTH: i32 = 14;
-pub const PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO: i32 = 15;
-pub const PARAM_OSCILLATOR_MOD_INDEX: i32 = 16;
-pub const PARAM_WAVESHAPER_INPUT_GAIN: i32 = 17;
-pub const PARAM_WAVESHAPER_OUTPUT_GAIN: i32 = 18;
-pub const NUM_PARAMS: i32 = 19;
+pub const PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY: i32 = 6;
+pub const PARAM_DELAY_WET_GAIN: i32 = 7;
+pub const PARAM_FILTER_FREQUENCY: i32 = 8;
+pub const PARAM_FILTER_SWEEP_RANGE: i32 = 9;
+pub const PARAM_FILTER_RESONANCE: i32 = 10;
+pub const PARAM_OSCILLATOR_PITCH: i32 = 11;
+pub const PARAM_OSCILLATOR_PULSE_WIDTH: i32 = 12;
+pub const PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO: i32 = 13;
+pub const PARAM_OSCILLATOR_MOD_INDEX: i32 = 14;
+pub const PARAM_WAVESHAPER_INPUT_GAIN: i32 = 15;
+pub const PARAM_WAVESHAPER_OUTPUT_GAIN: i32 = 16;
+
+#[cfg(feature = "plugin_vst")]
+pub const NUM_PARAMS: i32 = 17;
 
 pub struct BaseliskPluginParameters {
     adsr_attack: ExponentialParameter,
@@ -31,9 +31,7 @@ pub struct BaseliskPluginParameters {
     adsr_release: ExponentialParameter,
     delay_feedback: LinearParameter,
     delay_high_pass_filter_frequency: ExponentialParameter,
-    delay_high_pass_filter_quality: ExponentialParameter,
     delay_low_pass_filter_frequency: ExponentialParameter,
-    delay_low_pass_filter_quality: ExponentialParameter,
     delay_wet_gain: LinearParameter,
     filter_frequency: ExponentialParameter,
     filter_sweep_range: LinearParameter,
@@ -55,9 +53,7 @@ impl Default for BaseliskPluginParameters {
             adsr_release: ExponentialParameter::new(0.02, 10.0, 0.4),
             delay_feedback: LinearParameter::new(0.0, 1.0, 0.6),
             delay_high_pass_filter_frequency: ExponentialParameter::new(20.0, 22000.0, 100.0),
-            delay_high_pass_filter_quality: ExponentialParameter::new(0.5, 10.0, 0.707),
             delay_low_pass_filter_frequency: ExponentialParameter::new(20.0, 22000.0, 5000.0),
-            delay_low_pass_filter_quality: ExponentialParameter::new(0.5, 10.0, 0.707),
             delay_wet_gain: LinearParameter::new(0.0, 1.0, 0.4),
             filter_frequency: ExponentialParameter::new(20.0, 22000.0, 100.0),
             filter_sweep_range: LinearParameter::new(0.0, 10.0, 8.0),
@@ -85,9 +81,7 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
             PARAM_ADSR_RELEASE => self.adsr_release.get_vst_param(),
             PARAM_DELAY_FEEDBACK => self.delay_feedback.get_vst_param(),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY => self.delay_high_pass_filter_frequency.get_vst_param(),
-            PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE => self.delay_high_pass_filter_quality.get_vst_param(),
             PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY => self.delay_low_pass_filter_frequency.get_vst_param(),
-            PARAM_DELAY_LOW_PASS_FILTER_RESONANCE => self.delay_low_pass_filter_quality.get_vst_param(),
             PARAM_DELAY_WET_GAIN => self.delay_wet_gain.get_vst_param(),
             PARAM_FILTER_FREQUENCY => self.filter_frequency.get_vst_param(),
             PARAM_FILTER_SWEEP_RANGE => self.filter_sweep_range.get_vst_param(),
@@ -116,12 +110,8 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
                 "{} %", 100.0 * self.delay_feedback.get_real_value()),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY => format!(
                 "{} Hz", self.delay_high_pass_filter_frequency.get_real_value()),
-            PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE => format!(
-                "{} %", self.delay_high_pass_filter_quality.get_vst_param()),
             PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY => format!(
                 "{} Hz", self.delay_low_pass_filter_frequency.get_real_value()),
-            PARAM_DELAY_LOW_PASS_FILTER_RESONANCE => format!(
-                "{} %", self.delay_low_pass_filter_quality.get_vst_param()),
             PARAM_DELAY_WET_GAIN => format!(
                 "{} %", 100.0 * self.delay_wet_gain.get_real_value()),
             PARAM_FILTER_FREQUENCY => format!(
@@ -155,12 +145,8 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
             PARAM_DELAY_FEEDBACK => String::from("delay feedback"),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY => String::from(
                     "delay high pass filter frequency"),
-            PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE => String::from(
-                    "delay high pass filter quality"),
             PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY => String::from(
                     "delay low pass filter frequency"),
-            PARAM_DELAY_LOW_PASS_FILTER_RESONANCE => String::from(
-                    "delay low pass filter quality"),
             PARAM_DELAY_WET_GAIN => String::from("delay wet gain"),
             PARAM_FILTER_FREQUENCY => String::from("filter frequency"),
             PARAM_FILTER_SWEEP_RANGE => String::from("filter sweep range"),
@@ -185,9 +171,7 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
             PARAM_ADSR_RELEASE => self.adsr_release.update_vst_param(val),
             PARAM_DELAY_FEEDBACK => self.delay_feedback.update_vst_param(val),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY => self.delay_high_pass_filter_frequency.update_vst_param(val),
-            PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE => self.delay_high_pass_filter_quality.update_vst_param(val),
             PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY => self.delay_low_pass_filter_frequency.update_vst_param(val),
-            PARAM_DELAY_LOW_PASS_FILTER_RESONANCE => self.delay_low_pass_filter_quality.update_vst_param(val),
             PARAM_DELAY_WET_GAIN => self.delay_wet_gain.update_vst_param(val),
             PARAM_FILTER_FREQUENCY => self.filter_frequency.update_vst_param(val),
             PARAM_FILTER_SWEEP_RANGE => self.filter_sweep_range.update_vst_param(val),
@@ -213,9 +197,7 @@ impl BaseliskPluginParameters
             PARAM_ADSR_RELEASE => self.adsr_release.update_real_value(value),
             PARAM_DELAY_FEEDBACK => self.delay_feedback.update_real_value(value),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY => self.delay_high_pass_filter_frequency.update_real_value(value),
-            PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE => self.delay_high_pass_filter_quality.update_real_value(value),
             PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY => self.delay_low_pass_filter_frequency.update_real_value(value),
-            PARAM_DELAY_LOW_PASS_FILTER_RESONANCE => self.delay_low_pass_filter_quality.update_real_value(value),
             PARAM_DELAY_WET_GAIN => self.delay_wet_gain.update_real_value(value),
             PARAM_FILTER_FREQUENCY => self.filter_frequency.update_real_value(value),
             PARAM_FILTER_SWEEP_RANGE => self.filter_sweep_range.update_real_value(value),
@@ -238,9 +220,7 @@ impl BaseliskPluginParameters
             PARAM_ADSR_RELEASE => self.adsr_release.get_real_value(),
             PARAM_DELAY_FEEDBACK => self.delay_feedback.get_real_value(),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY => self.delay_high_pass_filter_frequency.get_real_value(),
-            PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE => self.delay_high_pass_filter_quality.get_real_value(),
             PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY => self.delay_low_pass_filter_frequency.get_real_value(),
-            PARAM_DELAY_LOW_PASS_FILTER_RESONANCE => self.delay_low_pass_filter_quality.get_real_value(),
             PARAM_DELAY_WET_GAIN => self.delay_wet_gain.get_real_value(),
             PARAM_FILTER_FREQUENCY => self.filter_frequency.get_real_value(),
             PARAM_FILTER_SWEEP_RANGE => self.filter_sweep_range.get_real_value(),
