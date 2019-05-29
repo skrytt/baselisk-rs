@@ -17,13 +17,13 @@ use parameter::{
     PARAM_ADSR_RELEASE,
     PARAM_DELAY_FEEDBACK,
     PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY,
-    PARAM_DELAY_HIGH_PASS_FILTER_QUALITY,
+    PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE,
     PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY,
-    PARAM_DELAY_LOW_PASS_FILTER_QUALITY,
+    PARAM_DELAY_LOW_PASS_FILTER_RESONANCE,
     PARAM_DELAY_WET_GAIN,
     PARAM_FILTER_FREQUENCY,
     PARAM_FILTER_SWEEP_RANGE,
-    PARAM_FILTER_QUALITY,
+    PARAM_FILTER_RESONANCE,
     PARAM_OSCILLATOR_PITCH,
     PARAM_OSCILLATOR_PULSE_WIDTH,
     PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO,
@@ -210,13 +210,13 @@ fn build_tree() -> Tree
                 Some(String::from("<Hz>")),
             ));
 
-            lowpass.add_child("quality", Node::new_dispatch_event(
+            lowpass.add_child("resonance", Node::new_dispatch_event(
                 |mut token_iter| {
                     update_parameter_from_tokens(
-                        PARAM_DELAY_LOW_PASS_FILTER_QUALITY,
+                        PARAM_DELAY_LOW_PASS_FILTER_RESONANCE,
                         &mut token_iter)
                 },
-                Some(String::from("<Hz>")),
+                Some(String::from("<percent>")),
             ));
         }
         {
@@ -231,13 +231,13 @@ fn build_tree() -> Tree
                 Some(String::from("<Hz>")),
             ));
 
-            highpass.add_child("quality", Node::new_dispatch_event(
+            highpass.add_child("resonance", Node::new_dispatch_event(
                 |mut token_iter| {
                     update_parameter_from_tokens(
-                        PARAM_DELAY_HIGH_PASS_FILTER_QUALITY,
+                        PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE,
                         &mut token_iter)
                 },
-                Some(String::from("<Hz>")),
+                Some(String::from("<percent>")),
             ));
         }
 
@@ -280,13 +280,13 @@ fn build_tree() -> Tree
             Some(String::from("<octaves>")),
         ));
 
-        filter.add_child("quality", Node::new_dispatch_event(
+        filter.add_child("resonance", Node::new_dispatch_event(
             |mut token_iter| {
                 update_parameter_from_tokens(
-                    PARAM_FILTER_QUALITY,
+                    PARAM_FILTER_RESONANCE,
                     &mut token_iter)
             },
-            Some(String::from("<q>")),
+            Some(String::from("<percent>")),
         ));
     }
     {

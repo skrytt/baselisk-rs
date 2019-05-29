@@ -9,13 +9,13 @@ pub const PARAM_ADSR_SUSTAIN: i32 = 2;
 pub const PARAM_ADSR_RELEASE: i32 = 3;
 pub const PARAM_DELAY_FEEDBACK: i32 = 4;
 pub const PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY: i32 = 5;
-pub const PARAM_DELAY_HIGH_PASS_FILTER_QUALITY: i32 = 6;
+pub const PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE: i32 = 6;
 pub const PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY: i32 = 7;
-pub const PARAM_DELAY_LOW_PASS_FILTER_QUALITY: i32 = 8;
+pub const PARAM_DELAY_LOW_PASS_FILTER_RESONANCE: i32 = 8;
 pub const PARAM_DELAY_WET_GAIN: i32 = 9;
 pub const PARAM_FILTER_FREQUENCY: i32 = 10;
 pub const PARAM_FILTER_SWEEP_RANGE: i32 = 11;
-pub const PARAM_FILTER_QUALITY: i32 = 12;
+pub const PARAM_FILTER_RESONANCE: i32 = 12;
 pub const PARAM_OSCILLATOR_PITCH: i32 = 13;
 pub const PARAM_OSCILLATOR_PULSE_WIDTH: i32 = 14;
 pub const PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO: i32 = 15;
@@ -85,13 +85,13 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
             PARAM_ADSR_RELEASE => self.adsr_release.get_vst_param(),
             PARAM_DELAY_FEEDBACK => self.delay_feedback.get_vst_param(),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY => self.delay_high_pass_filter_frequency.get_vst_param(),
-            PARAM_DELAY_HIGH_PASS_FILTER_QUALITY => self.delay_high_pass_filter_quality.get_vst_param(),
+            PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE => self.delay_high_pass_filter_quality.get_vst_param(),
             PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY => self.delay_low_pass_filter_frequency.get_vst_param(),
-            PARAM_DELAY_LOW_PASS_FILTER_QUALITY => self.delay_low_pass_filter_quality.get_vst_param(),
+            PARAM_DELAY_LOW_PASS_FILTER_RESONANCE => self.delay_low_pass_filter_quality.get_vst_param(),
             PARAM_DELAY_WET_GAIN => self.delay_wet_gain.get_vst_param(),
             PARAM_FILTER_FREQUENCY => self.filter_frequency.get_vst_param(),
             PARAM_FILTER_SWEEP_RANGE => self.filter_sweep_range.get_vst_param(),
-            PARAM_FILTER_QUALITY => self.filter_quality.get_vst_param(),
+            PARAM_FILTER_RESONANCE => self.filter_quality.get_vst_param(),
             PARAM_OSCILLATOR_PITCH => self.oscillator_pitch.get_vst_param(),
             PARAM_OSCILLATOR_PULSE_WIDTH => self.oscillator_pulse_width.get_vst_param(),
             PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO => self.oscillator_mod_frequency_ratio.get_vst_param(),
@@ -115,20 +115,20 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
             PARAM_DELAY_FEEDBACK => format!(
                 "{} %", 100.0 * self.delay_feedback.get_real_value()),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY => format!(
-                "{}Hz", self.delay_high_pass_filter_frequency.get_real_value()),
-            PARAM_DELAY_HIGH_PASS_FILTER_QUALITY => format!(
-                "{}Hz", self.delay_high_pass_filter_quality.get_real_value()),
+                "{} Hz", self.delay_high_pass_filter_frequency.get_real_value()),
+            PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE => format!(
+                "{} %", self.delay_high_pass_filter_quality.get_vst_param()),
             PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY => format!(
-                "{}Hz", self.delay_low_pass_filter_frequency.get_real_value()),
-            PARAM_DELAY_LOW_PASS_FILTER_QUALITY => format!(
-                "{}Hz", self.delay_low_pass_filter_quality.get_real_value()),
+                "{} Hz", self.delay_low_pass_filter_frequency.get_real_value()),
+            PARAM_DELAY_LOW_PASS_FILTER_RESONANCE => format!(
+                "{} %", self.delay_low_pass_filter_quality.get_vst_param()),
             PARAM_DELAY_WET_GAIN => format!(
                 "{} %", 100.0 * self.delay_wet_gain.get_real_value()),
             PARAM_FILTER_FREQUENCY => format!(
                 "{} Hz", self.filter_frequency.get_real_value()),
             PARAM_FILTER_SWEEP_RANGE => format!(
                 "{} octaves", self.filter_sweep_range.get_real_value()),
-            PARAM_FILTER_QUALITY => format!(
+            PARAM_FILTER_RESONANCE => format!(
                 "{}", self.filter_quality.get_real_value()),
             PARAM_OSCILLATOR_PITCH => format!(
                 "{} semitones", self.oscillator_pitch.get_real_value()),
@@ -155,16 +155,16 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
             PARAM_DELAY_FEEDBACK => String::from("delay feedback"),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY => String::from(
                     "delay high pass filter frequency"),
-            PARAM_DELAY_HIGH_PASS_FILTER_QUALITY => String::from(
+            PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE => String::from(
                     "delay high pass filter quality"),
             PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY => String::from(
                     "delay low pass filter frequency"),
-            PARAM_DELAY_LOW_PASS_FILTER_QUALITY => String::from(
+            PARAM_DELAY_LOW_PASS_FILTER_RESONANCE => String::from(
                     "delay low pass filter quality"),
             PARAM_DELAY_WET_GAIN => String::from("delay wet gain"),
             PARAM_FILTER_FREQUENCY => String::from("filter frequency"),
             PARAM_FILTER_SWEEP_RANGE => String::from("filter sweep range"),
-            PARAM_FILTER_QUALITY => String::from("filter quality"),
+            PARAM_FILTER_RESONANCE => String::from("filter quality"),
             PARAM_OSCILLATOR_PITCH => String::from("oscillator pitch"),
             PARAM_OSCILLATOR_PULSE_WIDTH => String::from("oscillator pulse width"),
             PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO => String::from(
@@ -185,13 +185,13 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
             PARAM_ADSR_RELEASE => self.adsr_release.update_vst_param(val),
             PARAM_DELAY_FEEDBACK => self.delay_feedback.update_vst_param(val),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY => self.delay_high_pass_filter_frequency.update_vst_param(val),
-            PARAM_DELAY_HIGH_PASS_FILTER_QUALITY => self.delay_high_pass_filter_quality.update_vst_param(val),
+            PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE => self.delay_high_pass_filter_quality.update_vst_param(val),
             PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY => self.delay_low_pass_filter_frequency.update_vst_param(val),
-            PARAM_DELAY_LOW_PASS_FILTER_QUALITY => self.delay_low_pass_filter_quality.update_vst_param(val),
+            PARAM_DELAY_LOW_PASS_FILTER_RESONANCE => self.delay_low_pass_filter_quality.update_vst_param(val),
             PARAM_DELAY_WET_GAIN => self.delay_wet_gain.update_vst_param(val),
             PARAM_FILTER_FREQUENCY => self.filter_frequency.update_vst_param(val),
             PARAM_FILTER_SWEEP_RANGE => self.filter_sweep_range.update_vst_param(val),
-            PARAM_FILTER_QUALITY => self.filter_quality.update_vst_param(val),
+            PARAM_FILTER_RESONANCE => self.filter_quality.update_vst_param(val),
             PARAM_OSCILLATOR_PITCH => self.oscillator_pitch.update_vst_param(val),
             PARAM_OSCILLATOR_PULSE_WIDTH => self.oscillator_pulse_width.update_vst_param(val),
             PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO => self.oscillator_mod_frequency_ratio.update_vst_param(val),
@@ -213,13 +213,13 @@ impl BaseliskPluginParameters
             PARAM_ADSR_RELEASE => self.adsr_release.update_real_value(value),
             PARAM_DELAY_FEEDBACK => self.delay_feedback.update_real_value(value),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY => self.delay_high_pass_filter_frequency.update_real_value(value),
-            PARAM_DELAY_HIGH_PASS_FILTER_QUALITY => self.delay_high_pass_filter_quality.update_real_value(value),
+            PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE => self.delay_high_pass_filter_quality.update_real_value(value),
             PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY => self.delay_low_pass_filter_frequency.update_real_value(value),
-            PARAM_DELAY_LOW_PASS_FILTER_QUALITY => self.delay_low_pass_filter_quality.update_real_value(value),
+            PARAM_DELAY_LOW_PASS_FILTER_RESONANCE => self.delay_low_pass_filter_quality.update_real_value(value),
             PARAM_DELAY_WET_GAIN => self.delay_wet_gain.update_real_value(value),
             PARAM_FILTER_FREQUENCY => self.filter_frequency.update_real_value(value),
             PARAM_FILTER_SWEEP_RANGE => self.filter_sweep_range.update_real_value(value),
-            PARAM_FILTER_QUALITY => self.filter_quality.update_real_value(value),
+            PARAM_FILTER_RESONANCE => self.filter_quality.update_real_value(value),
             PARAM_OSCILLATOR_PITCH => self.oscillator_pitch.update_real_value(value),
             PARAM_OSCILLATOR_PULSE_WIDTH => self.oscillator_pulse_width.update_real_value(value),
             PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO => self.oscillator_mod_frequency_ratio.update_real_value(value),
@@ -238,13 +238,13 @@ impl BaseliskPluginParameters
             PARAM_ADSR_RELEASE => self.adsr_release.get_real_value(),
             PARAM_DELAY_FEEDBACK => self.delay_feedback.get_real_value(),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY => self.delay_high_pass_filter_frequency.get_real_value(),
-            PARAM_DELAY_HIGH_PASS_FILTER_QUALITY => self.delay_high_pass_filter_quality.get_real_value(),
+            PARAM_DELAY_HIGH_PASS_FILTER_RESONANCE => self.delay_high_pass_filter_quality.get_real_value(),
             PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY => self.delay_low_pass_filter_frequency.get_real_value(),
-            PARAM_DELAY_LOW_PASS_FILTER_QUALITY => self.delay_low_pass_filter_quality.get_real_value(),
+            PARAM_DELAY_LOW_PASS_FILTER_RESONANCE => self.delay_low_pass_filter_quality.get_real_value(),
             PARAM_DELAY_WET_GAIN => self.delay_wet_gain.get_real_value(),
             PARAM_FILTER_FREQUENCY => self.filter_frequency.get_real_value(),
             PARAM_FILTER_SWEEP_RANGE => self.filter_sweep_range.get_real_value(),
-            PARAM_FILTER_QUALITY => self.filter_quality.get_real_value(),
+            PARAM_FILTER_RESONANCE => self.filter_quality.get_real_value(),
             PARAM_OSCILLATOR_PITCH => self.oscillator_pitch.get_real_value(),
             PARAM_OSCILLATOR_PULSE_WIDTH => self.oscillator_pulse_width.get_real_value(),
             PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO => self.oscillator_mod_frequency_ratio.get_real_value(),

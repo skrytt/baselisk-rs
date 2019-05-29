@@ -6,7 +6,7 @@ use parameter::{
     BaseliskPluginParameters,
     PARAM_FILTER_FREQUENCY,
     PARAM_FILTER_SWEEP_RANGE,
-    PARAM_FILTER_QUALITY,
+    PARAM_FILTER_RESONANCE,
 };
 use sample::{Frame, slice};
 use std::default::Default;
@@ -62,7 +62,7 @@ impl Filter
                     EngineEvent::ModulateParameter { param_id, .. } => match *param_id {
                         // All filter events will trigger keyframes
                         PARAM_FILTER_FREQUENCY |
-                        PARAM_FILTER_QUALITY |
+                        PARAM_FILTER_RESONANCE |
                         PARAM_FILTER_SWEEP_RANGE => (),
                         _ => continue,
                     },
@@ -81,7 +81,7 @@ impl Filter
                 let adsr_input_buffer_slice = adsr_input_buffer.get(
                         this_keyframe..next_keyframe).unwrap();
 
-                let quality_factor = params.get_real_value(PARAM_FILTER_QUALITY);
+                let quality_factor = params.get_real_value(PARAM_FILTER_RESONANCE);
                 let base_frequency_hz = params.get_real_value(PARAM_FILTER_FREQUENCY);
                 let adsr_sweep_octaves = params.get_real_value(PARAM_FILTER_SWEEP_RANGE);
 
@@ -135,7 +135,7 @@ impl Filter
                 if let EngineEvent::ModulateParameter { param_id, value } = event {
                    match *param_id {
                         PARAM_FILTER_FREQUENCY |
-                        PARAM_FILTER_QUALITY |
+                        PARAM_FILTER_RESONANCE |
                         PARAM_FILTER_SWEEP_RANGE => {
                             params.set_parameter(*param_id, *value);
                         },
