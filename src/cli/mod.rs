@@ -266,7 +266,7 @@ fn build_tree() -> Tree
                     PARAM_FILTER_RESONANCE,
                     &mut token_iter)
             },
-            Some(String::from("<percent>")),
+            Some(String::from("<q>")),
         ));
     }
     {
