@@ -18,6 +18,5 @@ pub use processor::{
     filter::Filter as Filter,
     modmatrix::ModulationMatrix as ModulationMatrix,
     note_selector::MonoNoteSelector as MonoNoteSelector,
-    pitch_bend::PitchBend as PitchBend,
     waveshaper::Waveshaper as Waveshaper,
 };

@@ -27,6 +27,7 @@ use parameter::{
     PARAM_OSCILLATOR_PULSE_WIDTH,
     PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO,
     PARAM_OSCILLATOR_MOD_INDEX,
+    PARAM_OSCILLATOR_PITCH_BEND_RANGE,
     PARAM_WAVESHAPER_INPUT_GAIN,
     PARAM_WAVESHAPER_OUTPUT_GAIN,
 };
@@ -92,8 +93,9 @@ fn build_tree() -> Tree
     {
         root.add_child("pitchbend", Node::new_dispatch_event(
             |mut token_iter| {
-                let semitones: defs::Sample = parse_from_next_token(&mut token_iter)?;
-                Ok(PatchEvent::PitchBendRangeSet{ semitones })
+                update_parameter_from_tokens(
+                    PARAM_OSCILLATOR_PITCH_BEND_RANGE,
+                    &mut token_iter)
             },
             Some(String::from("<semitones>")),
         ));

@@ -5,7 +5,8 @@ use defs;
 use event::{ControllerBindData, EngineEvent, MidiEvent, PatchEvent, RawMidi};
 use parameter;
 use processor::{Adsr, Delay, Gain, Oscillator, Filter,
-                ModulationMatrix, MonoNoteSelector, PitchBend, Waveshaper};
+                ModulationMatrix, MonoNoteSelector, pitch_bend, Waveshaper};
+
 use sample::slice;
 use std::sync::Arc;
 use vst::plugin::PluginParameters;
@@ -18,7 +19,6 @@ pub struct Engine
     raw_midi_buffer: Vec<RawMidi>,
     engine_event_buffer: Vec<(usize, EngineEvent)>,
     note_selector: MonoNoteSelector,
-    pitch_bend: PitchBend,
     modulation_matrix: ModulationMatrix,
     timing_data: TimingData,
     dump_timing_info: bool,
@@ -43,7 +43,6 @@ impl Engine
             raw_midi_buffer: Vec::with_capacity(defs::RAW_MIDI_BUF_LEN),
             engine_event_buffer: Vec::with_capacity(defs::ENGINE_EVENT_BUF_LEN),
             note_selector: MonoNoteSelector::new(),
-            pitch_bend: PitchBend::new(),
             modulation_matrix: ModulationMatrix::new(),
             timing_data: TimingData::default(),
             dump_timing_info,
@@ -74,9 +73,6 @@ impl Engine
         // to the main thread to indicate success or failure.
         while let Ok(patch_event) = rx.try_recv() {
             let result: Result<(), &'static str> = match patch_event {
-                PatchEvent::PitchBendRangeSet { semitones } => {
-                    self.pitch_bend.set_range(semitones)
-                },
                 PatchEvent::ControllerBindUpdate { param_id, bind_type } => {
                     match bind_type {
                         ControllerBindData::MidiLearn => {
@@ -157,7 +153,9 @@ impl Engine
                 if let Some(engine_event) = self.note_selector.process_event(&midi_event) {
                     self.engine_event_buffer.push((frame_num, engine_event));
                 }
-                if let Some(engine_event) = self.pitch_bend.process_event(&midi_event) {
+                if let MidiEvent::PitchBend{ value } = midi_event
+                {
+                    let engine_event = EngineEvent::PitchBend{ wheel_value: value };
                     self.engine_event_buffer.push((frame_num, engine_event));
                 }
                 if let Some(engine_event) = self.modulation_matrix.process_event(&midi_event) {

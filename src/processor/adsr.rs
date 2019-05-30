@@ -385,10 +385,14 @@ mod tests {
         let sample_rate = 1.0;
 
         let mut params = BaseliskPluginParameters::default();
-        params.update_real_value(PARAM_ADSR_ATTACK, attack_duration);
-        params.update_real_value(PARAM_ADSR_DECAY, decay_duration);
-        params.update_real_value(PARAM_ADSR_SUSTAIN, sustain_level);
-        params.update_real_value(PARAM_ADSR_RELEASE, release_duration);
+        params.update_real_value_from_string(
+            PARAM_ADSR_ATTACK, format!("{}", attack_duration));
+        params.update_real_value_from_string(
+            PARAM_ADSR_DECAY, format!("{}", decay_duration));
+        params.update_real_value_from_string(
+            PARAM_ADSR_SUSTAIN, format!("{}", sustain_level));
+        params.update_real_value_from_string(
+            PARAM_ADSR_RELEASE, format!("{}", release_duration));
 
         let mut buffer = vec![[0.0]; comparison_buffer.len()];
 

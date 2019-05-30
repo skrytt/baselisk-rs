@@ -9,11 +9,13 @@ use parameter::{
     PARAM_OSCILLATOR_PULSE_WIDTH,
     PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO,
     PARAM_OSCILLATOR_MOD_INDEX,
+    PARAM_OSCILLATOR_PITCH_BEND_RANGE,
 };
+use processor::pitch_bend;
 use std::slice;
 use vst::plugin::PluginParameters;
 
-/// Convert a u8 note number to a corresponding frequency,
+/// Convert a note number to a corresponding frequency,
 /// using 440 Hz as the pitch of the A above middle C.
 fn get_frequency(note: defs::Sample) -> defs::Sample {
     440.0 * ((note - 69.0) / 12.0).exp2()
@@ -23,7 +25,7 @@ fn get_frequency(note: defs::Sample) -> defs::Sample {
 pub struct State {
     sample_rate: defs::Sample,
     note: u8,
-    pitch_bend: defs::Sample,   // Semitones
+    pitch_bend_wheel_value: u16,
     pulse_width: defs::Sample,
     base_frequency: defs::Sample,
     mod_frequency: defs::Sample,
@@ -36,7 +38,7 @@ impl State {
     pub fn new() -> Self {
         Self {
             note: 69,
-            pitch_bend: 0.0,
+            pitch_bend_wheel_value: 8192,
             pulse_width: 0.5,
             base_frequency: 0.0,
             mod_frequency: 0.0,
@@ -49,7 +51,7 @@ impl State {
 
     pub fn reset(&mut self) {
         self.base_frequency = 0.0;
-        self.pitch_bend = 0.0;
+        self.pitch_bend_wheel_value = 8192;
         self.main_phase = 0.0;
         self.mod_phase = 0.0;
         self.sample_rate = 0.0;
@@ -117,7 +119,8 @@ impl Oscillator {
                         PARAM_OSCILLATOR_PITCH |
                         PARAM_OSCILLATOR_PULSE_WIDTH |
                         PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO |
-                        PARAM_OSCILLATOR_MOD_INDEX => (),
+                        PARAM_OSCILLATOR_MOD_INDEX |
+                        PARAM_OSCILLATOR_PITCH_BEND_RANGE => (),
                         _ => continue,
                     },
                 }
@@ -128,9 +131,12 @@ impl Oscillator {
             };
 
             // Apply the old parameters up until next_keyframe.
+            let pitch_bend_semitones = pitch_bend::get_pitch_bend_semitones(
+                self.state.pitch_bend_wheel_value, params);
+
             self.state.base_frequency = get_frequency(defs::Sample::from(self.state.note)
                                                 + params.get_real_value(PARAM_OSCILLATOR_PITCH)
-                                                + self.state.pitch_bend);
+                                                + pitch_bend_semitones);
             self.state.mod_frequency = self.state.base_frequency
                                        * params.get_real_value(PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO);
 
@@ -157,13 +163,14 @@ impl Oscillator {
                             self.state.note = *note;
                         }
                     },
-                    EngineEvent::PitchBend{ semitones } => {
-                        self.state.pitch_bend = *semitones;
+                    EngineEvent::PitchBend{ wheel_value } => {
+                        self.state.pitch_bend_wheel_value = *wheel_value;
                     },
                     EngineEvent::ModulateParameter { param_id, value } => match *param_id {
                         PARAM_OSCILLATOR_TYPE |
                         PARAM_OSCILLATOR_PITCH |
-                        PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO => {
+                        PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO |
+                        PARAM_OSCILLATOR_PITCH_BEND_RANGE => {
                             params.set_parameter(*param_id, *value);
                         },
                         PARAM_OSCILLATOR_PULSE_WIDTH => {

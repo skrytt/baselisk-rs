@@ -1,43 +1,19 @@
 use defs;
-use event::{EngineEvent, MidiEvent};
-use parameter::{Parameter, LinearParameter};
+use parameter::{
+    BaseliskPluginParameters,
+    PARAM_OSCILLATOR_PITCH_BEND_RANGE,
+};
 
-pub struct PitchBend {
-    range_semitones: LinearParameter,
-}
-
-impl PitchBend {
-    pub fn new() -> Self {
-        let mut result = Self {
-            range_semitones: LinearParameter::new(0.0, 36.0, 0.0),
-        };
-        // Use set_range to set a default 2 semitone pitch bend instead
-        result.set_range(2.0).unwrap();
-        result
-    }
-
-    pub fn set_range(&mut self, range: defs::Sample)
-        -> Result<(), &'static str> {
-        let position = range / 36.0;
-        self.range_semitones.update_vst_param(position);
-        Ok(())
-    }
-
-    pub fn process_event(&self, midi_event: &MidiEvent) -> Option<EngineEvent> {
-        match midi_event {
-            MidiEvent::PitchBend { value } => {
-                // Value is 14-bit (range 0 <= value <= 16383)
-                // For the default range of 2 semitones:
-                // 0 => -2
-                // 8192 => 0
-                // 16383 => ~= +2 (0.012% of a semitone below 2; but who's going to notice?)
-                let semitones = self.range_semitones.get_real_value() * (
-                        defs::Sample::from(*value) - 8192.0) / 8192.0;
-                Some(EngineEvent::PitchBend{ semitones })
-            },
-            _ => None,
-        }
-    }
+pub fn get_pitch_bend_semitones(midi_pitch_wheel_value: u16,
+                                params: &BaseliskPluginParameters) -> defs::Sample
+{
+    // Value is 14-bit (range 0 <= value <= 16383)
+    // For the default range of 2 semitones:
+    // 0 => -2
+    // 8192 => 0
+    // 16383 => ~= +2 (0.012% of a semitone below 2; but who's going to notice?)
+    params.get_real_value(PARAM_OSCILLATOR_PITCH_BEND_RANGE) * (
+            defs::Sample::from(midi_pitch_wheel_value) - 8192.0) / 8192.0
 }
 
 #[cfg(test)]
