@@ -4,6 +4,7 @@ use defs;
 use event::EngineEvent;
 use parameter::{
     BaseliskPluginParameters,
+    PARAM_OSCILLATOR_TYPE,
     PARAM_OSCILLATOR_PITCH,
     PARAM_OSCILLATOR_PULSE_WIDTH,
     PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO,
@@ -58,7 +59,6 @@ impl State {
 /// Oscillator type that will be used for audio processing.
 pub struct Oscillator {
     state: State,
-    generator_func: Option<fn(&mut State, &mut defs::MonoFrameBufferSlice)>,
 }
 
 impl Oscillator {
@@ -67,28 +67,11 @@ impl Oscillator {
     {
         Self {
             state: State::new(),
-            generator_func: Some(sawtooth_generator),
         }
     }
 
     pub fn midi_panic(&mut self) {
         self.state.reset();
-    }
-
-    pub fn set_type(&mut self, type_name: &str) -> Result<(), &'static str>
-    {
-        let generator_func = match type_name {
-            "sine" => sine_generator,
-            "saw" => sawtooth_generator,
-            "pulse" => pulse_generator,
-            "fm" => frequency_modulated_generator,
-            // Remaining entries aren't intended for use by users
-            // but are useful for testing purposes
-            "__test_high_signal" => high_signal_generator,
-            _ => return Err("Unknown oscillator type specified"),
-        };
-        self.generator_func = Some(generator_func);
-        Ok(())
     }
 
     pub fn process_buffer(&mut self,
@@ -100,6 +83,16 @@ impl Oscillator {
         self.state.sample_rate = sample_rate;
         // Store buffer len to avoid multiple mutable buffer accesses later on
         let buffer_len = buffer.len();
+
+
+        let generator_func: Option<fn(&mut State, &mut defs::MonoFrameBufferSlice)> =
+            match params.get_real_value(PARAM_OSCILLATOR_TYPE) as usize {
+                0 => Some(sine_generator),
+                1 => Some(sawtooth_generator),
+                2 => Some(pulse_generator),
+                3 => Some(frequency_modulated_generator),
+                _ => None,
+        };
 
         // Generate the outputs per-frame
         let mut this_keyframe: usize = 0;
@@ -120,6 +113,7 @@ impl Oscillator {
                     // Pitch bends and oscillator parameter changes will also trigger keyframes
                     EngineEvent::PitchBend{ .. } => (),
                     EngineEvent::ModulateParameter { param_id, .. } => match *param_id {
+                        PARAM_OSCILLATOR_TYPE |
                         PARAM_OSCILLATOR_PITCH |
                         PARAM_OSCILLATOR_PULSE_WIDTH |
                         PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO |
@@ -142,7 +136,7 @@ impl Oscillator {
 
             // Generate all the samples for this buffer
             let buffer_slice = buffer.get_mut(this_keyframe..next_keyframe).unwrap();
-            if let Some(generator_func) = self.generator_func {
+            if let Some(generator_func) = generator_func {
                 (generator_func)(&mut self.state, buffer_slice);
             }
 
@@ -167,7 +161,9 @@ impl Oscillator {
                         self.state.pitch_bend = *semitones;
                     },
                     EngineEvent::ModulateParameter { param_id, value } => match *param_id {
-                        PARAM_OSCILLATOR_PITCH => {
+                        PARAM_OSCILLATOR_TYPE |
+                        PARAM_OSCILLATOR_PITCH |
+                        PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO => {
                             params.set_parameter(*param_id, *value);
                         },
                         PARAM_OSCILLATOR_PULSE_WIDTH => {
@@ -175,9 +171,6 @@ impl Oscillator {
                             self.state.pulse_width = params.get_real_value(
                                 PARAM_OSCILLATOR_PULSE_WIDTH);
                         },
-                        PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO => {
-                            params.set_parameter(*param_id, *value);
-                        }
                         PARAM_OSCILLATOR_MOD_INDEX => {
                             params.set_parameter(*param_id, *value);
                             self.state.mod_index = params.get_real_value(PARAM_OSCILLATOR_MOD_INDEX);

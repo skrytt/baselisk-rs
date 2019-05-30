@@ -4,9 +4,8 @@ use defs;
 /// to avoid unsafe data access.
 pub enum PatchEvent {
     PitchBendRangeSet { semitones: defs::Sample },
-    OscillatorTypeSet { type_name: String },
     ModulatableParameterUpdate { param_id: i32,
-                                 value: f32 },
+                                 value_string: String },
     ControllerBindUpdate { param_id: i32,
                            bind_type: ControllerBindData },
 }

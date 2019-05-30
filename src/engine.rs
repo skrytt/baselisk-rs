@@ -77,9 +77,6 @@ impl Engine
                 PatchEvent::PitchBendRangeSet { semitones } => {
                     self.pitch_bend.set_range(semitones)
                 },
-                PatchEvent::OscillatorTypeSet { type_name } => {
-                    self.oscillator.set_type(&type_name)
-                },
                 PatchEvent::ControllerBindUpdate { param_id, bind_type } => {
                     match bind_type {
                         ControllerBindData::MidiLearn => {
@@ -90,9 +87,8 @@ impl Engine
                         },
                     }
                 },
-                PatchEvent::ModulatableParameterUpdate { param_id, value } => {
-                    self.params.update_real_value(param_id, value);
-                    Ok(())
+                PatchEvent::ModulatableParameterUpdate { param_id, value_string } => {
+                    self.params.update_real_value_from_string(param_id, value_string)
                 },
             };
             // TODO: either fix this, or refactor it out

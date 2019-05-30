@@ -22,6 +22,7 @@ use parameter::{
     PARAM_FILTER_FREQUENCY,
     PARAM_FILTER_SWEEP_RANGE,
     PARAM_FILTER_RESONANCE,
+    PARAM_OSCILLATOR_TYPE,
     PARAM_OSCILLATOR_PITCH,
     PARAM_OSCILLATOR_PULSE_WIDTH,
     PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO,
@@ -78,19 +79,10 @@ pub fn update_parameter_from_tokens(param_id: i32,
         },
         _ => (),
     }
-
-    // Try to get a numeric parameter value instead
-    match token.parse::<defs::Sample>() {
-        Ok(value) => {
-            return Ok(PatchEvent::ModulatableParameterUpdate {
-                param_id,
-                value,
-            })
-        }
-        Err(_) => (),
-    };
-
-    Err(String::from("Could not parse input"))
+    Ok(PatchEvent::ModulatableParameterUpdate {
+        param_id,
+        value_string: token,
+    })
 }
 
 fn build_tree() -> Tree
@@ -110,11 +102,12 @@ fn build_tree() -> Tree
         let oscillator = root.add_child("oscillator", Node::new_with_children());
 
         oscillator.add_child("type", Node::new_dispatch_event(
-            |token_iter| {
-                let type_name: String = parse_from_next_token(token_iter)?;
-                Ok(PatchEvent::OscillatorTypeSet{ type_name })
+            |mut token_iter| {
+                update_parameter_from_tokens(
+                    PARAM_OSCILLATOR_TYPE,
+                    &mut token_iter)
             },
-            Some(String::from("[sine|saw|pulse]")),
+            Some(String::from("<type_name>")),
         ));
 
         oscillator.add_child("pitch", Node::new_dispatch_event(
