@@ -44,7 +44,7 @@ The command tree itself is structured roughly like this.
   - `pulsewidth <width>`: Sets the pulsewidth of the `pulse` waveform. `0.5` is a square wave. Minumum is `0.0` and maximum is `1.0`.
 - `filter`
   - `frequency <hz>`: Set the cutoff frequency of the filter.
-  - `quality <q>`: Set the quality (resonance) of the filter. `0.7` is flatter; values as high as `5.0` produce more resonance.
+  - `resonance <q>`: Set the quality (resonance) of the filter. `0.7` is flatter; values as high as `5.0` produce more resonance.
 - `waveshaper`
   - `inputgain <gain>`: Set the input gain to the waveshaper stage, controlling waveshaper tone. `1.0` is unity gain.
   - `outputgain <gain>`: Set the output gain of the waveshaper. Does not affect waveshaper tone. `1.0` is unity gain.
