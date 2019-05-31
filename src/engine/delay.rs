@@ -1,6 +1,6 @@
 extern crate sample;
 
-use buffer::ResizableFrameBuffer;
+use engine::buffer::ResizableFrameBuffer;
 use defs;
 use event::EngineEvent;
 use parameter::{
@@ -10,7 +10,7 @@ use parameter::{
     PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY,
     PARAM_DELAY_WET_GAIN,
 };
-use processor::filter::{
+use engine::filter::{
     BiquadCoefficients,
     BiquadSampleHistory,
     get_lowpass_second_order_biquad_consts,

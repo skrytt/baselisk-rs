@@ -11,7 +11,7 @@ use parameter::{
     PARAM_OSCILLATOR_MOD_INDEX,
     PARAM_OSCILLATOR_PITCH_BEND_RANGE,
 };
-use processor::pitch_bend;
+use engine::pitch_bend;
 use std::slice;
 use vst::plugin::PluginParameters;
 

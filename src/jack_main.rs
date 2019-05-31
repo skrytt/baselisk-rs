@@ -11,13 +11,11 @@ extern crate vst;
 #[cfg(feature = "jack")]
 extern crate jack;
 
-mod buffer;
 mod cli;
 mod engine;
 mod defs;
 mod event;
 mod parameter;
-mod processor;
 
 use event::PatchEvent;
 use sample::ToFrameSliceMut;

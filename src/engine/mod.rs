@@ -1,11 +1,31 @@
 #![allow(clippy::cast_precision_loss)]
 
-use buffer::ResizableFrameBuffer;
+mod adsr;
+mod buffer;
+mod delay;
+mod gain;
+mod oscillator;
+mod filter;
+mod modmatrix;
+mod note_selector;
+mod pitch_bend;
+mod waveshaper;
+
 use defs;
 use event::{ControllerBindData, EngineEvent, MidiEvent, PatchEvent, RawMidi};
 use parameter;
-use processor::{Adsr, Delay, Gain, Oscillator, Filter,
-                ModulationMatrix, MonoNoteSelector, pitch_bend, Waveshaper};
+
+use engine::{
+    adsr::Adsr as Adsr,
+    buffer::ResizableFrameBuffer,
+    delay::Delay as Delay,
+    gain::Gain as Gain,
+    oscillator::Oscillator as Oscillator,
+    filter::Filter as Filter,
+    modmatrix::ModulationMatrix as ModulationMatrix,
+    note_selector::MonoNoteSelector as MonoNoteSelector,
+    waveshaper::Waveshaper as Waveshaper,
+};
 
 use sample::slice;
 use std::sync::Arc;

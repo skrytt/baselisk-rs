@@ -6,12 +6,10 @@ extern crate vst;
 
 extern crate sample;
 
-mod buffer;
 mod defs;
 mod engine;
 mod event;
 mod parameter;
-mod processor;
 
 #[cfg(feature = "plugin_vst")]
 use sample::ToFrameSliceMut;
