@@ -15,6 +15,7 @@ use parameter::{
     PARAM_ADSR_DECAY,
     PARAM_ADSR_SUSTAIN,
     PARAM_ADSR_RELEASE,
+    PARAM_DELAY_TIME,
     PARAM_DELAY_FEEDBACK,
     PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY,
     PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY,
@@ -191,6 +192,24 @@ fn build_tree() -> Tree
     {
         let delay = root.add_child("delay", Node::new_with_children());
 
+        delay.add_child("time", Node::new_dispatch_event(
+            |mut token_iter| {
+                update_parameter_from_tokens(
+                    PARAM_DELAY_TIME,
+                    &mut token_iter)
+            },
+            Some(String::from("<seconds>")),
+        ));
+
+        delay.add_child("feedback", Node::new_dispatch_event(
+            |mut token_iter| {
+                update_parameter_from_tokens(
+                    PARAM_DELAY_FEEDBACK,
+                    &mut token_iter)
+            },
+            Some(String::from("<Hz>")),
+        ));
+
         {
             let lowpass = delay.add_child("lowpass", Node::new_with_children());
 
@@ -215,15 +234,6 @@ fn build_tree() -> Tree
                 Some(String::from("<Hz>")),
             ));
         }
-
-        delay.add_child("feedback", Node::new_dispatch_event(
-            |mut token_iter| {
-                update_parameter_from_tokens(
-                    PARAM_DELAY_FEEDBACK,
-                    &mut token_iter)
-            },
-            Some(String::from("<Hz>")),
-        ));
 
         delay.add_child("wetgain", Node::new_dispatch_event(
             |mut token_iter| {

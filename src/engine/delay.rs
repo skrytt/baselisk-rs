@@ -5,6 +5,7 @@ use defs;
 use event::EngineEvent;
 use parameter::{
     BaseliskPluginParameters,
+    PARAM_DELAY_TIME,
     PARAM_DELAY_FEEDBACK,
     PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY,
     PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY,
@@ -22,7 +23,7 @@ use std::slice::Iter;
 use vst::plugin::PluginParameters;
 
 pub struct Delay {
-    delay_buffer: Option<ring_buffer::Fixed<Vec<defs::Sample>>>,
+    delay_buffer: ring_buffer::Fixed<Vec<defs::Sample>>,
     highpass_history: BiquadSampleHistory,
     highpass_coeffs: BiquadCoefficients,
     lowpass_history: BiquadSampleHistory,
@@ -32,13 +33,16 @@ pub struct Delay {
 
 impl Delay {
     pub fn new() -> Self {
-        let delay_buffer_size = 24000;
+        // BUG: this won't work if sample rate is changed.
+        // e.g. if sample rate is 96000, the delay is effectively half of
+        // what the parameter says.
+        let delay_buffer_size = 48000;
         let mut delay_buffer_vec = Vec::with_capacity(delay_buffer_size);
         for _ in 0..delay_buffer_size {
             delay_buffer_vec.push(0.0);
         }
 
-        let delay_buffer = Some(ring_buffer::Fixed::from(delay_buffer_vec));
+        let delay_buffer = ring_buffer::Fixed::from(delay_buffer_vec);
 
         Self {
             delay_buffer,
@@ -69,6 +73,7 @@ impl Delay {
                 match engine_event {
                     EngineEvent::ModulateParameter { param_id, .. } => match *param_id {
                         // All delay events will trigger keyframes
+                        PARAM_DELAY_TIME |
                         PARAM_DELAY_FEEDBACK |
                         PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY |
                         PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY |
@@ -108,34 +113,44 @@ impl Delay {
             let feedback = params.get_real_value(PARAM_DELAY_FEEDBACK);
 
             // Apply the old parameters up until next_keyframe.
-            if let Some(delay_buffer) = &mut self.delay_buffer {
-                let wet_gain = params.get_real_value(PARAM_DELAY_WET_GAIN);
+            let wet_gain = params.get_real_value(PARAM_DELAY_WET_GAIN);
 
-                for frame_num in this_keyframe..next_keyframe {
-                    let mut delayed_sample = feedback * delay_buffer.get(0);
+            let buffer_tap_position_float = self.delay_buffer.len() as defs::Sample * (
+                1.0 - params.get_real_value(PARAM_DELAY_TIME));
+            let buffer_tap_a_index = buffer_tap_position_float as usize;
+            let buffer_tap_b_index = buffer_tap_a_index + 1;
 
-                    // Apply highpass to delayed sample
-                    delayed_sample = process_biquad(
-                        &mut self.highpass_history,
-                        &self.highpass_coeffs,
-                        delayed_sample);
+            let delayed_sample_b_weight = buffer_tap_position_float.fract();
+            let delayed_sample_a_weight = 1.0 - delayed_sample_b_weight;
 
-                    // Apply lowpass to delayed sample
-                    delayed_sample = process_biquad(
-                        &mut self.lowpass_history,
-                        &self.lowpass_coeffs,
-                        delayed_sample);
+            for frame_num in this_keyframe..next_keyframe {
+                let delayed_sample_a = self.delay_buffer.get(buffer_tap_a_index);
+                let delayed_sample_b = self.delay_buffer.get(buffer_tap_b_index);
+                let mut delayed_sample = feedback * (
+                                        delayed_sample_a * delayed_sample_a_weight
+                                        + delayed_sample_b * delayed_sample_b_weight);
 
-                    wet_buffer[frame_num] = [delayed_sample];
+                // Apply highpass to delayed sample
+                delayed_sample = process_biquad(
+                    &mut self.highpass_history,
+                    &self.highpass_coeffs,
+                    delayed_sample);
 
-                    // Mix in the dry signal and push back to the delay buffer
-                    let dry_sample = buffer[frame_num][0];
-                    delay_buffer.push(
-                        dry_sample + delayed_sample);
+                // Apply lowpass to delayed sample
+                delayed_sample = process_biquad(
+                    &mut self.lowpass_history,
+                    &self.lowpass_coeffs,
+                    delayed_sample);
 
-                    // Mix the wet signal into the output buffer with the dry signal.
-                    buffer[frame_num][0] += wet_gain * wet_buffer[frame_num][0];
-                }
+                wet_buffer[frame_num] = [delayed_sample];
+
+                // Mix in the dry signal and push back to the delay buffer
+                let dry_sample = buffer[frame_num][0];
+                self.delay_buffer.push(
+                    dry_sample + delayed_sample);
+
+                // Mix the wet signal into the output buffer with the dry signal.
+                buffer[frame_num][0] += wet_gain * wet_buffer[frame_num][0];
             } // end borrow of buffer
 
             // We've reached the next_keyframe.
@@ -151,6 +166,7 @@ impl Delay {
                 let (_, event) = next_event.unwrap();
                 if let EngineEvent::ModulateParameter { param_id, value } = event {
                     match *param_id {
+                        PARAM_DELAY_TIME |
                         PARAM_DELAY_FEEDBACK |
                         PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY |
                         PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY |
