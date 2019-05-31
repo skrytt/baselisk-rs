@@ -29,6 +29,8 @@ pub struct State {
     pulse_width: defs::Sample,
     base_frequency: defs::Sample,
     mod_frequency: defs::Sample,
+    target_base_frequency: defs::Sample,
+    pitchbend_portamento_multiplier: defs::Sample,
     mod_index: defs::Sample,
     main_phase: defs::Sample, // 0 <= main_phase <= 1
     mod_phase: defs::Sample,  // 0 <= mod_phase <= 1
@@ -40,8 +42,10 @@ impl State {
             note: 69,
             pitch_bend_wheel_value: 8192,
             pulse_width: 0.5,
-            base_frequency: 0.0,
-            mod_frequency: 0.0,
+            base_frequency: 1.0,
+            mod_frequency: 1.0,
+            target_base_frequency: 0.0,
+            pitchbend_portamento_multiplier: 1.0,
             mod_index: 4.0,
             main_phase: 0.0,
             mod_phase: 0.0,
@@ -50,7 +54,8 @@ impl State {
     }
 
     pub fn reset(&mut self) {
-        self.base_frequency = 0.0;
+        self.base_frequency = 1.0;
+        self.target_base_frequency = 0.0;
         self.pitch_bend_wheel_value = 8192;
         self.main_phase = 0.0;
         self.mod_phase = 0.0;
@@ -126,7 +131,7 @@ impl Oscillator {
                 }
                 next_keyframe = *frame_num;
             } else {
-                // No more note change events, so we'll process to the end of the buffer.
+                // No more events, so we'll process to the end of the buffer.
                 next_keyframe = buffer_len;
             };
 
@@ -134,9 +139,37 @@ impl Oscillator {
             let pitch_bend_semitones = pitch_bend::get_pitch_bend_semitones(
                 self.state.pitch_bend_wheel_value, params);
 
-            self.state.base_frequency = get_frequency(defs::Sample::from(self.state.note)
+            self.state.target_base_frequency = get_frequency(defs::Sample::from(self.state.note)
                                                 + params.get_real_value(PARAM_OSCILLATOR_PITCH)
                                                 + pitch_bend_semitones);
+
+            // Smoothing for pitch bends, to reduce audible stepping for wide pitch bends
+            // (e.g. 12+ semitones).
+            // The algorithm activates when the pitch wheel is used, and gently accelerates
+            // the actual base_frequency towards the target_base_frequency.
+            let diff = self.state.target_base_frequency - self.state.base_frequency;
+            if diff > 0.0 {
+                self.state.pitchbend_portamento_multiplier = defs::Sample::min(
+                    self.state.pitchbend_portamento_multiplier * 1.005,
+                    1.05,
+                );
+                self.state.base_frequency = defs::Sample::min(
+                    self.state.pitchbend_portamento_multiplier * self.state.base_frequency,
+                    self.state.target_base_frequency,
+                );
+            } else if diff < 0.0 {
+                self.state.pitchbend_portamento_multiplier = defs::Sample::max(
+                    self.state.pitchbend_portamento_multiplier * (1.0 / 1.005),
+                    1.0 / 1.05,
+                );
+                self.state.base_frequency = defs::Sample::max(
+                    self.state.pitchbend_portamento_multiplier * self.state.base_frequency,
+                    self.state.target_base_frequency,
+                );
+            } else {
+                self.state.pitchbend_portamento_multiplier = 1.0;
+            }
+
             self.state.mod_frequency = self.state.base_frequency
                                        * params.get_real_value(PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO);
 
@@ -161,6 +194,12 @@ impl Oscillator {
                     EngineEvent::NoteChange{ note } => {
                         if let Some(note) = note {
                             self.state.note = *note;
+                            // No portamento (set base frequency to what target
+                            // frequency will be next iteration)
+                            self.state.base_frequency = get_frequency(
+                                                defs::Sample::from(self.state.note)
+                                                + params.get_real_value(PARAM_OSCILLATOR_PITCH)
+                                                + pitch_bend_semitones);
                         }
                     },
                     EngineEvent::PitchBend{ wheel_value } => {
