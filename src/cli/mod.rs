@@ -15,7 +15,8 @@ use parameter::{
     PARAM_ADSR_DECAY,
     PARAM_ADSR_SUSTAIN,
     PARAM_ADSR_RELEASE,
-    PARAM_DELAY_TIME,
+    PARAM_DELAY_TIME_LEFT,
+    PARAM_DELAY_TIME_RIGHT,
     PARAM_DELAY_FEEDBACK,
     PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY,
     PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY,
@@ -192,10 +193,19 @@ fn build_tree() -> Tree
     {
         let delay = root.add_child("delay", Node::new_with_children());
 
-        delay.add_child("time", Node::new_dispatch_event(
+        delay.add_child("time_left", Node::new_dispatch_event(
             |mut token_iter| {
                 update_parameter_from_tokens(
-                    PARAM_DELAY_TIME,
+                    PARAM_DELAY_TIME_LEFT,
+                    &mut token_iter)
+            },
+            Some(String::from("<seconds>")),
+        ));
+
+        delay.add_child("time_right", Node::new_dispatch_event(
+            |mut token_iter| {
+                update_parameter_from_tokens(
+                    PARAM_DELAY_TIME_RIGHT,
                     &mut token_iter)
             },
             Some(String::from("<seconds>")),

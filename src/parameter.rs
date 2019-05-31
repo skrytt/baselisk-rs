@@ -8,22 +8,23 @@ pub const PARAM_ADSR_ATTACK: i32 = 0;
 pub const PARAM_ADSR_DECAY: i32 = 1;
 pub const PARAM_ADSR_SUSTAIN: i32 = 2;
 pub const PARAM_ADSR_RELEASE: i32 = 3;
-pub const PARAM_DELAY_TIME: i32 = 4;
-pub const PARAM_DELAY_FEEDBACK: i32 = 5;
-pub const PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY: i32 = 6;
-pub const PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY: i32 = 7;
-pub const PARAM_DELAY_WET_GAIN: i32 = 8;
-pub const PARAM_FILTER_FREQUENCY: i32 = 9;
-pub const PARAM_FILTER_SWEEP_RANGE: i32 = 10;
-pub const PARAM_FILTER_RESONANCE: i32 = 11;
-pub const PARAM_OSCILLATOR_TYPE: i32 = 12;
-pub const PARAM_OSCILLATOR_PITCH: i32 = 13;
-pub const PARAM_OSCILLATOR_PULSE_WIDTH: i32 = 14;
-pub const PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO: i32 = 15;
-pub const PARAM_OSCILLATOR_MOD_INDEX: i32 = 16;
-pub const PARAM_OSCILLATOR_PITCH_BEND_RANGE: i32 = 17;
-pub const PARAM_WAVESHAPER_INPUT_GAIN: i32 = 18;
-pub const PARAM_WAVESHAPER_OUTPUT_GAIN: i32 = 19;
+pub const PARAM_DELAY_TIME_LEFT: i32 = 4;
+pub const PARAM_DELAY_TIME_RIGHT: i32 = 5;
+pub const PARAM_DELAY_FEEDBACK: i32 = 6;
+pub const PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY: i32 = 7;
+pub const PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY: i32 = 8;
+pub const PARAM_DELAY_WET_GAIN: i32 = 9;
+pub const PARAM_FILTER_FREQUENCY: i32 = 10;
+pub const PARAM_FILTER_SWEEP_RANGE: i32 = 11;
+pub const PARAM_FILTER_RESONANCE: i32 = 12;
+pub const PARAM_OSCILLATOR_TYPE: i32 = 13;
+pub const PARAM_OSCILLATOR_PITCH: i32 = 14;
+pub const PARAM_OSCILLATOR_PULSE_WIDTH: i32 = 15;
+pub const PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO: i32 = 16;
+pub const PARAM_OSCILLATOR_MOD_INDEX: i32 = 17;
+pub const PARAM_OSCILLATOR_PITCH_BEND_RANGE: i32 = 18;
+pub const PARAM_WAVESHAPER_INPUT_GAIN: i32 = 19;
+pub const PARAM_WAVESHAPER_OUTPUT_GAIN: i32 = 20;
 
 #[cfg(feature = "plugin_vst")]
 pub const NUM_PARAMS: i32 = 20;
@@ -53,7 +54,8 @@ pub struct BaseliskPluginParameters {
     adsr_decay: ExponentialParameter,
     adsr_sustain: LinearParameter,
     adsr_release: ExponentialParameter,
-    delay_time: ExponentialParameter,
+    delay_time_left: ExponentialParameter,
+    delay_time_right: ExponentialParameter,
     delay_feedback: LinearParameter,
     delay_high_pass_filter_frequency: ExponentialParameter,
     delay_low_pass_filter_frequency: ExponentialParameter,
@@ -82,7 +84,9 @@ impl Default for BaseliskPluginParameters {
                 ParameterUnit::Percent, 0.0, 1.0, 0.0),
             adsr_release: ExponentialParameter::new(
                 ParameterUnit::Seconds, 0.02, 10.0, 0.4),
-            delay_time: ExponentialParameter::new(
+            delay_time_left: ExponentialParameter::new(
+                ParameterUnit::Seconds, 0.08, 1.0, 0.375),
+            delay_time_right: ExponentialParameter::new(
                 ParameterUnit::Seconds, 0.08, 1.0, 0.5),
             delay_feedback: LinearParameter::new(
                 ParameterUnit::Percent, 0.0, 1.0, 0.6),
@@ -134,8 +138,10 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
                 self.adsr_sustain.get_vst_param(),
             PARAM_ADSR_RELEASE =>
                 self.adsr_release.get_vst_param(),
-            PARAM_DELAY_TIME =>
-                self.delay_time.get_vst_param(),
+            PARAM_DELAY_TIME_LEFT =>
+                self.delay_time_left.get_vst_param(),
+            PARAM_DELAY_TIME_RIGHT =>
+                self.delay_time_right.get_vst_param(),
             PARAM_DELAY_FEEDBACK =>
                 self.delay_feedback.get_vst_param(),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY =>
@@ -180,8 +186,10 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
                 self.adsr_sustain.get_value_text(),
             PARAM_ADSR_RELEASE =>
                 self.adsr_release.get_value_text(),
-            PARAM_DELAY_TIME =>
-                self.delay_time.get_value_text(),
+            PARAM_DELAY_TIME_LEFT =>
+                self.delay_time_left.get_value_text(),
+            PARAM_DELAY_TIME_RIGHT =>
+                self.delay_time_right.get_value_text(),
             PARAM_DELAY_FEEDBACK =>
                 self.delay_feedback.get_value_text(),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY =>
@@ -226,8 +234,10 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
                 String::from("adsr sustain"),
             PARAM_ADSR_RELEASE =>
                 String::from("adsr release"),
-            PARAM_DELAY_TIME =>
-                String::from("delay time"),
+            PARAM_DELAY_TIME_LEFT =>
+                String::from("delay time left"),
+            PARAM_DELAY_TIME_RIGHT =>
+                String::from("delay time right"),
             PARAM_DELAY_FEEDBACK =>
                 String::from("delay feedback"),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY=>
@@ -273,8 +283,10 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
                 self.adsr_sustain.update_vst_param(val),
             PARAM_ADSR_RELEASE =>
                 self.adsr_release.update_vst_param(val),
-            PARAM_DELAY_TIME =>
-                self.delay_time.update_vst_param(val),
+            PARAM_DELAY_TIME_LEFT =>
+                self.delay_time_left.update_vst_param(val),
+            PARAM_DELAY_TIME_RIGHT =>
+                self.delay_time_right.update_vst_param(val),
             PARAM_DELAY_FEEDBACK =>
                 self.delay_feedback.update_vst_param(val),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY =>
@@ -325,8 +337,10 @@ impl BaseliskPluginParameters
                 self.adsr_sustain.update_real_value_from_string(value),
             PARAM_ADSR_RELEASE =>
                 self.adsr_release.update_real_value_from_string(value),
-            PARAM_DELAY_TIME =>
-                self.delay_time.update_real_value_from_string(value),
+            PARAM_DELAY_TIME_LEFT =>
+                self.delay_time_left.update_real_value_from_string(value),
+            PARAM_DELAY_TIME_RIGHT =>
+                self.delay_time_right.update_real_value_from_string(value),
             PARAM_DELAY_FEEDBACK =>
                 self.delay_feedback.update_real_value_from_string(value),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY =>
@@ -371,8 +385,10 @@ impl BaseliskPluginParameters
                 self.adsr_sustain.get_real_value(),
             PARAM_ADSR_RELEASE =>
                 self.adsr_release.get_real_value(),
-            PARAM_DELAY_TIME =>
-                self.delay_time.get_real_value(),
+            PARAM_DELAY_TIME_LEFT =>
+                self.delay_time_left.get_real_value(),
+            PARAM_DELAY_TIME_RIGHT =>
+                self.delay_time_right.get_real_value(),
             PARAM_DELAY_FEEDBACK =>
                 self.delay_feedback.get_real_value(),
             PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY =>

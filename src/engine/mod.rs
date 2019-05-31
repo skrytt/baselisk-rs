@@ -239,16 +239,18 @@ impl Engine
                                        &self.params);
         self.timing_data.waveshaper = (time::precise_time_ns() - waveshaper_start_time) / 1000;
 
+        // Copy the left output to the right output
+        sample::slice::write(right_output_buffer, left_output_buffer);
+
         // Delay
         let delay_start_time = time::precise_time_ns();
         self.delay.process_buffer(left_output_buffer,
+                                  right_output_buffer,
                                   self.engine_event_buffer.iter(),
                                   self.sample_rate,
                                   &self.params);
         self.timing_data.delay = (time::precise_time_ns() - delay_start_time) / 1000;
 
-        // Currently the output is pure mono; so copy the left output to the right output
-        sample::slice::write(right_output_buffer, left_output_buffer);
 
         self.timing_data.total = (time::precise_time_ns() - engine_start_time) / 1000;
 
