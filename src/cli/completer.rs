@@ -7,11 +7,11 @@ use rustyline::config::OutputStreamType;
 use rustyline::error::ReadlineError;
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
-use rustyline::{Cmd, CompletionType, Config, EditMode, Editor, Helper, KeyPress};
+use rustyline::{Cmd, CompletionType, Config, Context, EditMode, Editor, Helper, KeyPress};
 
 use cli::tree::Tree;
-use event::PatchEvent;
-use std::sync::mpsc;
+use shared::SharedState as SharedState;
+use std::sync::Arc;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -42,6 +42,7 @@ impl Completer for CliHelper {
         &self,
         line: &str,
         pos: usize,
+        _ctx: &Context<'_>,
     ) -> Result<(usize, Vec<Pair>), ReadlineError> {
         let (start, partial) = extract_word(line, pos, ESCAPE_CHAR, &BREAK_CHARS);
 
@@ -61,7 +62,7 @@ impl Completer for CliHelper {
 }
 
 impl Hinter for CliHelper {
-    fn hint(&self, _line: &str, _pos: usize) -> Option<String> {
+    fn hint(&self, _line: &str, _pos: usize, _ctx: &Context<'_>) -> Option<String> {
         None
     }
 }
@@ -72,14 +73,12 @@ impl Helper for CliHelper {}
 
 pub struct Cli {
     rl: Editor<CliHelper>,
-    tx: mpsc::SyncSender<PatchEvent>,
-    rx: mpsc::Receiver<Result<(), &'static str>>,
+    shared_state: Arc<SharedState>,
 }
 
 impl Cli {
     pub fn new(tree: Tree,
-               tx: mpsc::SyncSender<PatchEvent>,
-               rx: mpsc::Receiver<Result<(), &'static str>>,
+               shared_state: Arc<SharedState>,
     ) -> Self {
         let config = Config::builder()
             .history_ignore_space(true)
@@ -99,8 +98,7 @@ impl Cli {
         }
         Self {
             rl,
-            tx,
-            rx
+            shared_state
         }
     }
 
@@ -116,7 +114,7 @@ impl Cli {
                 },
                 Ok(line) => {
                     if let Some(helper) = self.rl.helper() {
-                        helper.tree.execute_command(line.as_str(), &self.tx, &self.rx);
+                        helper.tree.execute_command(line.as_str(), &self.shared_state);
                     }
                 }
             }
@@ -129,9 +127,9 @@ impl Cli {
             let readline = self.rl.readline(defs::PROMPT);
             match readline {
                 Ok(line) => {
-                    self.rl.add_history_entry(line.as_ref());
+                    self.rl.add_history_entry(line.as_str());
                     if let Some(helper) = self.rl.helper() {
-                        helper.tree.execute_command(line.as_str(), &self.tx, &self.rx);
+                        helper.tree.execute_command(line.as_str(), &self.shared_state);
                     }
                 }
                 Err(ReadlineError::Interrupted) => {

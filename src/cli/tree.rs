@@ -1,15 +1,15 @@
 
-use event::PatchEvent;
 use rustyline::completion::Pair;
+use shared::SharedState as SharedState;
 use std::collections::HashMap;
 use std::str::SplitWhitespace;
-use std::sync::mpsc;
+use std::sync::Arc;
 
 // Either a node has children, or it has a command
 pub enum Node
 {
     WithChildren(HashMap<String, Node>),
-    DispatchEvent(fn(&mut SplitWhitespace) -> Result<PatchEvent, String>,
+    DispatchEvent(fn(&mut SplitWhitespace, &Arc<SharedState>) -> Result<(), String>,
                   Option<String>),
 }
 
@@ -21,7 +21,8 @@ impl Node {
 
     /// Build a new node with a function to process
     /// any remaining tokens and return an event
-    pub fn new_dispatch_event(f: fn(&mut SplitWhitespace) -> Result<PatchEvent, String>,
+    pub fn new_dispatch_event(f: fn(&mut SplitWhitespace,
+                                    &Arc<SharedState>) -> Result<(), String>,
                               argument_hint: Option<String>) -> Self
     {
         Node::DispatchEvent(f, argument_hint)
@@ -110,8 +111,7 @@ impl Tree {
 
     pub fn execute_command(&self,
                            line: &str,
-                           tx: &mpsc::SyncSender<PatchEvent>,
-                           rx: &mpsc::Receiver<Result<(), &'static str>>,
+                           shared_state: &Arc<SharedState>,
     ) {
         let line = line.trim();
 
@@ -148,25 +148,13 @@ impl Tree {
                 },
                 Node::DispatchEvent(f, _hint) => {
                     // The final node. Get the event
-                    let event = match f(&mut tokens) {
+                    match f(&mut tokens, shared_state) {
                         Err(usage_msg) => {
                             println!("Error: {}", usage_msg);
                             return
                         }
-                        Ok(event) => event,
+                        Ok(_) => (),
                     };
-
-                    // Send the event to the audio thread, then handle the response
-                    tx.send(event).unwrap();
-                    match rx.recv() {
-                        Ok(result) => {
-                            match result {
-                                Ok(()) => println!("Ok"),
-                                Err(e) => println!("Error: {}", e),
-                            }
-                        },
-                        Err(e) => println!("Error: {}", e),
-                    }
 
                     // And finally
                     break

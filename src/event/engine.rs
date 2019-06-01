@@ -1,5 +1,3 @@
-use defs;
-
 pub enum EngineEvent {
     NoteChange { note: Option<u8> },
     PitchBend { wheel_value: u16 },

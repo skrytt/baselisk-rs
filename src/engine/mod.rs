@@ -6,14 +6,12 @@ mod delay;
 mod gain;
 mod oscillator;
 mod filter;
-mod modmatrix;
 mod note_selector;
 mod pitch_bend;
 mod waveshaper;
 
 use defs;
-use event::{ControllerBindData, EngineEvent, MidiEvent, PatchEvent, RawMidi};
-use parameter;
+use event::{EngineEvent, MidiEvent, RawMidi};
 
 use engine::{
     adsr::Adsr as Adsr,
@@ -22,24 +20,25 @@ use engine::{
     gain::Gain as Gain,
     oscillator::Oscillator as Oscillator,
     filter::Filter as Filter,
-    modmatrix::ModulationMatrix as ModulationMatrix,
     note_selector::MonoNoteSelector as MonoNoteSelector,
     waveshaper::Waveshaper as Waveshaper,
 };
 
 use sample::slice;
+use shared::SharedState;
 use std::sync::Arc;
+
+#[cfg(feature = "plugin_vst")]
 use vst::plugin::PluginParameters;
 
 pub struct Engine
 {
     // Misc
     sample_rate: defs::Sample,
-    params: Arc<parameter::BaseliskPluginParameters>,
+    shared_state: Arc<SharedState>,
     raw_midi_buffer: Vec<RawMidi>,
     engine_event_buffer: Vec<(usize, EngineEvent)>,
     note_selector: MonoNoteSelector,
-    modulation_matrix: ModulationMatrix,
     timing_data: TimingData,
     dump_timing_info: bool,
     // Buffers
@@ -55,15 +54,15 @@ pub struct Engine
 
 impl Engine
 {
-    pub fn new(dump_timing_info: bool) -> Self {
+    pub fn new(shared_state: Arc<SharedState>,
+               dump_timing_info: bool) -> Self {
         Self {
             // Engine Event Processing
             sample_rate: 0.0,
-            params: Default::default(),
+            shared_state,
             raw_midi_buffer: Vec::with_capacity(defs::RAW_MIDI_BUF_LEN),
             engine_event_buffer: Vec::with_capacity(defs::ENGINE_EVENT_BUF_LEN),
             note_selector: MonoNoteSelector::new(),
-            modulation_matrix: ModulationMatrix::new(),
             timing_data: TimingData::default(),
             dump_timing_info,
             // Buffers
@@ -80,37 +79,7 @@ impl Engine
 
     #[cfg(feature = "plugin_vst")]
     pub fn get_parameter_object(&self) -> Arc<dyn PluginParameters> {
-        Arc::clone(&self.params) as Arc<dyn PluginParameters>
-    }
-
-    pub fn apply_patch_events(&mut self,
-                              rx: &std::sync::mpsc::Receiver<PatchEvent>,
-                              tx: &std::sync::mpsc::SyncSender<Result<(), &'static str>>,
-    )
-    {
-        // Handle patch events but don't block if none are available.
-        // Where view updates are required, send events back
-        // to the main thread to indicate success or failure.
-        while let Ok(patch_event) = rx.try_recv() {
-            let result: Result<(), &'static str> = match patch_event {
-                PatchEvent::ControllerBindUpdate { param_id, bind_type } => {
-                    match bind_type {
-                        ControllerBindData::MidiLearn => {
-                            self.modulation_matrix.learn_parameter(param_id)
-                        },
-                        ControllerBindData::CliInput(cc_number) => {
-                            self.modulation_matrix.bind_parameter(cc_number, param_id)
-                        },
-                    }
-                },
-                PatchEvent::ModulatableParameterUpdate { param_id, value_string } => {
-                    self.params.update_real_value_from_string(param_id, value_string)
-                },
-            };
-            // TODO: either fix this, or refactor it out
-            tx.send(result)
-                .expect("Failed to send response to main thread");
-        }
+        Arc::clone(&self.shared_state.parameters) as Arc<dyn PluginParameters>
     }
 
     pub fn set_sample_rate(&mut self,
@@ -178,7 +147,7 @@ impl Engine
                     let engine_event = EngineEvent::PitchBend{ wheel_value: value };
                     self.engine_event_buffer.push((frame_num, engine_event));
                 }
-                if let Some(engine_event) = self.modulation_matrix.process_event(&midi_event) {
+                if let Some(engine_event) = self.shared_state.modmatrix.process_event(&midi_event) {
                     self.engine_event_buffer.push((frame_num, engine_event));
                 }
             }
@@ -200,7 +169,7 @@ impl Engine
         let adsr_any_nonzero_output = self.adsr.process_buffer(adsr_buffer,
                                  self.engine_event_buffer.iter(),
                                  self.sample_rate,
-                                 &self.params);
+                                 &self.shared_state.parameters);
         self.timing_data.adsr = (time::precise_time_ns() - adsr_start_time) / 1000;
 
         // Optimization: when ADSR is in the off state for a whole buffer,
@@ -212,7 +181,7 @@ impl Engine
             self.oscillator.process_buffer(left_output_buffer,
                                            self.engine_event_buffer.iter(),
                                            self.sample_rate,
-                                           &self.params);
+                                           &self.shared_state.parameters);
             self.timing_data.oscillator = (time::precise_time_ns() - oscillator_start_time) / 1000;
 
             // Use ADSR to apply gain to oscillator output
@@ -229,14 +198,14 @@ impl Engine
                                    left_output_buffer,
                                    self.engine_event_buffer.iter(),
                                    self.sample_rate,
-                                   &self.params);
+                                   &self.shared_state.parameters);
         self.timing_data.filter = (time::precise_time_ns() - filter_start_time) / 1000;
 
         // Waveshaper
         let waveshaper_start_time = time::precise_time_ns();
         self.waveshaper.process_buffer(left_output_buffer,
                                        self.engine_event_buffer.iter(),
-                                       &self.params);
+                                       &self.shared_state.parameters);
         self.timing_data.waveshaper = (time::precise_time_ns() - waveshaper_start_time) / 1000;
 
         // Copy the left output to the right output
@@ -248,7 +217,7 @@ impl Engine
                                   right_output_buffer,
                                   self.engine_event_buffer.iter(),
                                   self.sample_rate,
-                                  &self.params);
+                                  &self.shared_state.parameters);
         self.timing_data.delay = (time::precise_time_ns() - delay_start_time) / 1000;
 
 

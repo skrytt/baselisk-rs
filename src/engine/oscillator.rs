@@ -386,11 +386,3 @@ fn frequency_modulated_generator(state: &mut State, buffer: &mut defs::MonoFrame
     state.mod_phase = mod_phase;
     state.main_phase = main_phase;
 }
-
-/// For testing purposes. Always outputs 1.0.
-fn high_signal_generator(_state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
-{
-    for frame in buffer {
-        *frame = [1.0];
-    }
-}

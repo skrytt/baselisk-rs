@@ -15,23 +15,22 @@ mod cli;
 mod engine;
 mod defs;
 mod event;
+mod modmatrix;
 mod parameter;
+mod shared;
 
-use event::PatchEvent;
 use sample::ToFrameSliceMut;
-use std::sync::{Arc, RwLock, mpsc};
+use shared::SharedState as SharedState;
+use std::sync::{Arc, RwLock};
 
 #[allow(clippy::cast_precision_loss)]
 
 /// Try to open an audio stream with the device corresponding to the
 /// Return a Result indicating whether this was successful.
 pub fn connect_and_run<F>(engine: &mut Arc<RwLock<engine::Engine>>,
-                          mut f: F) -> Result<(), &'static str>
+                          f: F) -> Result<(), &'static str>
 where
-    F: FnMut(
-        mpsc::SyncSender<PatchEvent>,
-        mpsc::Receiver<Result<(), &'static str>>,
-    ),
+    F: FnOnce(),
 {
     let (client, _status) = match jack::Client::new(defs::PLUGIN_NAME,
                                                     jack::ClientOptions::NO_START_SERVER)
@@ -63,9 +62,6 @@ where
 
     let engine_callback = Arc::clone(engine);
 
-    let (tx_main_thread, rx_audio_thread) = mpsc::sync_channel(256);
-    let (tx_audio_thread, rx_main_thread) = mpsc::sync_channel(256);
-
     let process = jack::ClosureProcessHandler::new(
         move |client: &jack::Client, process_scope: &jack::ProcessScope| -> jack::Control {
             let left_output_buffer = left_output_port.as_mut_slice(process_scope)
@@ -77,7 +73,6 @@ where
 
             let mut engine_callback = engine_callback.write().unwrap();
             engine_callback.set_sample_rate(client.sample_rate() as defs::Sample);
-            engine_callback.apply_patch_events(&rx_audio_thread, &tx_audio_thread);
             engine_callback.jack_audio_requested(left_output_buffer, right_output_buffer, raw_midi_iter);
 
             jack::Control::Continue
@@ -87,7 +82,7 @@ where
     // active_client is not directly used, but must be kept in scope
     let _active_client = client.activate_async((), process).unwrap();
 
-    f(tx_main_thread, rx_main_thread);
+    f();
 
     // active_client will be dropped here
     Ok(())
@@ -109,7 +104,11 @@ fn main() {
 
         .get_matches();
 
+    // Parameters will be shared between UI and audioengine threads
+    let shared_state = Arc::new(SharedState::new());
+
     let mut engine = Arc::new(RwLock::new(engine::Engine::new(
+        Arc::clone(&shared_state),
         matches.is_present("timing-dump") // Whether to enable timing info
     )));
 
@@ -125,8 +124,8 @@ fn main() {
     panic!("VST unimplemented yet");
 
     #[cfg(feature = "jack")]
-    connect_and_run(&mut engine, |tx, rx| {
-        let mut cli = cli::new(tx, rx);
+    connect_and_run(&mut engine, || {
+        let mut cli = cli::new(shared_state);
 
         // If a patchfile is specified, load and process it now.
         if let Some(file_path) = matches.value_of("patchfile") {

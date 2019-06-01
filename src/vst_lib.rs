@@ -9,7 +9,9 @@ extern crate sample;
 mod defs;
 mod engine;
 mod event;
+mod modmatrix;
 mod parameter;
+mod shared;
 
 #[cfg(feature = "plugin_vst")]
 use sample::ToFrameSliceMut;
@@ -19,6 +21,8 @@ use vst::{
     buffer::AudioBuffer,
     plugin::{Category, Info, Plugin, PluginParameters},
 };
+#[cfg(feature = "plugin_vst")]
+use shared::SharedState;
 #[cfg(feature = "plugin_vst")]
 use std::sync::Arc;
 
@@ -33,8 +37,11 @@ struct BaseliskPlugin {
 #[cfg(feature = "plugin_vst")]
 impl Default for BaseliskPlugin {
     fn default() -> BaseliskPlugin {
+        // Parameters will be shared between threads
+        let shared_state = Arc::new(SharedState::new());
+
         BaseliskPlugin {
-            engine: engine::Engine::new(false),
+            engine: engine::Engine::new(shared_state, false),
         }
     }
 }

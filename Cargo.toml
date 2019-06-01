@@ -11,7 +11,7 @@ plugin_vst = []
 [dependencies]
 clap = "2.33"
 jack = { version = "0.6", optional = true }
-rustyline = "3.0.0"
+rustyline = "4.1.0"
 sample = "0.10.0"
 time = "0.1"
 vst = { git = "https://github.com/rust-dsp/rust-vst" }
