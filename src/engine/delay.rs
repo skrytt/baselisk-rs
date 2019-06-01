@@ -143,8 +143,8 @@ impl Delay {
             let left_delayed_sample_a_weight = 1.0 - left_delayed_sample_b_weight;
 
             for frame_num in this_keyframe..next_keyframe {
-                let left_delayed_sample_a = self.left_delay_buffer.get(left_buffer_tap_a_index);
-                let left_delayed_sample_b = self.left_delay_buffer.get(left_buffer_tap_b_index);
+                let left_delayed_sample_a = self.left_delay_buffer[left_buffer_tap_a_index];
+                let left_delayed_sample_b = self.left_delay_buffer[left_buffer_tap_b_index];
                 let mut left_delayed_sample = feedback * (
                                         left_delayed_sample_a * left_delayed_sample_a_weight
                                         + left_delayed_sample_b * left_delayed_sample_b_weight);
@@ -181,8 +181,8 @@ impl Delay {
             let right_delayed_sample_a_weight = 1.0 - right_delayed_sample_b_weight;
 
             for frame_num in this_keyframe..next_keyframe {
-                let right_delayed_sample_a = self.right_delay_buffer.get(right_buffer_tap_a_index);
-                let right_delayed_sample_b = self.right_delay_buffer.get(right_buffer_tap_b_index);
+                let right_delayed_sample_a = self.right_delay_buffer[right_buffer_tap_a_index];
+                let right_delayed_sample_b = self.right_delay_buffer[right_buffer_tap_b_index];
                 let mut right_delayed_sample = feedback * (
                                         right_delayed_sample_a * right_delayed_sample_a_weight
                                         + right_delayed_sample_b * right_delayed_sample_b_weight);
