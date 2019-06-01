@@ -66,29 +66,23 @@ mod tests {
              pitch_bend_event_value: u16,
              bend_semitones_to_assert: defs::Sample) {
 
-        let mut pitch_bend = PitchBend::new();
+        let params = BaseliskPluginParameters::default();
 
         // Optionally set a pitch bend range
         if let Some(range_to_set) = range_to_set {
-            let result = pitch_bend.set_range(range_to_set);
+            let result = params.update_real_value_from_string(
+                PARAM_OSCILLATOR_PITCH_BEND_RANGE, format!("{}", range_to_set));
             assert!(result.is_ok());
         }
 
         // Simulate what happens when a MIDI pitch bend event is received
-        let engine_event = pitch_bend.process_event(
-            &MidiEvent::PitchBend { value: pitch_bend_event_value });
-        assert!(engine_event.is_some());
+        let semitones = get_pitch_bend_semitones(pitch_bend_event_value, &params);
 
-        // Extract the pitch bend amount in semitones and assert it's acceptable
-        if let EngineEvent::PitchBend { semitones } = engine_event.unwrap() {
-            let error_abs = defs::Sample::abs(semitones - bend_semitones_to_assert);
-            if error_abs > std::f32::EPSILON {
-                panic!("Pitch bend {}, absolute error {} (exceeds f32::EPSILON)",
-                       semitones, error_abs);
-            }
-        } else {
-            panic!("EngineEvent variant was not PitchBend");
+        // Verify result
+        let error_abs = defs::Sample::abs(semitones - bend_semitones_to_assert);
+        if error_abs > std::f32::EPSILON {
+            panic!("Pitch bend {}, absolute error {} (exceeds f32::EPSILON)",
+                   semitones, error_abs);
         }
-
     }
 }
