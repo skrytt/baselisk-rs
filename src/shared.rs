@@ -12,9 +12,11 @@ pub struct SharedState {
 
 impl SharedState {
     pub fn new() -> Self {
+        let parameters = Arc::new(parameter::BaseliskPluginParameters::default());
+        let parameters_clone = Arc::clone(&parameters);
         Self {
-            parameters: Arc::new(parameter::BaseliskPluginParameters::default()),
-            modmatrix: modmatrix::ModulationMatrix::new(),
+            parameters,
+            modmatrix: modmatrix::ModulationMatrix::new(parameters_clone),
         }
     }
 }
