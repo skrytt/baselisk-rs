@@ -53,13 +53,14 @@ mod tests {
     use super::*;
     use defs::MonoFrame;
 
+    #[test]
     fn test_resize() {
         let mut resizable_frame_buffer = ResizableFrameBuffer::<MonoFrame>::new();
 
         // Size to 1024 samples
         {
             let buffer = resizable_frame_buffer.get_sized_mut(1024);
-            assert_eq!(buffer.len(), 4096);
+            assert_eq!(buffer.len(), 1024);
         }
 
         // Shrink 1024 -> 256
