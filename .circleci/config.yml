@@ -5,26 +5,25 @@ jobs:
         docker:
             - image: circleci/rust:latest
         working_directory: ~/baselisk-rs
-
-    steps:
-        - checkout
-        - run:
-              name: Version information
-              command: |
-                  rustc --version
-                  cargo --version
-                  rustup --version
-        - run:
-              name: Install dependencies (APT)
-              command: |
-                  sudo apt-get update
-                  sudo apt-get install -y jackd1
-        - run:
-              name: Build JACK client
-              command: cargo build --release --features "plugin_jack"
-        - run:
-              name: Run tests
-              command: RUST_BACKTRACE=1 cargo test
+        steps:
+            - checkout
+            - run:
+                  name: Version information
+                  command: |
+                      rustc --version
+                      cargo --version
+                      rustup --version
+            - run:
+                  name: Install dependencies (APT)
+                  command: |
+                      sudo apt-get update
+                      sudo apt-get install -y jackd1
+            - run:
+                  name: Build JACK client
+                  command: cargo build --release --features "plugin_jack"
+            - run:
+                  name: Run tests
+                  command: RUST_BACKTRACE=1 cargo test
 
 workflows:
     version: 2.1
