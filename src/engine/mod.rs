@@ -26,7 +26,6 @@ use engine::{
     oscillator::Oscillator as Oscillator,
     filter::Filter as Filter,
     note_selector::MonoNoteSelector as MonoNoteSelector,
-    waveshaper::Waveshaper as Waveshaper,
 };
 use sample::slice;
 use std::sync::Arc;
@@ -50,7 +49,6 @@ pub struct Engine
     oscillator: Oscillator,
     adsr: Adsr,
     filter: Filter,
-    waveshaper: Waveshaper,
     delay: Delay,
 }
 
@@ -73,7 +71,6 @@ impl Engine
             oscillator: Oscillator::new(),
             adsr: Adsr::new(),
             filter: Filter::new(),
-            waveshaper: Waveshaper{},
             delay: Delay::new(),
         }
     }
@@ -204,9 +201,9 @@ impl Engine
 
         // Waveshaper
         let waveshaper_start_time = time::precise_time_ns();
-        self.waveshaper.process_buffer(left_output_buffer,
-                                       self.engine_event_buffer.iter(),
-                                       &self.shared_state.parameters);
+        waveshaper::process_buffer(left_output_buffer,
+                                   self.engine_event_buffer.iter(),
+                                   &self.shared_state.parameters);
         self.timing_data.waveshaper = (time::precise_time_ns() - waveshaper_start_time) / 1000;
 
         // Copy the left output to the right output
