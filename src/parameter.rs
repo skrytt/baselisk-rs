@@ -2,7 +2,11 @@ use defs;
 
 use vst;
 use vst::util::AtomicFloat;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{
+    AtomicBool,
+    AtomicUsize,
+    Ordering
+};
 
 pub const PARAM_ADSR_ATTACK: i32 = 0;
 pub const PARAM_ADSR_DECAY: i32 = 1;
@@ -107,11 +111,13 @@ impl Default for BaseliskPluginParameters {
                 1,
             ),
             oscillator_pitch: LinearParameter::new(
-                ParameterUnit::Semitones, -36.0, 36.0, 0.0),
+                ParameterUnit::Semitones, -36.0, 36.0, 0.0
+            ).enable_int_snapping(),
             oscillator_pulse_width: LinearParameter::new(
                 ParameterUnit::NoUnit, 0.01, 0.99, 0.5),
             oscillator_mod_frequency_ratio: LinearParameter::new(
-                ParameterUnit::NoUnit, 1.0, 8.0, 1.0),
+                ParameterUnit::NoUnit, 1.0, 8.0, 1.0
+            ).enable_int_snapping(),
             oscillator_mod_index: LinearParameter::new(
                 ParameterUnit::NoUnit, 0.0, 8.0, 1.0),
             oscillator_pitch_bend_range: LinearParameter::new(
@@ -451,6 +457,7 @@ pub struct LinearParameter
     param_influence_range: AtomicFloat,
     max_value: AtomicFloat,
     current_value: AtomicFloat,
+    int_value_snapping: AtomicBool,
 }
 
 /// Parameter with a linear function between low and high limits.
@@ -467,20 +474,35 @@ impl LinearParameter
             param_influence_range: AtomicFloat::new(high_limit - low_limit),
             max_value: AtomicFloat::new(high_limit),
             current_value: AtomicFloat::new(default_real_value),
+            int_value_snapping: AtomicBool::new(false),
         }
     }
 
     fn get_value_from_param(&self, param: defs::Sample) -> defs::Sample {
         let mut param = defs::Sample::min(param, 1.0);
         param = defs::Sample::max(param, 0.0);
-        self.base_value.get() + (
-            self.param_influence_range.get() * param)
+
+        let mut result = self.base_value.get() + (
+            self.param_influence_range.get() * param);
+
+        // If configured, snap to float representation of nearest int value
+        if self.int_value_snapping.load(Ordering::Relaxed) {
+            result = result.round()
+        }
+
+        result
     }
 
     fn get_param_from_value(&self, value: defs::Sample) -> defs::Sample {
         let mut value = defs::Sample::min(value, self.max_value.get());
         value = defs::Sample::max(value, self.base_value.get());
         (value - self.base_value.get()) / self.param_influence_range.get()
+    }
+
+    /// Consumes a parameter and returns the same parameter with int snapping enabled.
+    pub fn enable_int_snapping(mut self) -> Self {
+        self.int_value_snapping.store(true, Ordering::Relaxed);
+        self
     }
 }
 impl Parameter<defs::Sample> for LinearParameter
