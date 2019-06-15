@@ -17,7 +17,6 @@ use engine::{
     adsr::Adsr as Adsr,
     buffer::ResizableFrameBuffer,
     delay::Delay as Delay,
-    gain::Gain as Gain,
     oscillator::Oscillator as Oscillator,
     filter::Filter as Filter,
     note_selector::MonoNoteSelector as MonoNoteSelector,
@@ -46,7 +45,6 @@ pub struct Engine
     // DSP Units
     oscillator: Oscillator,
     adsr: Adsr,
-    gain: Gain,
     filter: Filter,
     waveshaper: Waveshaper,
     delay: Delay,
@@ -70,7 +68,6 @@ impl Engine
             // DSP Units
             oscillator: Oscillator::new(),
             adsr: Adsr::new(),
-            gain: Gain::new(1.0),
             filter: Filter::new(),
             waveshaper: Waveshaper{},
             delay: Delay::new(),
@@ -186,8 +183,8 @@ impl Engine
 
             // Use ADSR to apply gain to oscillator output
             let gain_start_time = time::precise_time_ns();
-            self.gain.process_buffer(adsr_buffer,
-                                     left_output_buffer);
+            gain::process_buffer(adsr_buffer,
+                                 left_output_buffer);
             self.timing_data.gain = (time::precise_time_ns() - gain_start_time) / 1000;
 
         }

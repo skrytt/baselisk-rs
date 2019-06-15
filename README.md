@@ -1,4 +1,7 @@
 # baselisk-rs
+
+[![CircleCI](https://circleci.com/gh/skrytt/baselisk-rs/tree/master.svg?style=svg)](https://circleci.com/gh/skrytt/baselisk-rs/tree/master)
+
 Baselisk is a monophonic subtractive synthesizer with a high-note-priority note selection algorithm. Moreover, Baselisk is a hobby project to give me the opportunity to:
 
 * Learn more about the Rust programming language
