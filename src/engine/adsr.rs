@@ -1,15 +1,15 @@
 use defs;
-use event::{
-    EngineEvent,
+use shared::{
+    event::EngineEvent,
+    parameter::{
+        BaseliskPluginParameters,
+        PARAM_ADSR_ATTACK,
+        PARAM_ADSR_DECAY,
+        PARAM_ADSR_SUSTAIN,
+        PARAM_ADSR_RELEASE,
+    },
 };
 use std::slice;
-use parameter::{
-    BaseliskPluginParameters,
-    PARAM_ADSR_ATTACK,
-    PARAM_ADSR_DECAY,
-    PARAM_ADSR_SUSTAIN,
-    PARAM_ADSR_RELEASE,
-};
 use vst::plugin::PluginParameters;
 
 /// States that ADSR can be in

@@ -1,15 +1,17 @@
 extern crate sample;
 
 use defs;
-use event::EngineEvent;
-use parameter::{
-    BaseliskPluginParameters,
-    PARAM_OSCILLATOR_TYPE,
-    PARAM_OSCILLATOR_PITCH,
-    PARAM_OSCILLATOR_PULSE_WIDTH,
-    PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO,
-    PARAM_OSCILLATOR_MOD_INDEX,
-    PARAM_OSCILLATOR_PITCH_BEND_RANGE,
+use shared::{
+    event::EngineEvent,
+    parameter::{
+        BaseliskPluginParameters,
+        PARAM_OSCILLATOR_TYPE,
+        PARAM_OSCILLATOR_PITCH,
+        PARAM_OSCILLATOR_PULSE_WIDTH,
+        PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO,
+        PARAM_OSCILLATOR_MOD_INDEX,
+        PARAM_OSCILLATOR_PITCH_BEND_RANGE,
+    },
 };
 use engine::pitch_bend;
 use std::slice;

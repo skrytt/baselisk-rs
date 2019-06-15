@@ -12,17 +12,15 @@ extern crate vst;
 extern crate jack;
 
 mod cli;
-mod engine;
 mod defs;
-mod event;
-mod modmatrix;
-mod parameter;
+mod engine;
 mod shared;
 
 use sample::ToFrameSliceMut;
 use shared::SharedState as SharedState;
 use std::sync::{Arc, RwLock};
 
+#[warn(clippy::all)]
 #[allow(clippy::cast_precision_loss)]
 
 /// Try to open an audio stream with the device corresponding to the

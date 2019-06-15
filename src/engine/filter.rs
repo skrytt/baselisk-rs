@@ -1,12 +1,14 @@
 extern crate sample;
 
 use defs;
-use event::EngineEvent;
-use parameter::{
-    BaseliskPluginParameters,
-    PARAM_FILTER_FREQUENCY,
-    PARAM_FILTER_SWEEP_RANGE,
-    PARAM_FILTER_RESONANCE,
+use shared::{
+    event::EngineEvent,
+    parameter::{
+        BaseliskPluginParameters,
+        PARAM_FILTER_FREQUENCY,
+        PARAM_FILTER_SWEEP_RANGE,
+        PARAM_FILTER_RESONANCE,
+    },
 };
 use sample::{Frame, slice};
 use std::default::Default;

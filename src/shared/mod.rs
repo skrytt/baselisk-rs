@@ -1,6 +1,8 @@
 
-use parameter;
-use modmatrix;
+pub mod event;
+pub mod modmatrix;
+pub mod parameter;
+
 use std::sync::Arc;
 
 pub struct SharedState {

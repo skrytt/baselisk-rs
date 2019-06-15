@@ -1,23 +1,27 @@
 extern crate sample;
 
-use engine::buffer::ResizableFrameBuffer;
 use defs;
-use event::EngineEvent;
-use parameter::{
-    BaseliskPluginParameters,
-    PARAM_DELAY_TIME_LEFT,
-    PARAM_DELAY_TIME_RIGHT,
-    PARAM_DELAY_FEEDBACK,
-    PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY,
-    PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY,
-    PARAM_DELAY_WET_GAIN,
+use shared::{
+    event::EngineEvent,
+    parameter::{
+        BaseliskPluginParameters,
+        PARAM_DELAY_TIME_LEFT,
+        PARAM_DELAY_TIME_RIGHT,
+        PARAM_DELAY_FEEDBACK,
+        PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY,
+        PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY,
+        PARAM_DELAY_WET_GAIN,
+    },
 };
-use engine::filter::{
-    BiquadCoefficients,
-    BiquadSampleHistory,
-    get_lowpass_second_order_biquad_consts,
-    get_highpass_second_order_biquad_consts,
-    process_biquad,
+use engine::{
+    buffer::ResizableFrameBuffer,
+    filter::{
+        BiquadCoefficients,
+        BiquadSampleHistory,
+        get_lowpass_second_order_biquad_consts,
+        get_highpass_second_order_biquad_consts,
+        process_biquad,
+    },
 };
 use sample::ring_buffer;
 use std::slice::Iter;

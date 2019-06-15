@@ -1,11 +1,13 @@
 extern crate sample;
 
 use defs;
-use event::EngineEvent;
-use parameter::{
-    BaseliskPluginParameters,
-    PARAM_WAVESHAPER_INPUT_GAIN,
-    PARAM_WAVESHAPER_OUTPUT_GAIN,
+use shared::{
+    event::EngineEvent,
+    parameter::{
+        BaseliskPluginParameters,
+        PARAM_WAVESHAPER_INPUT_GAIN,
+        PARAM_WAVESHAPER_OUTPUT_GAIN,
+    },
 };
 use std::slice::Iter;
 use vst::plugin::PluginParameters;

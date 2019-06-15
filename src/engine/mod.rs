@@ -11,8 +11,14 @@ mod pitch_bend;
 mod waveshaper;
 
 use defs;
-use event::{EngineEvent, MidiEvent, RawMidi};
-
+use shared::{
+    event::{
+        EngineEvent,
+        MidiEvent,
+        RawMidi
+    },
+    SharedState,
+};
 use engine::{
     adsr::Adsr as Adsr,
     buffer::ResizableFrameBuffer,
@@ -22,9 +28,7 @@ use engine::{
     note_selector::MonoNoteSelector as MonoNoteSelector,
     waveshaper::Waveshaper as Waveshaper,
 };
-
 use sample::slice;
-use shared::SharedState;
 use std::sync::Arc;
 
 #[cfg(feature = "plugin_vst")]

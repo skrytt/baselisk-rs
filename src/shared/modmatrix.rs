@@ -1,6 +1,11 @@
 use defs;
-use event::{EngineEvent, MidiEvent};
-use parameter::BaseliskPluginParameters;
+use shared::{
+    event::{
+        EngineEvent,
+        MidiEvent
+    },
+    parameter::BaseliskPluginParameters,
+};
 use std::sync::{
     Arc,
     atomic::{AtomicI32, Ordering},

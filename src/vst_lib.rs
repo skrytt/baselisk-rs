@@ -8,9 +8,6 @@ extern crate sample;
 
 mod defs;
 mod engine;
-mod event;
-mod modmatrix;
-mod parameter;
 mod shared;
 
 #[cfg(feature = "plugin_vst")]
@@ -22,7 +19,10 @@ use vst::{
     plugin::{Category, Info, Plugin, PluginParameters},
 };
 #[cfg(feature = "plugin_vst")]
-use shared::SharedState;
+use shared::{
+    parameter,
+    SharedState,
+};
 #[cfg(feature = "plugin_vst")]
 use std::sync::Arc;
 

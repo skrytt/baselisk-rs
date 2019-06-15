@@ -1,5 +1,5 @@
 use defs;
-use parameter::{
+use shared::parameter::{
     BaseliskPluginParameters,
     PARAM_OSCILLATOR_PITCH_BEND_RANGE,
 };

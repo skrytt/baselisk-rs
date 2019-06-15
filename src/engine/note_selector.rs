@@ -1,5 +1,8 @@
 
-use event::{EngineEvent, MidiEvent};
+use shared::event::{
+    EngineEvent,
+    MidiEvent
+};
 
 /// A note selector with high-note-priority selection.
 #[derive(Default)]
