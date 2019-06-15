@@ -377,22 +377,22 @@ mod tests {
              decay_duration: defs::Sample,
              sustain_level: defs::Sample,
              release_duration: defs::Sample,
-             mut engine_events: Vec<(usize, EngineEvent)>,
+             engine_events: Vec<(usize, EngineEvent)>,
              comparison_buffer: Vec<defs::MonoFrame>) {
 
         // setup
         let mut adsr = Adsr::new();
         let sample_rate = 1.0;
 
-        let mut params = BaseliskPluginParameters::default();
+        let params = BaseliskPluginParameters::default();
         params.update_real_value_from_string(
-            PARAM_ADSR_ATTACK, format!("{}", attack_duration));
+            PARAM_ADSR_ATTACK, format!("{}", attack_duration)).unwrap();
         params.update_real_value_from_string(
-            PARAM_ADSR_DECAY, format!("{}", decay_duration));
+            PARAM_ADSR_DECAY, format!("{}", decay_duration)).unwrap();
         params.update_real_value_from_string(
-            PARAM_ADSR_SUSTAIN, format!("{}", sustain_level));
+            PARAM_ADSR_SUSTAIN, format!("{}", sustain_level)).unwrap();
         params.update_real_value_from_string(
-            PARAM_ADSR_RELEASE, format!("{}", release_duration));
+            PARAM_ADSR_RELEASE, format!("{}", release_duration)).unwrap();
 
         let mut buffer = vec![[0.0]; comparison_buffer.len()];
 
