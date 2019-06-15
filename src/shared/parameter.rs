@@ -226,7 +226,7 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
                 self.waveshaper_input_gain.get_value_text(),
             PARAM_WAVESHAPER_OUTPUT_GAIN =>
                 self.waveshaper_output_gain.get_value_text(),
-            _ => format!(""),
+            _ => String::from(""),
         }
     }
 
@@ -334,7 +334,7 @@ impl BaseliskPluginParameters
                                          index: i32,
                                          value: String) -> Result<(), &'static str>
     {
-        return match index {
+        match index {
             PARAM_ADSR_ATTACK =>
                 self.adsr_attack.update_real_value_from_string(value),
             PARAM_ADSR_DECAY =>
@@ -500,7 +500,7 @@ impl LinearParameter
     }
 
     /// Consumes a parameter and returns the same parameter with int snapping enabled.
-    pub fn enable_int_snapping(mut self) -> Self {
+    pub fn enable_int_snapping(self) -> Self {
         self.int_value_snapping.store(true, Ordering::Relaxed);
         self
     }
