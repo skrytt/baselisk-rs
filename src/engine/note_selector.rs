@@ -73,10 +73,12 @@ impl MonoNoteSelector {
                 // Update the selected note.
                 // After inserting to the note priority stack, it should never
                 // be the case that the unwrap call here fails
-                self.note_selected = Some(*self.note_priority_stack.last().unwrap());
-
-                // Indicate that the note held changed.
-                return MidiEventResult::NoteChange(self.note_selected)
+                let new_note_selected = Some(*self.note_priority_stack.last().unwrap());
+                if new_note_selected != self.note_selected {
+                    self.note_selected = new_note_selected;
+                    // Indicate that the note held changed.
+                    return MidiEventResult::NoteChange(self.note_selected)
+                }
             }
         }
         MidiEventResult::Ignore
@@ -94,15 +96,112 @@ impl MonoNoteSelector {
                 // that the unwrap_err call here fails
                 let remove_index = self.note_priority_stack.binary_search(&note).unwrap();
                 self.note_priority_stack.remove(remove_index);
+
                 // Update the selected note
-                self.note_selected = match self.note_priority_stack.last() {
+                let new_note_selected = match self.note_priority_stack.last() {
                     Some(note) => Some(*note),
                     None => None,
                 };
-                // Indicate that the note held changed.
-                return MidiEventResult::NoteChange(self.note_selected)
+
+                if new_note_selected != self.note_selected {
+                    self.note_selected = new_note_selected;
+                    // Indicate that the note held changed.
+                    return MidiEventResult::NoteChange(self.note_selected)
+                }
             }
         }
         MidiEventResult::Ignore
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn check_note_change(event: EngineEvent,
+                         expected_note: Option<u8>) -> bool
+    {
+        if let EngineEvent::NoteChange { note } = event {
+            if note == expected_note {
+                return true
+            }
+        }
+        false
+    }
+
+    #[test]
+    fn test_high_note_priority_switch_to_higher_note() {
+        let mut note_selector = MonoNoteSelector::new();
+
+        let output = note_selector.process_event(
+            &MidiEvent::NoteOn{note: 20, velocity: 127});
+        assert!(output.is_some());
+        let output = output.unwrap();
+        assert!(check_note_change(output, Some(20)));
+
+        // Play a higher note, and assert the output note changes to that note.
+        let output = note_selector.process_event(
+            &MidiEvent::NoteOn{note: 30, velocity: 127});
+        assert!(output.is_some());
+        let output = output.unwrap();
+        assert!(check_note_change(output, Some(30)));
+    }
+
+    #[test]
+    fn test_high_note_priority_suppress_lower_note() {
+        let mut note_selector = MonoNoteSelector::new();
+
+        let output = note_selector.process_event(
+            &MidiEvent::NoteOn{note: 20, velocity: 127});
+        assert!(output.is_some());
+        let output = output.unwrap();
+        assert!(check_note_change(output, Some(20)));
+
+        // Play a lower note, and assert the output note doesn't change.
+        let output = note_selector.process_event(
+            &MidiEvent::NoteOn{note: 10, velocity: 127});
+        assert!(output.is_none());
+
+        // Release the lower note, and assert the output note doesn't change.
+        let output = note_selector.process_event(
+            &MidiEvent::NoteOff{note: 10});
+        assert!(output.is_none());
+
+        // Release the original note, and assert the output stops.
+        let output = note_selector.process_event(
+            &MidiEvent::NoteOff{note: 20});
+        assert!(output.is_some());
+        let output = output.unwrap();
+        assert!(check_note_change(output, None));
+    }
+
+    #[test]
+    fn test_high_note_priority_switch_to_lower_note() {
+        let mut note_selector = MonoNoteSelector::new();
+
+        let output = note_selector.process_event(
+            &MidiEvent::NoteOn{note: 20, velocity: 127});
+        assert!(output.is_some());
+        let output = output.unwrap();
+        assert!(check_note_change(output, Some(20)));
+
+        // Play a lower note, and assert the output note doesn't change.
+        let output = note_selector.process_event(
+            &MidiEvent::NoteOn{note: 10, velocity: 127});
+        assert!(output.is_none());
+
+        // Release the higher note, and assert the output note switches to the lower note.
+        let output = note_selector.process_event(
+            &MidiEvent::NoteOff{note: 20});
+        assert!(output.is_some());
+        let output = output.unwrap();
+        assert!(check_note_change(output, Some(10)));
+
+        // Release the original note, and assert the output stops.
+        let output = note_selector.process_event(
+            &MidiEvent::NoteOff{note: 10});
+        assert!(output.is_some());
+        let output = output.unwrap();
+        assert!(check_note_change(output, None));
     }
 }
