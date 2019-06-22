@@ -664,3 +664,49 @@ impl Parameter<usize> for EnumParameter {
         format!("{}", self.value_set[self.current_value_index.load(Ordering::Relaxed)])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Utility method to allow error tolerance in float calcs
+    fn assert_float_eq(actual: f32, expected: f32) {
+        let error_abs = f32::abs(actual - expected);
+        assert!(error_abs < std::f32::EPSILON,
+                "actual = {}, expected = {}, absolute error = {}",
+                actual, expected, error_abs);
+    }
+
+    #[test]
+    fn test_linear_parameter_map_by_real_value() {
+        let parameter = LinearParameter::new(
+            ParameterUnit::NoUnit, 0.0, 10.0, 0.0);
+        assert_float_eq(parameter.get_vst_param(), 0.0);
+
+        parameter.update_real_value_from_string(String::from("5.0")).unwrap();
+        assert_float_eq(parameter.get_vst_param(), 0.5);
+
+        parameter.update_real_value_from_string(String::from("10.0")).unwrap();
+        assert_float_eq(parameter.get_vst_param(), 1.0);
+
+        parameter.update_real_value_from_string(String::from("0.0")).unwrap();
+        assert_float_eq(parameter.get_vst_param(), 0.0);
+    }
+
+    #[test]
+    fn test_linear_parameter_map_by_vst_param() {
+        let parameter = LinearParameter::new(
+            ParameterUnit::NoUnit, 0.0, 10.0, 0.0);
+        assert_float_eq(parameter.get_real_value(), 0.0);
+
+        parameter.update_vst_param(0.5);
+        assert_float_eq(parameter.get_real_value(), 5.0);
+
+        parameter.update_vst_param(1.0);
+        assert_float_eq(parameter.get_real_value(), 10.0);
+
+        parameter.update_vst_param(0.0);
+        assert_float_eq(parameter.get_real_value(), 0.0);
+    }
+
+}
