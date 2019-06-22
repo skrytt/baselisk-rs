@@ -709,4 +709,36 @@ mod tests {
         assert_float_eq(parameter.get_real_value(), 0.0);
     }
 
+    #[test]
+    fn test_exponential_parameter_map_by_real_value() {
+        let parameter = ExponentialParameter::new(
+            ParameterUnit::NoUnit, 1.0, 16.0, 1.0);
+        assert_float_eq(parameter.get_vst_param(), 0.0);
+
+        parameter.update_real_value_from_string(String::from("4.0")).unwrap();
+        assert_float_eq(parameter.get_vst_param(), 0.5);
+
+        parameter.update_real_value_from_string(String::from("16.0")).unwrap();
+        assert_float_eq(parameter.get_vst_param(), 1.0);
+
+        parameter.update_real_value_from_string(String::from("1.0")).unwrap();
+        assert_float_eq(parameter.get_vst_param(), 0.0);
+    }
+
+    #[test]
+    fn test_exponential_parameter_map_by_vst_param() {
+        let parameter = ExponentialParameter::new(
+            ParameterUnit::NoUnit, 1.0, 16.0, 1.0);
+        assert_float_eq(parameter.get_real_value(), 1.0);
+
+        parameter.update_vst_param(0.5);
+        assert_float_eq(parameter.get_real_value(), 4.0);
+
+        parameter.update_vst_param(1.0);
+        assert_float_eq(parameter.get_real_value(), 16.0);
+
+        parameter.update_vst_param(0.0);
+        assert_float_eq(parameter.get_real_value(), 1.0);
+    }
+
 }
