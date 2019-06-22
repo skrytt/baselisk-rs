@@ -768,4 +768,67 @@ mod tests {
         assert_float_eq(parameter.get_real_value(), 1.0);
         assert_float_eq(parameter.get_vst_param(), 0.0);
     }
+
+    #[test]
+    fn test_enum_parameter_map_by_real_value() {
+        // Let's enumerate musical instruments!
+        let parameter = EnumParameter::new(
+            vec!["trombone", "theremin", "triangle"],
+            1, // default to "theremin"
+        );
+        // EnumParameter's real value is a usize
+        assert_eq!(parameter.get_real_value(), 1);
+        assert_eq!(parameter.get_value_text(), "theremin");
+
+        parameter.update_real_value_from_string(String::from("trombone"))
+            .unwrap();
+        assert_eq!(parameter.get_real_value(), 0);
+        assert_eq!(parameter.get_value_text(), "trombone");
+
+        parameter.update_real_value_from_string(String::from("triangle"))
+            .unwrap();
+        assert_eq!(parameter.get_real_value(), 2);
+        assert_eq!(parameter.get_value_text(), "triangle");
+
+        // Fake instrument!! Check for error
+        parameter.update_real_value_from_string(String::from("synthesizer"))
+            .unwrap_err();
+        // ...and check the value hasn't changed
+        assert_eq!(parameter.get_real_value(), 2);
+    }
+
+    #[test]
+    fn test_enum_parameter_map_by_vst_param() {
+        let parameter = EnumParameter::new(
+            vec!["trombone", "theremin", "triangle"],
+            1, // default to "theremin"
+        );
+        // EnumParameter's real value is a usize
+        assert_eq!(parameter.get_real_value(), 1);
+        assert_eq!(parameter.get_value_text(), "theremin");
+
+        // The VST param is divided into a list of ranges of equal size
+        // where each range maps to an item in the parameter name list;
+        // the ordering is the same between both lists.
+        parameter.update_vst_param(0.17);
+        assert_eq!(parameter.get_real_value(), 0);
+        assert_eq!(parameter.get_value_text(), "trombone");
+
+        parameter.update_vst_param(0.83);
+        assert_eq!(parameter.get_real_value(), 2);
+        assert_eq!(parameter.get_value_text(), "triangle");
+
+        parameter.update_vst_param(0.5);
+        assert_eq!(parameter.get_real_value(), 1);
+        assert_eq!(parameter.get_value_text(), "theremin");
+
+        // Test VST parameter boundary values also
+        parameter.update_vst_param(0.0);
+        assert_eq!(parameter.get_real_value(), 0);
+        assert_eq!(parameter.get_value_text(), "trombone");
+
+        parameter.update_vst_param(1.0);
+        assert_eq!(parameter.get_real_value(), 2);
+        assert_eq!(parameter.get_value_text(), "triangle");
+    }
 }
