@@ -710,6 +710,20 @@ mod tests {
     }
 
     #[test]
+    fn test_linear_parameter_limits() {
+        let parameter = LinearParameter::new(
+            ParameterUnit::NoUnit, 0.0, 10.0, 0.0);
+
+        parameter.update_real_value_from_string(String::from("20.0")).unwrap();
+        assert_float_eq(parameter.get_real_value(), 10.0);
+        assert_float_eq(parameter.get_vst_param(), 1.0);
+
+        parameter.update_real_value_from_string(String::from("-10.0")).unwrap();
+        assert_float_eq(parameter.get_real_value(), 0.0);
+        assert_float_eq(parameter.get_vst_param(), 0.0);
+    }
+
+    #[test]
     fn test_exponential_parameter_map_by_real_value() {
         let parameter = ExponentialParameter::new(
             ParameterUnit::NoUnit, 1.0, 16.0, 1.0);
@@ -741,4 +755,17 @@ mod tests {
         assert_float_eq(parameter.get_real_value(), 1.0);
     }
 
+    #[test]
+    fn test_exponential_parameter_limits() {
+        let parameter = ExponentialParameter::new(
+            ParameterUnit::NoUnit, 1.0, 16.0, 1.0);
+
+        parameter.update_real_value_from_string(String::from("123.0")).unwrap();
+        assert_float_eq(parameter.get_real_value(), 16.0);
+        assert_float_eq(parameter.get_vst_param(), 1.0);
+
+        parameter.update_real_value_from_string(String::from("0.123")).unwrap();
+        assert_float_eq(parameter.get_real_value(), 1.0);
+        assert_float_eq(parameter.get_vst_param(), 0.0);
+    }
 }
