@@ -21,12 +21,12 @@ use shared::{
         PARAM_FILTER_FREQUENCY,
         PARAM_FILTER_SWEEP_RANGE,
         PARAM_FILTER_RESONANCE,
-        PARAM_OSCILLATOR_TYPE,
-        PARAM_OSCILLATOR_PITCH,
-        PARAM_OSCILLATOR_PULSE_WIDTH,
-        PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO,
-        PARAM_OSCILLATOR_MOD_INDEX,
-        PARAM_OSCILLATOR_PITCH_BEND_RANGE,
+        PARAM_GENERATOR_TYPE,
+        PARAM_GENERATOR_PITCH,
+        PARAM_GENERATOR_PULSE_WIDTH,
+        PARAM_GENERATOR_MOD_FREQUENCY_RATIO,
+        PARAM_GENERATOR_MOD_INDEX,
+        PARAM_GENERATOR_PITCH_BEND_RANGE,
         PARAM_WAVESHAPER_INPUT_GAIN,
         PARAM_WAVESHAPER_OUTPUT_GAIN,
     },
@@ -85,66 +85,65 @@ pub fn update_parameter_from_tokens(shared_state: &Arc<SharedState>,
 fn build_tree() -> Tree
 {
     let mut root = Node::new_with_children();
-
     {
         root.add_child("pitchbend", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_OSCILLATOR_PITCH_BEND_RANGE,
+                    PARAM_GENERATOR_PITCH_BEND_RANGE,
                     &mut token_iter)
             },
             Some(String::from("<semitones>")),
         ));
     }
     {
-        let oscillator = root.add_child("oscillator", Node::new_with_children());
+        let generator = root.add_child("generator", Node::new_with_children());
 
-        oscillator.add_child("type", Node::new_dispatch_event(
+        generator.add_child("type", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_OSCILLATOR_TYPE,
+                    PARAM_GENERATOR_TYPE,
                     &mut token_iter)
             },
             Some(String::from("<type_name>")),
         ));
 
-        oscillator.add_child("pitch", Node::new_dispatch_event(
+        generator.add_child("pitch", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_OSCILLATOR_PITCH,
+                    PARAM_GENERATOR_PITCH,
                     &mut token_iter)
             },
             Some(String::from("<octaves>")),
         ));
 
-        oscillator.add_child("pulsewidth", Node::new_dispatch_event(
+        generator.add_child("pulsewidth", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_OSCILLATOR_PULSE_WIDTH,
+                    PARAM_GENERATOR_PULSE_WIDTH,
                     &mut token_iter)
             },
             Some(String::from("<width>")),
         ));
 
-        oscillator.add_child("modfreqratio", Node::new_dispatch_event(
+        generator.add_child("modfreqratio", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO,
+                    PARAM_GENERATOR_MOD_FREQUENCY_RATIO,
                     &mut token_iter)
             },
             Some(String::from("<freq_ratio>")),
         ));
 
-        oscillator.add_child("modindex", Node::new_dispatch_event(
+        generator.add_child("modindex", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_OSCILLATOR_MOD_INDEX,
+                    PARAM_GENERATOR_MOD_INDEX,
                     &mut token_iter)
             },
             Some(String::from("<index>")),

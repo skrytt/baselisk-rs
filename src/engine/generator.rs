@@ -4,12 +4,12 @@ use shared::{
     event::EngineEvent,
     parameter::{
         BaseliskPluginParameters,
-        PARAM_OSCILLATOR_TYPE,
-        PARAM_OSCILLATOR_PITCH,
-        PARAM_OSCILLATOR_PULSE_WIDTH,
-        PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO,
-        PARAM_OSCILLATOR_MOD_INDEX,
-        PARAM_OSCILLATOR_PITCH_BEND_RANGE,
+        PARAM_GENERATOR_TYPE,
+        PARAM_GENERATOR_PITCH,
+        PARAM_GENERATOR_PULSE_WIDTH,
+        PARAM_GENERATOR_MOD_FREQUENCY_RATIO,
+        PARAM_GENERATOR_MOD_INDEX,
+        PARAM_GENERATOR_PITCH_BEND_RANGE,
     },
 };
 use engine::pitch_bend;
@@ -22,7 +22,7 @@ fn get_frequency(note: defs::Sample) -> defs::Sample {
     440.0 * ((note - 69.0) / 12.0).exp2()
 }
 
-/// Internal state used by oscillator types.
+/// Internal state used by generator types.
 pub struct State {
     sample_rate: defs::Sample,
     note: u8,
@@ -64,13 +64,13 @@ impl State {
     }
 }
 
-/// Oscillator type that will be used for audio processing.
-pub struct Oscillator {
+/// Signal generator type that will be used for audio processing.
+pub struct Generator {
     state: State,
 }
 
-impl Oscillator {
-/// Function to construct new oscillators.
+impl Generator {
+/// Function to construct new generators.
     pub fn new() -> Self
     {
         Self {
@@ -94,7 +94,7 @@ impl Oscillator {
 
 
         let generator_func: Option<fn(&mut State, &mut defs::MonoFrameBufferSlice)> =
-            match params.get_real_value(PARAM_OSCILLATOR_TYPE) as usize {
+            match params.get_real_value(PARAM_GENERATOR_TYPE) as usize {
                 0 => Some(sine_generator),
                 1 => Some(sawtooth_generator),
                 2 => Some(pulse_generator),
@@ -119,15 +119,15 @@ impl Oscillator {
                             continue
                         }
                     },
-                    // Pitch bends and oscillator parameter changes will also trigger keyframes
+                    // Pitch bends and generator parameter changes will also trigger keyframes
                     EngineEvent::PitchBend{ .. } => (),
                     EngineEvent::ModulateParameter { param_id, .. } => match *param_id {
-                        PARAM_OSCILLATOR_TYPE |
-                        PARAM_OSCILLATOR_PITCH |
-                        PARAM_OSCILLATOR_PULSE_WIDTH |
-                        PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO |
-                        PARAM_OSCILLATOR_MOD_INDEX |
-                        PARAM_OSCILLATOR_PITCH_BEND_RANGE => (),
+                        PARAM_GENERATOR_TYPE |
+                        PARAM_GENERATOR_PITCH |
+                        PARAM_GENERATOR_PULSE_WIDTH |
+                        PARAM_GENERATOR_MOD_FREQUENCY_RATIO |
+                        PARAM_GENERATOR_MOD_INDEX |
+                        PARAM_GENERATOR_PITCH_BEND_RANGE => (),
                         _ => continue,
                     },
                 }
@@ -142,7 +142,7 @@ impl Oscillator {
                 self.state.pitch_bend_wheel_value, params);
 
             self.state.target_base_frequency = get_frequency(defs::Sample::from(self.state.note)
-                                                + params.get_real_value(PARAM_OSCILLATOR_PITCH)
+                                                + params.get_real_value(PARAM_GENERATOR_PITCH)
                                                 + pitch_bend_semitones);
 
             // Smoothing for pitch bends, to reduce audible stepping for wide pitch bends
@@ -173,7 +173,7 @@ impl Oscillator {
             }
 
             self.state.mod_frequency = self.state.base_frequency
-                                       * params.get_real_value(PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO);
+                                       * params.get_real_value(PARAM_GENERATOR_MOD_FREQUENCY_RATIO);
 
             // Generate all the samples for this buffer
             let buffer_slice = buffer.get_mut(this_keyframe..next_keyframe).unwrap();
@@ -200,7 +200,7 @@ impl Oscillator {
                             // frequency will be next iteration)
                             self.state.base_frequency = get_frequency(
                                                 defs::Sample::from(self.state.note)
-                                                + params.get_real_value(PARAM_OSCILLATOR_PITCH)
+                                                + params.get_real_value(PARAM_GENERATOR_PITCH)
                                                 + pitch_bend_semitones);
                         }
                     },
@@ -208,20 +208,20 @@ impl Oscillator {
                         self.state.pitch_bend_wheel_value = *wheel_value;
                     },
                     EngineEvent::ModulateParameter { param_id, value } => match *param_id {
-                        PARAM_OSCILLATOR_TYPE |
-                        PARAM_OSCILLATOR_PITCH |
-                        PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO |
-                        PARAM_OSCILLATOR_PITCH_BEND_RANGE => {
+                        PARAM_GENERATOR_TYPE |
+                        PARAM_GENERATOR_PITCH |
+                        PARAM_GENERATOR_MOD_FREQUENCY_RATIO |
+                        PARAM_GENERATOR_PITCH_BEND_RANGE => {
                             params.set_parameter(*param_id, *value);
                         },
-                        PARAM_OSCILLATOR_PULSE_WIDTH => {
+                        PARAM_GENERATOR_PULSE_WIDTH => {
                             params.set_parameter(*param_id, *value);
                             self.state.pulse_width = params.get_real_value(
-                                PARAM_OSCILLATOR_PULSE_WIDTH);
+                                PARAM_GENERATOR_PULSE_WIDTH);
                         },
-                        PARAM_OSCILLATOR_MOD_INDEX => {
+                        PARAM_GENERATOR_MOD_INDEX => {
                             params.set_parameter(*param_id, *value);
-                            self.state.mod_index = params.get_real_value(PARAM_OSCILLATOR_MOD_INDEX);
+                            self.state.mod_index = params.get_real_value(PARAM_GENERATOR_MOD_INDEX);
                         }
                         _ => (),
                     },
@@ -360,7 +360,7 @@ fn frequency_modulated_generator(state: &mut State, buffer: &mut defs::MonoFrame
     let mut main_phase = state.main_phase;
 
     for frame_num in 0..buffer.len() {
-        // Advance main_phase of mod oscillator
+        // Advance main_phase of mod generator
         // Enforce range 0.0 <= main_phase < 1.0
         mod_phase += mod_step;
         while mod_phase >= 1.0 {
@@ -370,7 +370,7 @@ fn frequency_modulated_generator(state: &mut State, buffer: &mut defs::MonoFrame
         let mod_res = defs::Sample::sin(2.0 as defs::Sample * defs::PI * mod_phase);
         let mod_freq_offset = state.mod_index * mod_res * mod_freq;
 
-        // Advance main_phase of main oscillator
+        // Advance main_phase of main generator
         // Enforce range 0.0 <= main_phase < 1.0
         let main_step = (state.base_frequency + mod_freq_offset) / state.sample_rate;
         main_phase += main_step;

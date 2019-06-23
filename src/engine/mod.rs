@@ -4,7 +4,7 @@ mod adsr;
 mod buffer;
 mod delay;
 mod gain;
-mod oscillator;
+mod generator;
 mod filter;
 mod note_selector;
 mod pitch_bend;
@@ -20,12 +20,12 @@ use shared::{
     SharedState,
 };
 use engine::{
-    adsr::Adsr as Adsr,
+    adsr::Adsr,
     buffer::ResizableFrameBuffer,
-    delay::Delay as Delay,
-    oscillator::Oscillator as Oscillator,
-    filter::Filter as Filter,
-    note_selector::MonoNoteSelector as MonoNoteSelector,
+    delay::Delay,
+    generator::Generator,
+    filter::Filter,
+    note_selector::MonoNoteSelector,
 };
 use sample::slice;
 use std::sync::Arc;
@@ -46,7 +46,7 @@ pub struct Engine
     // Buffers
     adsr_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     // DSP Units
-    oscillator: Oscillator,
+    generator: Generator,
     adsr: Adsr,
     filter: Filter,
     delay: Delay,
@@ -68,7 +68,7 @@ impl Engine
             // Buffers
             adsr_buffer: ResizableFrameBuffer::new(),
             // DSP Units
-            oscillator: Oscillator::new(),
+            generator: Generator::new(),
             adsr: Adsr::new(),
             filter: Filter::new(),
             delay: Delay::new(),
@@ -171,18 +171,18 @@ impl Engine
         self.timing_data.adsr = (time::precise_time_ns() - adsr_start_time) / 1000;
 
         // Optimization: when ADSR is in the off state for a whole buffer,
-        // the result of the oscillator and gain stages is silence
+        // the result of the generator and gain stages is silence
         if adsr_any_nonzero_output {
 
-            // Oscillator
-            let oscillator_start_time = time::precise_time_ns();
-            self.oscillator.process_buffer(left_output_buffer,
+            // Signal Generator
+            let generator_start_time = time::precise_time_ns();
+            self.generator.process_buffer(left_output_buffer,
                                            self.engine_event_buffer.iter(),
                                            self.sample_rate,
                                            &self.shared_state.parameters);
-            self.timing_data.oscillator = (time::precise_time_ns() - oscillator_start_time) / 1000;
+            self.timing_data.generator = (time::precise_time_ns() - generator_start_time) / 1000;
 
-            // Use ADSR to apply gain to oscillator output
+            // Use ADSR to apply gain to generator output
             let gain_start_time = time::precise_time_ns();
             gain::process_buffer(adsr_buffer,
                                  left_output_buffer);
@@ -230,7 +230,7 @@ impl Engine
 
     fn handle_midi_panic(&mut self) {
         self.note_selector.midi_panic();
-        self.oscillator.midi_panic();
+        self.generator.midi_panic();
         self.adsr.midi_panic();
         self.filter.midi_panic();
     }
@@ -239,7 +239,7 @@ impl Engine
 #[derive(Default)]
 struct TimingData {
     pre: u64,
-    oscillator: u64,
+    generator: u64,
     adsr: u64,
     gain: u64,
     filter: u64,
@@ -250,9 +250,9 @@ struct TimingData {
 }
 impl TimingData {
     fn dump_to_stderr(&self) {
-        eprintln!("pre:{:3}us osc:{:3}us adsr:{:3}us gain:{:3}us fltr:{:3}us wshp:{:3}us dly:{:3}us total:{:3}us [{:3.3}%]",
+        eprintln!("pre:{:3}us gen:{:3}us adsr:{:3}us gain:{:3}us fltr:{:3}us wshp:{:3}us dly:{:3}us total:{:3}us [{:3.3}%]",
                 self.pre,
-                self.oscillator,
+                self.generator,
                 self.adsr,
                 self.gain,
                 self.filter,

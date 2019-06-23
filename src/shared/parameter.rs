@@ -21,12 +21,12 @@ pub const PARAM_DELAY_WET_GAIN: i32 = 9;
 pub const PARAM_FILTER_FREQUENCY: i32 = 10;
 pub const PARAM_FILTER_SWEEP_RANGE: i32 = 11;
 pub const PARAM_FILTER_RESONANCE: i32 = 12;
-pub const PARAM_OSCILLATOR_TYPE: i32 = 13;
-pub const PARAM_OSCILLATOR_PITCH: i32 = 14;
-pub const PARAM_OSCILLATOR_PULSE_WIDTH: i32 = 15;
-pub const PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO: i32 = 16;
-pub const PARAM_OSCILLATOR_MOD_INDEX: i32 = 17;
-pub const PARAM_OSCILLATOR_PITCH_BEND_RANGE: i32 = 18;
+pub const PARAM_GENERATOR_TYPE: i32 = 13;
+pub const PARAM_GENERATOR_PITCH: i32 = 14;
+pub const PARAM_GENERATOR_PULSE_WIDTH: i32 = 15;
+pub const PARAM_GENERATOR_MOD_FREQUENCY_RATIO: i32 = 16;
+pub const PARAM_GENERATOR_MOD_INDEX: i32 = 17;
+pub const PARAM_GENERATOR_PITCH_BEND_RANGE: i32 = 18;
 pub const PARAM_WAVESHAPER_INPUT_GAIN: i32 = 19;
 pub const PARAM_WAVESHAPER_OUTPUT_GAIN: i32 = 20;
 
@@ -67,12 +67,12 @@ pub struct BaseliskPluginParameters {
     filter_frequency: ExponentialParameter,
     filter_sweep_range: LinearParameter,
     filter_quality: ExponentialParameter,
-    oscillator_type: EnumParameter,
-    oscillator_pitch: LinearParameter,
-    oscillator_pulse_width: LinearParameter,
-    oscillator_mod_frequency_ratio: LinearParameter,
-    oscillator_mod_index: LinearParameter,
-    oscillator_pitch_bend_range: LinearParameter,
+    generator_type: EnumParameter,
+    generator_pitch: LinearParameter,
+    generator_pulse_width: LinearParameter,
+    generator_mod_frequency_ratio: LinearParameter,
+    generator_mod_index: LinearParameter,
+    generator_pitch_bend_range: LinearParameter,
     waveshaper_input_gain: LinearParameter,
     waveshaper_output_gain: LinearParameter,
 }
@@ -106,21 +106,21 @@ impl Default for BaseliskPluginParameters {
                 ParameterUnit::Octaves, 0.0, 10.0, 8.0),
             filter_quality: ExponentialParameter::new(
                 ParameterUnit::NoUnit, 0.5, 10.0, 0.707),
-            oscillator_type: EnumParameter::new(
+            generator_type: EnumParameter::new(
                 vec!["sine", "saw", "pulse", "fm", "noise"],
                 1,
             ),
-            oscillator_pitch: LinearParameter::new(
+            generator_pitch: LinearParameter::new(
                 ParameterUnit::Semitones, -36.0, 36.0, 0.0
             ).enable_int_snapping(),
-            oscillator_pulse_width: LinearParameter::new(
+            generator_pulse_width: LinearParameter::new(
                 ParameterUnit::NoUnit, 0.01, 0.99, 0.5),
-            oscillator_mod_frequency_ratio: LinearParameter::new(
+            generator_mod_frequency_ratio: LinearParameter::new(
                 ParameterUnit::NoUnit, 1.0, 8.0, 1.0
             ).enable_int_snapping(),
-            oscillator_mod_index: LinearParameter::new(
+            generator_mod_index: LinearParameter::new(
                 ParameterUnit::NoUnit, 0.0, 8.0, 1.0),
-            oscillator_pitch_bend_range: LinearParameter::new(
+            generator_pitch_bend_range: LinearParameter::new(
                 ParameterUnit::Semitones, 0.0, 36.0, 2.0),
             waveshaper_input_gain: LinearParameter::new(
                 ParameterUnit::Percent, 0.0, 1.0, 0.333),
@@ -162,18 +162,18 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
                 self.filter_sweep_range.get_vst_param(),
             PARAM_FILTER_RESONANCE =>
                 self.filter_quality.get_vst_param(),
-            PARAM_OSCILLATOR_TYPE =>
-                self.oscillator_type.get_vst_param(),
-            PARAM_OSCILLATOR_PITCH =>
-                self.oscillator_pitch.get_vst_param(),
-            PARAM_OSCILLATOR_PULSE_WIDTH =>
-                self.oscillator_pulse_width.get_vst_param(),
-            PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO =>
-                self.oscillator_mod_frequency_ratio.get_vst_param(),
-            PARAM_OSCILLATOR_MOD_INDEX =>
-                self.oscillator_mod_index.get_vst_param(),
-            PARAM_OSCILLATOR_PITCH_BEND_RANGE =>
-                self.oscillator_pitch_bend_range.get_vst_param(),
+            PARAM_GENERATOR_TYPE =>
+                self.generator_type.get_vst_param(),
+            PARAM_GENERATOR_PITCH =>
+                self.generator_pitch.get_vst_param(),
+            PARAM_GENERATOR_PULSE_WIDTH =>
+                self.generator_pulse_width.get_vst_param(),
+            PARAM_GENERATOR_MOD_FREQUENCY_RATIO =>
+                self.generator_mod_frequency_ratio.get_vst_param(),
+            PARAM_GENERATOR_MOD_INDEX =>
+                self.generator_mod_index.get_vst_param(),
+            PARAM_GENERATOR_PITCH_BEND_RANGE =>
+                self.generator_pitch_bend_range.get_vst_param(),
             PARAM_WAVESHAPER_INPUT_GAIN =>
                 self.waveshaper_input_gain.get_vst_param(),
             PARAM_WAVESHAPER_OUTPUT_GAIN =>
@@ -210,18 +210,18 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
                 self.filter_sweep_range.get_value_text(),
             PARAM_FILTER_RESONANCE =>
                 self.filter_quality.get_value_text(),
-            PARAM_OSCILLATOR_TYPE =>
-                self.oscillator_type.get_value_text(),
-            PARAM_OSCILLATOR_PITCH =>
-                self.oscillator_pitch.get_value_text(),
-            PARAM_OSCILLATOR_PULSE_WIDTH =>
-                self.oscillator_pulse_width.get_value_text(),
-            PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO =>
-                self.oscillator_mod_frequency_ratio.get_value_text(),
-            PARAM_OSCILLATOR_MOD_INDEX =>
-                self.oscillator_mod_index.get_value_text(),
-            PARAM_OSCILLATOR_PITCH_BEND_RANGE =>
-                self.oscillator_pitch_bend_range.get_value_text(),
+            PARAM_GENERATOR_TYPE =>
+                self.generator_type.get_value_text(),
+            PARAM_GENERATOR_PITCH =>
+                self.generator_pitch.get_value_text(),
+            PARAM_GENERATOR_PULSE_WIDTH =>
+                self.generator_pulse_width.get_value_text(),
+            PARAM_GENERATOR_MOD_FREQUENCY_RATIO =>
+                self.generator_mod_frequency_ratio.get_value_text(),
+            PARAM_GENERATOR_MOD_INDEX =>
+                self.generator_mod_index.get_value_text(),
+            PARAM_GENERATOR_PITCH_BEND_RANGE =>
+                self.generator_pitch_bend_range.get_value_text(),
             PARAM_WAVESHAPER_INPUT_GAIN =>
                 self.waveshaper_input_gain.get_value_text(),
             PARAM_WAVESHAPER_OUTPUT_GAIN =>
@@ -258,18 +258,18 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
                 String::from("filter sweep range"),
             PARAM_FILTER_RESONANCE =>
                 String::from("filter quality"),
-            PARAM_OSCILLATOR_TYPE =>
-                String::from("oscillator type"),
-            PARAM_OSCILLATOR_PITCH =>
-                String::from("oscillator pitch"),
-            PARAM_OSCILLATOR_PULSE_WIDTH =>
-                String::from("oscillator pulse width"),
-            PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO =>
-                String::from("oscillator mod frequency ratio"),
-            PARAM_OSCILLATOR_MOD_INDEX =>
-                String::from("oscillator mod index"),
-            PARAM_OSCILLATOR_PITCH_BEND_RANGE =>
-                String::from("oscillator pitch bend range"),
+            PARAM_GENERATOR_TYPE =>
+                String::from("generator type"),
+            PARAM_GENERATOR_PITCH =>
+                String::from("generator pitch"),
+            PARAM_GENERATOR_PULSE_WIDTH =>
+                String::from("generator pulse width"),
+            PARAM_GENERATOR_MOD_FREQUENCY_RATIO =>
+                String::from("generator mod frequency ratio"),
+            PARAM_GENERATOR_MOD_INDEX =>
+                String::from("generator mod index"),
+            PARAM_GENERATOR_PITCH_BEND_RANGE =>
+                String::from("generator pitch bend range"),
             PARAM_WAVESHAPER_INPUT_GAIN =>
                 String::from("waveshaper input gain"),
             PARAM_WAVESHAPER_OUTPUT_GAIN =>
@@ -307,18 +307,18 @@ impl vst::plugin::PluginParameters for BaseliskPluginParameters {
                 self.filter_sweep_range.update_vst_param(val),
             PARAM_FILTER_RESONANCE =>
                 self.filter_quality.update_vst_param(val),
-            PARAM_OSCILLATOR_TYPE =>
-                self.oscillator_type.update_vst_param(val),
-            PARAM_OSCILLATOR_PITCH =>
-                self.oscillator_pitch.update_vst_param(val),
-            PARAM_OSCILLATOR_PULSE_WIDTH =>
-                self.oscillator_pulse_width.update_vst_param(val),
-            PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO =>
-                self.oscillator_mod_frequency_ratio.update_vst_param(val),
-            PARAM_OSCILLATOR_MOD_INDEX =>
-                self.oscillator_mod_index.update_vst_param(val),
-            PARAM_OSCILLATOR_PITCH_BEND_RANGE =>
-                self.oscillator_pitch_bend_range.update_vst_param(val),
+            PARAM_GENERATOR_TYPE =>
+                self.generator_type.update_vst_param(val),
+            PARAM_GENERATOR_PITCH =>
+                self.generator_pitch.update_vst_param(val),
+            PARAM_GENERATOR_PULSE_WIDTH =>
+                self.generator_pulse_width.update_vst_param(val),
+            PARAM_GENERATOR_MOD_FREQUENCY_RATIO =>
+                self.generator_mod_frequency_ratio.update_vst_param(val),
+            PARAM_GENERATOR_MOD_INDEX =>
+                self.generator_mod_index.update_vst_param(val),
+            PARAM_GENERATOR_PITCH_BEND_RANGE =>
+                self.generator_pitch_bend_range.update_vst_param(val),
             PARAM_WAVESHAPER_INPUT_GAIN =>
                 self.waveshaper_input_gain.update_vst_param(val),
             PARAM_WAVESHAPER_OUTPUT_GAIN =>
@@ -361,18 +361,18 @@ impl BaseliskPluginParameters
                 self.filter_sweep_range.update_real_value_from_string(value),
             PARAM_FILTER_RESONANCE =>
                 self.filter_quality.update_real_value_from_string(value),
-            PARAM_OSCILLATOR_TYPE =>
-                self.oscillator_type.update_real_value_from_string(value),
-            PARAM_OSCILLATOR_PITCH =>
-                self.oscillator_pitch.update_real_value_from_string(value),
-            PARAM_OSCILLATOR_PULSE_WIDTH =>
-                self.oscillator_pulse_width.update_real_value_from_string(value),
-            PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO =>
-                self.oscillator_mod_frequency_ratio.update_real_value_from_string(value),
-            PARAM_OSCILLATOR_MOD_INDEX =>
-                self.oscillator_mod_index.update_real_value_from_string(value),
-            PARAM_OSCILLATOR_PITCH_BEND_RANGE =>
-                self.oscillator_pitch_bend_range.update_real_value_from_string(value),
+            PARAM_GENERATOR_TYPE =>
+                self.generator_type.update_real_value_from_string(value),
+            PARAM_GENERATOR_PITCH =>
+                self.generator_pitch.update_real_value_from_string(value),
+            PARAM_GENERATOR_PULSE_WIDTH =>
+                self.generator_pulse_width.update_real_value_from_string(value),
+            PARAM_GENERATOR_MOD_FREQUENCY_RATIO =>
+                self.generator_mod_frequency_ratio.update_real_value_from_string(value),
+            PARAM_GENERATOR_MOD_INDEX =>
+                self.generator_mod_index.update_real_value_from_string(value),
+            PARAM_GENERATOR_PITCH_BEND_RANGE =>
+                self.generator_pitch_bend_range.update_real_value_from_string(value),
             PARAM_WAVESHAPER_INPUT_GAIN =>
                 self.waveshaper_input_gain.update_real_value_from_string(value),
             PARAM_WAVESHAPER_OUTPUT_GAIN =>
@@ -409,19 +409,19 @@ impl BaseliskPluginParameters
                 self.filter_sweep_range.get_real_value(),
             PARAM_FILTER_RESONANCE =>
                 self.filter_quality.get_real_value(),
-            PARAM_OSCILLATOR_TYPE =>
+            PARAM_GENERATOR_TYPE =>
                 // Ew - need to make this better... can't return usize here.
-                self.oscillator_type.get_real_value() as defs::Sample,
-            PARAM_OSCILLATOR_PITCH =>
-                self.oscillator_pitch.get_real_value(),
-            PARAM_OSCILLATOR_PULSE_WIDTH =>
-                self.oscillator_pulse_width.get_real_value(),
-            PARAM_OSCILLATOR_MOD_FREQUENCY_RATIO =>
-                self.oscillator_mod_frequency_ratio.get_real_value(),
-            PARAM_OSCILLATOR_MOD_INDEX =>
-                self.oscillator_mod_index.get_real_value(),
-            PARAM_OSCILLATOR_PITCH_BEND_RANGE =>
-                self.oscillator_pitch_bend_range.get_real_value(),
+                self.generator_type.get_real_value() as defs::Sample,
+            PARAM_GENERATOR_PITCH =>
+                self.generator_pitch.get_real_value(),
+            PARAM_GENERATOR_PULSE_WIDTH =>
+                self.generator_pulse_width.get_real_value(),
+            PARAM_GENERATOR_MOD_FREQUENCY_RATIO =>
+                self.generator_mod_frequency_ratio.get_real_value(),
+            PARAM_GENERATOR_MOD_INDEX =>
+                self.generator_mod_index.get_real_value(),
+            PARAM_GENERATOR_PITCH_BEND_RANGE =>
+                self.generator_pitch_bend_range.get_real_value(),
             PARAM_WAVESHAPER_INPUT_GAIN =>
                 self.waveshaper_input_gain.get_real_value(),
             PARAM_WAVESHAPER_OUTPUT_GAIN =>
