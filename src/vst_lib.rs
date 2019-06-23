@@ -3,7 +3,7 @@
 
 #[macro_use]
 extern crate vst;
-
+extern crate rand;
 extern crate sample;
 
 mod defs;

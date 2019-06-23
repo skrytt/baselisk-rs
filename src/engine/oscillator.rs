@@ -1,6 +1,5 @@
-extern crate sample;
-
 use defs;
+use rand;
 use shared::{
     event::EngineEvent,
     parameter::{
@@ -100,6 +99,7 @@ impl Oscillator {
                 1 => Some(sawtooth_generator),
                 2 => Some(pulse_generator),
                 3 => Some(frequency_modulated_generator),
+                4 => Some(noise_generator),
                 _ => None,
         };
 
@@ -387,4 +387,11 @@ fn frequency_modulated_generator(state: &mut State, buffer: &mut defs::MonoFrame
     // Store the phases for next iteration
     state.mod_phase = mod_phase;
     state.main_phase = main_phase;
+}
+
+/// Generator function that produces noise.
+fn noise_generator(_state: &mut State, buffer: &mut defs::MonoFrameBufferSlice) {
+    for frame_num in 0..buffer.len() {
+        buffer[frame_num][0] = rand::random();
+    }
 }

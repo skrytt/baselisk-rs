@@ -107,7 +107,7 @@ impl Default for BaseliskPluginParameters {
             filter_quality: ExponentialParameter::new(
                 ParameterUnit::NoUnit, 0.5, 10.0, 0.707),
             oscillator_type: EnumParameter::new(
-                vec!["sine", "saw", "pulse", "fm"],
+                vec!["sine", "saw", "pulse", "fm", "noise"],
                 1,
             ),
             oscillator_pitch: LinearParameter::new(

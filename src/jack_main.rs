@@ -2,6 +2,7 @@
 //!
 extern crate clap;
 extern crate sample;
+extern crate rand;
 extern crate rustyline;
 extern crate time;
 
