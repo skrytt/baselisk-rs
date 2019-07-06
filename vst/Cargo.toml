@@ -1,19 +1,16 @@
 [package]
-name = "baselisk_core"
+name = "baselisk"
 version = "0.1.0"
 authors = ["skrytt"]
 
-[features]
-plugin_jack = ["jack"]
-plugin_vst = []
-
 [dependencies]
-jack = { version = "0.6", optional = true }
-rand = "0.6.5"
-rustyline = "4.1.0"
 sample = "0.10.0"
-time = "0.1"
 vst = { git = "https://github.com/rust-dsp/rust-vst" }
+
+[dependencies.baselisk_core]
+path = "../core"
+default-features = false
+features = ["plugin_vst"]
 
 [profile.dev]
 codegen-units = 1
@@ -24,6 +21,6 @@ debug-assertions = true
 overflow-checks = false
 
 [lib]
-name = "baselisk_core"
+name = "baselisk_vst"
 path = "src/lib.rs"
-crate-type = ["rlib"]
+crate-type = ["cdylib"]

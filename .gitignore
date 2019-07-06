@@ -1,4 +1,7 @@
-Cargo.lock
 .tags
-perf/*
-target/*
+core/Cargo.lock
+core/target/*
+jack/Cargo.lock
+jack/target/*
+vst/Cargo.lock
+vst/target/*

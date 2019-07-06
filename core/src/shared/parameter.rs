@@ -29,8 +29,6 @@ pub const PARAM_GENERATOR_MOD_INDEX: i32 = 17;
 pub const PARAM_GENERATOR_PITCH_BEND_RANGE: i32 = 18;
 pub const PARAM_WAVESHAPER_INPUT_GAIN: i32 = 19;
 pub const PARAM_WAVESHAPER_OUTPUT_GAIN: i32 = 20;
-
-#[cfg(feature = "plugin_vst")]
 pub const NUM_PARAMS: i32 = 21;
 
 pub enum ParameterUnit {

@@ -1,40 +1,35 @@
 //! Synthesizer.
 //!
 
-#[macro_use]
-extern crate vst;
-extern crate rand;
+extern crate baselisk_core;
 extern crate sample;
 
-mod defs;
-mod engine;
-mod shared;
+#[macro_use]
+extern crate vst;
 
-#[cfg(feature = "plugin_vst")]
+use baselisk_core::defs;
+use baselisk_core::engine;
+use baselisk_core::shared;
+
 use sample::ToFrameSliceMut;
-#[cfg(feature = "plugin_vst")]
 use vst::{
     api::Events,
     buffer::AudioBuffer,
     plugin::{Category, Info, Plugin, PluginParameters},
 };
-#[cfg(feature = "plugin_vst")]
 use shared::{
     parameter,
     SharedState,
 };
-#[cfg(feature = "plugin_vst")]
 use std::sync::Arc;
 
 
 #[allow(clippy::cast_precision_loss)]
 
-#[cfg(feature = "plugin_vst")]
 struct BaseliskPlugin {
     engine: engine::Engine,
 }
 
-#[cfg(feature = "plugin_vst")]
 impl Default for BaseliskPlugin {
     fn default() -> BaseliskPlugin {
         // Parameters will be shared between threads
@@ -46,7 +41,6 @@ impl Default for BaseliskPlugin {
     }
 }
 
-#[cfg(feature = "plugin_vst")]
 impl Plugin for BaseliskPlugin {
     fn get_info(&self) -> Info {
         Info {
@@ -85,5 +79,4 @@ impl Plugin for BaseliskPlugin {
     }
 }
 
-#[cfg(feature = "plugin_vst")]
 plugin_main!(BaseliskPlugin);

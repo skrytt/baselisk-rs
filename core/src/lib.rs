@@ -3,7 +3,7 @@
 extern crate sample;
 extern crate rand;
 
-#[cfg(feature = "jack")]
+#[cfg(feature = "plugin_jack")]
 extern crate rustyline;
 
 extern crate time;
@@ -11,10 +11,10 @@ extern crate time;
 // vst crate used here for AtomicFloat type
 extern crate vst;
 
-#[cfg(feature = "jack")]
+#[cfg(feature = "plugin_jack")]
 extern crate jack;
 
-#[cfg(feature = "jack")]
+#[cfg(feature = "plugin_jack")]
 pub mod cli;
 
 pub mod defs;
