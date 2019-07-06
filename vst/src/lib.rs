@@ -7,6 +7,8 @@ extern crate sample;
 #[macro_use]
 extern crate vst;
 
+mod midi;
+
 use baselisk_core::defs;
 use baselisk_core::engine;
 use baselisk_core::shared;
@@ -55,7 +57,12 @@ impl Plugin for BaseliskPlugin {
     }
 
     fn process_events(&mut self, events: &Events) {
-        self.engine.vst_process_events(events);
+        self.engine.clear_midi_buffer();
+        for vst_raw_event in events.events() {
+            if let vst::event::Event::Midi(vst_midi_raw_event) = vst_raw_event {
+                self.engine.push_raw_midi(midi::raw_midi_from_vst(&vst_midi_raw_event));
+            }
+        }
     }
 
     fn set_sample_rate(&mut self, sample_rate: f32) {

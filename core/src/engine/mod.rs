@@ -30,7 +30,6 @@ use engine::{
 use sample::slice;
 use std::sync::Arc;
 
-#[cfg(feature = "plugin_vst")]
 use vst::plugin::PluginParameters;
 
 pub struct Engine
@@ -75,7 +74,6 @@ impl Engine
         }
     }
 
-    #[cfg(feature = "plugin_vst")]
     pub fn get_parameter_object(&self) -> Arc<dyn PluginParameters> {
         Arc::clone(&self.shared_state.parameters) as Arc<dyn PluginParameters>
     }
@@ -86,31 +84,12 @@ impl Engine
         self.sample_rate = sample_rate;
     }
 
-    #[cfg(feature = "plugin_jack")]
-    pub fn jack_audio_requested(&mut self,
-                                left_output_buffer: &mut defs::MonoFrameBufferSlice,
-                                right_output_buffer: &mut defs::MonoFrameBufferSlice,
-                                jack_raw_midi_iter: jack::MidiIter)
-    {
-        // Clear old MIDI events and convert new JACK raw MIDI into a generic format
+    pub fn clear_midi_buffer(&mut self) {
         self.raw_midi_buffer.clear();
-        for jack_raw_midi_event in jack_raw_midi_iter {
-            self.raw_midi_buffer.push(RawMidi::from_jack_raw_midi(&jack_raw_midi_event));
-        }
-
-        self.audio_requested(left_output_buffer, right_output_buffer);
     }
 
-    #[cfg(feature = "plugin_vst")]
-    pub fn vst_process_events(&mut self,
-                              vst_raw_events: &vst::api::Events)
-    {
-        self.raw_midi_buffer.clear();
-        for vst_raw_event in vst_raw_events.events() {
-            if let vst::event::Event::Midi(vst_midi_raw_event) = vst_raw_event {
-                self.raw_midi_buffer.push(RawMidi::from_vst_raw_midi(&vst_midi_raw_event));
-            }
-        }
+    pub fn push_raw_midi(&mut self, event: RawMidi) {
+        self.raw_midi_buffer.push(event);
     }
 
     /// Request audio.

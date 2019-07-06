@@ -8,6 +8,7 @@ extern crate rustyline;
 extern crate sample;
 
 mod cli;
+mod midi;
 
 use baselisk_core::defs;
 use baselisk_core::engine;
@@ -67,7 +68,15 @@ where
 
             let mut engine_callback = engine_callback.write().unwrap();
             engine_callback.set_sample_rate(client.sample_rate() as defs::Sample);
-            engine_callback.jack_audio_requested(left_output_buffer, right_output_buffer, raw_midi_iter);
+
+            // Clear old MIDI events and convert new JACK raw MIDI into a generic format
+            engine_callback.clear_midi_buffer();
+            for jack_raw_midi_event in raw_midi_iter {
+                engine_callback.push_raw_midi(
+                    midi::raw_midi_from_jack(&jack_raw_midi_event));
+            }
+
+            engine_callback.audio_requested(left_output_buffer, right_output_buffer);
 
             jack::Control::Continue
         }

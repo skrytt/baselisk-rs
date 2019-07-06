@@ -1,31 +1,9 @@
 #[derive(Default)]
 pub struct RawMidi {
-    time: usize,
-    status: u8,
-    data1: u8,
-    data2: u8,
-}
-
-impl RawMidi {
-    #[cfg(feature = "plugin_jack")]
-    pub fn from_jack_raw_midi(raw_event: &jack::RawMidi) -> Self {
-        Self {
-            time: raw_event.time as usize,
-            status: raw_event.bytes[0],
-            data1: raw_event.bytes[1],
-            data2: raw_event.bytes[2],
-        }
-    }
-
-    #[cfg(feature = "plugin_vst")]
-    pub fn from_vst_raw_midi(raw_event: &vst::event::MidiEvent) -> Self {
-        Self {
-            time: raw_event.delta_frames as usize,
-            status: raw_event.data[0],
-            data1: raw_event.data[1],
-            data2: raw_event.data[2],
-        }
-    }
+    pub time: usize,
+    pub status: u8,
+    pub data1: u8,
+    pub data2: u8,
 }
 
 /// Enumeration of MIDI event types
