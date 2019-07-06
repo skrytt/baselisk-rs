@@ -2,13 +2,9 @@
 
 [![CircleCI](https://circleci.com/gh/skrytt/baselisk-rs/tree/master.svg?style=svg)](https://circleci.com/gh/skrytt/baselisk-rs/tree/master)
 
-Baselisk is a monophonic subtractive synthesizer with a high-note-priority note selection algorithm. Moreover, Baselisk is a hobby project to give me the opportunity to:
+Baselisk is a synthesizer written in Rust, supporting the VST2 and JACK plugin formats.
 
-* Learn more about the Rust programming language
-* Learn more about digital signal processing
-* Practice maintaining and refactoring a codebase
-
-Code is an everlasting work in progress.
+Both the JACK and VST plugins are currently pre-alpha and unstable.
 
 ## Crates and Build Targets
 
