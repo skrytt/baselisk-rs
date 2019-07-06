@@ -1,5 +1,5 @@
 [package]
-name = "baselisk"
+name = "baselisk_core"
 version = "0.1.0"
 authors = ["skrytt"]
 
@@ -9,7 +9,6 @@ plugin_jack = ["jack"]
 plugin_vst = []
 
 [dependencies]
-clap = "2.33"
 jack = { version = "0.6", optional = true }
 rand = "0.6.5"
 rustyline = "4.1.0"
@@ -26,12 +25,6 @@ debug-assertions = true
 overflow-checks = false
 
 [lib]
-required-features = ["plugin_vst"]
-name = "baselisk_vst"
-path = "src/vst_lib.rs"
-crate-type = ["cdylib"]
-
-[[bin]]
-required-features = ["plugin_jack"]
-name = "baselisk_jack"
-path = "src/jack_main.rs"
+name = "baselisk_core"
+path = "src/lib.rs"
+crate-type = ["rlib"]
