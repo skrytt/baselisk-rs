@@ -10,15 +10,23 @@ Baselisk is a monophonic subtractive synthesizer with a high-note-priority note 
 
 Code is an everlasting work in progress.
 
+## Crates and Build Targets
+
+* core: contains common code to different build targets
+* jack: depends on core, targets a JACK Audio Connection Kit executable plugin
+* vst: depends on core, targets a VST2 dynamic library plugin
+
 ## Dependencies
 
 - Linux system (Windows, Mac unsupported at this time)
-- JACK Audio Connection Kit
+- For JACK plugin: JACK Audio Connection Kit
   - Server
   - Development libraries
   - (Optional) qjackctl, a helpful GUI utility for configuring a JACK server
 
-## Usage
+## Usage (JACK)
+
+Change directory into the "jack" subdirectory.
 
 To build: `cargo build --release`
 
@@ -59,3 +67,13 @@ The command tree itself is structured roughly like this.
   - `lowpass`
     - `frequency <hz>`: Set the cutoff frequency of the delay feedback loop highpass filter.
     - `quality <q>`: Set the quality of the delay feedback loop highpass filter.
+
+# Usage (VST)
+
+Change directory into the "vst" subdirectory.
+
+To build: `cargo build --release`
+
+A dynamic library artifact is produced in vst/targets/release. You can copy this into your system VST folder and use it like any other VST.
+
+Note that there is currently no GUI, which means the VST parameters are currently the only means of controlling the synthesizer, and some features are also not available yet in the VST plugin for this reason. Maybe in the future though!
