@@ -14,11 +14,11 @@ Both the JACK and VST plugins are currently pre-alpha and unstable.
 
 ## Dependencies
 
-- Linux system (Windows, Mac unsupported at this time)
-- For JACK plugin: JACK Audio Connection Kit
+- JACK plugin: you'll need a working JACK Audio Connection Kit setup:
   - Server
   - Development libraries
   - (Optional) qjackctl, a helpful GUI utility for configuring a JACK server
+- VST plugin: you'll need a Digital Audio Workstation that can host VST plugins.
 
 ## Usage (JACK)
 
