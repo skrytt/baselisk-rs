@@ -1,6 +1,6 @@
 
 use rustyline::completion::Pair;
-use shared::SharedState as SharedState;
+use baselisk_core::shared::SharedState;
 use std::collections::HashMap;
 use std::str::SplitWhitespace;
 use std::sync::Arc;

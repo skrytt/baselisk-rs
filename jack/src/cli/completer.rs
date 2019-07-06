@@ -9,8 +9,8 @@ use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::{Cmd, CompletionType, Config, Context, EditMode, Editor, Helper, KeyPress};
 
+use baselisk_core::shared::SharedState as SharedState;
 use cli::tree::Tree;
-use shared::SharedState as SharedState;
 use std::sync::Arc;
 use std::fs::File;
 use std::io::{BufRead, BufReader};

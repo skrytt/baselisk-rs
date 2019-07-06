@@ -6,7 +6,7 @@ use cli::tree::{
     Node as Node,
 };
 use cli::completer::Cli as Cli;
-use shared::{
+use baselisk_core::shared::{
     parameter::{
         PARAM_ADSR_ATTACK,
         PARAM_ADSR_DECAY,

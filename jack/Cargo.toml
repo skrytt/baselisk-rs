@@ -1,0 +1,27 @@
+[package]
+name = "baselisk"
+version = "0.1.0"
+authors = ["skrytt"]
+
+[dependencies]
+clap = "2.33"
+jack = "0.6"
+rustyline = "4.1.0"
+sample = "0.10.0"
+
+[dependencies.baselisk_core]
+path = "../core"
+default-features = false
+features = ["plugin_jack"]
+
+[profile.dev]
+codegen-units = 1
+incremental = false
+opt-level = 3
+debug = true
+debug-assertions = true
+overflow-checks = false
+
+[[bin]]
+name = "baselisk_jack"
+path = "src/main.rs"
