@@ -19,11 +19,14 @@ jobs:
                       sudo apt-get update
                       sudo apt-get install -y libjack-dev
             - run:
-                  name: Build JACK client
-                  command: cargo build --release --features plugin_jack
+                  name: Check JACK client crate builds
+                  command: cargo build --manifest-path jack/Cargo.toml
             - run:
-                  name: Run tests
-                  command: RUST_BACKTRACE=1 cargo test
+                  name: Check VST client crate builds
+                  command: cargo build --manifest-path vst/Cargo.toml
+            - run:
+                  name: Run core crate tests
+                  command: RUST_BACKTRACE=1 cargo test --manifest-path core/Cargo.toml
 
 workflows:
     version: 2.1
