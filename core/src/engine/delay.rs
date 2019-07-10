@@ -36,23 +36,26 @@ pub struct DelayChannel {
 
 impl DelayChannel {
     pub fn new() -> Self {
-        // BUG: this won't work if sample rate is changed.
-        // e.g. if sample rate is 96000, the delay is effectively half of
-        // what the parameter says.
-        let delay_buffer_size = 48000;
-
-        let mut delay_buffer_vec = Vec::with_capacity(delay_buffer_size);
-        for _ in 0..delay_buffer_size {
-            delay_buffer_vec.push(0.0);
-        }
-        let delay_buffer = ring_buffer::Fixed::from(delay_buffer_vec);
+        // We'll throw this temporary ringbuffer away as soon as we know the
+        // real size (proportional to sample rate, which we don't know yet).
+        let mut delay_buffer_vec = Vec::with_capacity(1);
+        delay_buffer_vec.push(0.0);
 
         Self {
-            delay_buffer,
+            delay_buffer: ring_buffer::Fixed::from(delay_buffer_vec),
             highpass_history: BiquadSampleHistory::new(),
             lowpass_history: BiquadSampleHistory::new(),
             wet_buffer: ResizableFrameBuffer::new(),
         }
+    }
+
+    pub fn set_sample_rate(&mut self, sample_rate: defs::Sample) {
+        let capacity = sample_rate as usize; // 1 second of buffer time
+
+        let mut delay_buffer_vec = Vec::with_capacity(capacity);
+        delay_buffer_vec.resize(capacity, 0.0);
+
+        self.delay_buffer = ring_buffer::Fixed::from(delay_buffer_vec);
     }
 
     pub fn process_between_keyframes(&mut self,
@@ -65,45 +68,45 @@ impl DelayChannel {
                                      lowpass_coeffs: &BiquadCoefficients,
                                      buffer: &mut defs::MonoFrameBufferSlice)
     {
-            let wet_buffer = self.wet_buffer.get_sized_mut(buffer.len());
+        let wet_buffer = self.wet_buffer.get_sized_mut(buffer.len());
 
-            let buffer_tap_position_float = self.delay_buffer.len() as defs::Sample * (
-                1.0 - delay_time);
-            let buffer_tap_a_index = buffer_tap_position_float as usize;
-            let buffer_tap_b_index = buffer_tap_a_index + 1;
-            let delayed_sample_b_weight = buffer_tap_position_float.fract();
-            let delayed_sample_a_weight = 1.0 - delayed_sample_b_weight;
+        let buffer_tap_position_float = self.delay_buffer.len() as defs::Sample * (
+            1.0 - delay_time);
+        let buffer_tap_a_index = buffer_tap_position_float as usize;
+        let buffer_tap_b_index = buffer_tap_a_index + 1;
+        let delayed_sample_b_weight = buffer_tap_position_float.fract();
+        let delayed_sample_a_weight = 1.0 - delayed_sample_b_weight;
 
-            for frame_num in this_keyframe..next_keyframe {
-                let delayed_sample_a = self.delay_buffer[buffer_tap_a_index];
-                let delayed_sample_b = self.delay_buffer[buffer_tap_b_index];
-                let mut delayed_sample = feedback * (
-                                        delayed_sample_a * delayed_sample_a_weight
-                                        + delayed_sample_b * delayed_sample_b_weight);
+        for frame_num in this_keyframe..next_keyframe {
+            let delayed_sample_a = self.delay_buffer[buffer_tap_a_index];
+            let delayed_sample_b = self.delay_buffer[buffer_tap_b_index];
+            let mut delayed_sample = feedback * (
+                                    delayed_sample_a * delayed_sample_a_weight
+                                    + delayed_sample_b * delayed_sample_b_weight);
 
-                // Apply highpass to left delayed sample
-                delayed_sample = process_biquad(
-                    &mut self.highpass_history,
-                    highpass_coeffs,
-                    delayed_sample);
+            // Apply highpass to left delayed sample
+            delayed_sample = process_biquad(
+                &mut self.highpass_history,
+                highpass_coeffs,
+                delayed_sample);
 
-                // Apply lowpass to left delayed sample
-                delayed_sample = process_biquad(
-                    &mut self.lowpass_history,
-                    lowpass_coeffs,
-                    delayed_sample);
+            // Apply lowpass to left delayed sample
+            delayed_sample = process_biquad(
+                &mut self.lowpass_history,
+                lowpass_coeffs,
+                delayed_sample);
 
-                wet_buffer[frame_num] = [delayed_sample];
+            wet_buffer[frame_num] = [delayed_sample];
 
-                // Mix in the dry signal and push back to the delay buffer
-                let dry_sample = buffer[frame_num][0];
-                self.delay_buffer.push(
-                    dry_sample + delayed_sample);
+            // Mix in the dry signal and push back to the delay buffer
+            let dry_sample = buffer[frame_num][0];
+            self.delay_buffer.push(
+                dry_sample + delayed_sample);
 
-                // Mix the wet signal into the output buffer with the dry signal.
-                buffer[frame_num][0] += wet_gain * wet_buffer[frame_num][0];
-            } // end borrow of buffer
+            // Mix the wet signal into the output buffer with the dry signal.
+            buffer[frame_num][0] += wet_gain * wet_buffer[frame_num][0];
 
+        } // end borrow of buffer
     }
 }
 
@@ -119,6 +122,12 @@ impl Delay {
             highpass_coeffs: BiquadCoefficients::new(),
             lowpass_coeffs: BiquadCoefficients::new(),
             channels: [DelayChannel::new(), DelayChannel::new()],
+        }
+    }
+
+    pub fn set_sample_rate(&mut self, sample_rate: defs::Sample) {
+        for channel in self.channels.iter_mut() {
+            channel.set_sample_rate(sample_rate);
         }
     }
 

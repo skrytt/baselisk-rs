@@ -82,6 +82,7 @@ impl Engine
                            sample_rate: defs::Sample)
     {
         self.sample_rate = sample_rate;
+        self.delay.set_sample_rate(sample_rate);
     }
 
     pub fn clear_midi_buffer(&mut self) {
