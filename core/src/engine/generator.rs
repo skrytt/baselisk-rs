@@ -92,7 +92,6 @@ impl Generator {
         // Store buffer len to avoid multiple mutable buffer accesses later on
         let buffer_len = buffer.len();
 
-
         let generator_func: Option<fn(&mut State, &mut defs::MonoFrameBufferSlice)> =
             match params.get_real_value(PARAM_GENERATOR_TYPE) as usize {
                 0 => Some(sine_generator),
@@ -175,6 +174,9 @@ impl Generator {
             self.state.mod_frequency = self.state.base_frequency
                                        * params.get_real_value(PARAM_GENERATOR_MOD_FREQUENCY_RATIO);
 
+            self.state.pulse_width = params.get_real_value(PARAM_GENERATOR_PULSE_WIDTH);
+            self.state.mod_index = params.get_real_value(PARAM_GENERATOR_MOD_INDEX);
+
             // Generate all the samples for this buffer
             let buffer_slice = buffer.get_mut(this_keyframe..next_keyframe).unwrap();
             if let Some(generator_func) = generator_func {
@@ -211,17 +213,10 @@ impl Generator {
                         PARAM_GENERATOR_TYPE |
                         PARAM_GENERATOR_PITCH |
                         PARAM_GENERATOR_MOD_FREQUENCY_RATIO |
-                        PARAM_GENERATOR_PITCH_BEND_RANGE => {
-                            params.set_parameter(*param_id, *value);
-                        },
-                        PARAM_GENERATOR_PULSE_WIDTH => {
-                            params.set_parameter(*param_id, *value);
-                            self.state.pulse_width = params.get_real_value(
-                                PARAM_GENERATOR_PULSE_WIDTH);
-                        },
+                        PARAM_GENERATOR_PITCH_BEND_RANGE |
+                        PARAM_GENERATOR_PULSE_WIDTH |
                         PARAM_GENERATOR_MOD_INDEX => {
                             params.set_parameter(*param_id, *value);
-                            self.state.mod_index = params.get_real_value(PARAM_GENERATOR_MOD_INDEX);
                         }
                         _ => (),
                     },
