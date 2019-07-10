@@ -55,10 +55,11 @@ where
         Ok(midi_input_port) => midi_input_port,
     };
 
+    engine.write().unwrap().set_sample_rate(client.sample_rate() as defs::Sample);
     let engine_callback = Arc::clone(engine);
 
     let process = jack::ClosureProcessHandler::new(
-        move |client: &jack::Client, process_scope: &jack::ProcessScope| -> jack::Control {
+        move |_client: &jack::Client, process_scope: &jack::ProcessScope| -> jack::Control {
             let left_output_buffer = left_output_port.as_mut_slice(process_scope)
                 .to_frame_slice_mut().unwrap();
             let right_output_buffer = right_output_port.as_mut_slice(process_scope)
@@ -67,7 +68,6 @@ where
             let raw_midi_iter = midi_input_port.iter(process_scope);
 
             let mut engine_callback = engine_callback.write().unwrap();
-            engine_callback.set_sample_rate(client.sample_rate() as defs::Sample);
 
             // Clear old MIDI events and convert new JACK raw MIDI into a generic format
             engine_callback.clear_midi_buffer();
