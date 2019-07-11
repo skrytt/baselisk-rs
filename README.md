@@ -56,13 +56,12 @@ The command tree itself is structured roughly like this.
   - `inputgain <gain>`: Set the input gain to the waveshaper stage, controlling waveshaper tone. `1.0` is unity gain.
   - `outputgain <gain>`: Set the output gain of the waveshaper. Does not affect waveshaper tone. `1.0` is unity gain.
 - `delay`
-  - `feedback <proportion>`: Set the proportion of feedback in the delay loop. `1.0` is unity gain; `0.0` is silence. 
-  - `highpass`
-    - `frequency <hz>`: Set the cutoff frequency of the delay feedback loop highpass filter.
-    - `quality <q>`: Set the quality of the delay feedback loop highpass filter.
-  - `lowpass`
-    - `frequency <hz>`: Set the cutoff frequency of the delay feedback loop highpass filter.
-    - `quality <q>`: Set the quality of the delay feedback loop highpass filter.
+  - `feedback <proportion>`: Set the proportion of feedback in the delay loop. `1.0` is unity gain; `0.0` is silence.
+  - `highpass <hz>`: Set the frequency of the highpass filter in the feedback loop.
+  - `lowpass <hz>`: Set the frequency of the lowpass filter in the feedback loop.
+  - `time_left <seconds>`: Set the delay tap time for the left channel.
+  - `time_right <seconds>`: Set the delay tap time for the right channel.
+  - `wetgain <gain>`: Set the wet mix in the output. `1.0` is unity gain; `0.0` is silence.
 
 # Usage (VST)
 
