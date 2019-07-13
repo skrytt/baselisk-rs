@@ -1,4 +1,5 @@
 use defs;
+use engine::traits;
 use shared::{
     event::EngineEvent,
     parameter::{
@@ -99,12 +100,6 @@ impl Adsr {
                     self.state.phase_time / params.get_real_value(PARAM_ADSR_RELEASE))
             }
         }
-    }
-
-    pub fn midi_panic(&mut self) {
-        // Release all notes and reset state to "Off"
-        self.state.notes_held_count = 0;
-        self.state.stage = None;
     }
 
     // Process the buffer of audio.
@@ -223,6 +218,14 @@ impl Adsr {
 
         // Return the output
         self.get_gain(params)
+    }
+}
+
+impl traits::Processor for Adsr {
+    fn panic(&mut self) {
+        // Release all notes and reset state to "Off"
+        self.state.notes_held_count = 0;
+        self.state.stage = None;
     }
 }
 

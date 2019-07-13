@@ -3,6 +3,7 @@ use shared::event::{
     EngineEvent,
     MidiEvent
 };
+use engine::traits;
 
 /// A note selector with high-note-priority selection.
 #[derive(Default)]
@@ -12,7 +13,7 @@ pub struct MonoNoteSelector {
     note_selected: Option<u8>,
 }
 
-/// Struct to indicate whether a MIDI event resulted in a 
+/// Enum to indicate whether a MIDI event resulted in a note change.
 pub enum MidiEventResult {
     NoteChange(Option<u8>),
     Ignore,
@@ -24,17 +25,6 @@ impl MonoNoteSelector {
             notes_held: vec![false; 128],
             note_priority_stack: Vec::with_capacity(128),
             note_selected: None,
-        }
-    }
-
-    pub fn midi_panic(&mut self) {
-        // Small optimization: if no notes are on, there's nothing to do.
-        if self.note_selected.is_some() {
-            for note in &mut self.notes_held {
-                *note = false;
-            }
-            self.note_priority_stack.clear();
-            self.note_selected = None;
         }
     }
 
@@ -203,5 +193,18 @@ mod tests {
         assert!(output.is_some());
         let output = output.unwrap();
         assert!(check_note_change(output, None));
+    }
+}
+
+impl traits::Processor for MonoNoteSelector {
+    fn panic(&mut self) {
+        // Small optimization: if no notes are on, there's nothing to do.
+        if self.note_selected.is_some() {
+            for note in &mut self.notes_held {
+                *note = false;
+            }
+            self.note_priority_stack.clear();
+            self.note_selected = None;
+        }
     }
 }

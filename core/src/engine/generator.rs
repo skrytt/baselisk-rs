@@ -1,4 +1,8 @@
 use defs;
+use engine::{
+    pitch_bend,
+    traits,
+};
 use rand;
 use shared::{
     event::EngineEvent,
@@ -12,7 +16,6 @@ use shared::{
         PARAM_GENERATOR_PITCH_BEND_RANGE,
     },
 };
-use engine::pitch_bend;
 use std::slice;
 use vst::plugin::PluginParameters;
 
@@ -54,13 +57,9 @@ impl State {
         }
     }
 
-    pub fn reset(&mut self) {
-        self.base_frequency = 1.0;
-        self.target_base_frequency = 0.0;
-        self.pitch_bend_wheel_value = 8192;
+    pub fn panic(&mut self) {
         self.main_phase = 0.0;
         self.mod_phase = 0.0;
-        self.sample_rate = 0.0;
     }
 }
 
@@ -76,10 +75,6 @@ impl Generator {
         Self {
             state: State::new(),
         }
-    }
-
-    pub fn midi_panic(&mut self) {
-        self.state.reset();
     }
 
     pub fn process_buffer(&mut self,
@@ -223,6 +218,12 @@ impl Generator {
                 };
             }
         }
+    }
+}
+
+impl traits::Processor for Generator {
+    fn panic(&mut self) {
+        self.state.panic();
     }
 }
 

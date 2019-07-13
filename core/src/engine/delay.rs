@@ -113,13 +113,12 @@ impl traits::Processor for DelayChannel {
     }
 
     fn panic(&mut self) {
-        // Silence the delay buffer
+        // Silence the delay output and reset the coefficient history
         for sample in self.delay_buffer.iter_mut() {
             *sample = 0.0;
         }
-        // Reset the history coefficients
-        self.highpass_history = BiquadSampleHistory::new();
-        self.lowpass_history = BiquadSampleHistory::new();
+        self.highpass_history.reset();
+        self.lowpass_history.reset();
     }
 }
 

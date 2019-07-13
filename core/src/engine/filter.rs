@@ -1,6 +1,7 @@
 extern crate sample;
 
 use defs;
+use engine::traits;
 use shared::{
     event::EngineEvent,
     parameter::{
@@ -37,10 +38,6 @@ impl Filter
             history: BiquadSampleHistory::new(),
             coeffs: BiquadCoefficients::new(),
         }
-    }
-
-    pub fn midi_panic(&mut self) {
-        self.history.reset();
     }
 
     pub fn process_buffer(&mut self,
@@ -147,6 +144,13 @@ impl Filter
             }
         }
     }
+}
+
+impl traits::Processor for Filter {
+    fn panic(&mut self) {
+        self.history.reset();
+    }
+
 }
 
 #[derive(Default)]

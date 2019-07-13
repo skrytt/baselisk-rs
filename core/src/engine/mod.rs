@@ -211,10 +211,10 @@ impl Engine
     }
 
     fn handle_midi_panic(&mut self) {
-        self.note_selector.midi_panic();
-        self.generator.midi_panic();
-        self.adsr.midi_panic();
-        self.filter.midi_panic();
+        self.note_selector.panic();
+        self.generator.panic();
+        self.adsr.panic();
+        self.filter.panic();
         self.delay.panic();
     }
 }
