@@ -22,6 +22,7 @@ use engine::{
         get_highpass_second_order_biquad_consts,
         process_biquad,
     },
+    traits,
 };
 use sample::ring_buffer;
 use std::slice::Iter;
@@ -47,15 +48,6 @@ impl DelayChannel {
             lowpass_history: BiquadSampleHistory::new(),
             wet_buffer: ResizableFrameBuffer::new(),
         }
-    }
-
-    pub fn set_sample_rate(&mut self, sample_rate: defs::Sample) {
-        let capacity = sample_rate as usize; // 1 second of buffer time
-
-        let mut delay_buffer_vec = Vec::with_capacity(capacity);
-        delay_buffer_vec.resize(capacity, 0.0);
-
-        self.delay_buffer = ring_buffer::Fixed::from(delay_buffer_vec);
     }
 
     pub fn process_between_keyframes(&mut self,
@@ -110,6 +102,27 @@ impl DelayChannel {
     }
 }
 
+impl traits::Processor for DelayChannel {
+    fn set_sample_rate(&mut self, sample_rate: defs::Sample) {
+        let capacity = sample_rate as usize; // 1 second of buffer time
+
+        let mut delay_buffer_vec = Vec::with_capacity(capacity);
+        delay_buffer_vec.resize(capacity, 0.0);
+
+        self.delay_buffer = ring_buffer::Fixed::from(delay_buffer_vec);
+    }
+
+    fn panic(&mut self) {
+        // Silence the delay buffer
+        for sample in self.delay_buffer.iter_mut() {
+            *sample = 0.0;
+        }
+        // Reset the history coefficients
+        self.highpass_history = BiquadSampleHistory::new();
+        self.lowpass_history = BiquadSampleHistory::new();
+    }
+}
+
 pub struct Delay {
     highpass_coeffs: BiquadCoefficients,
     lowpass_coeffs: BiquadCoefficients,
@@ -122,12 +135,6 @@ impl Delay {
             highpass_coeffs: BiquadCoefficients::new(),
             lowpass_coeffs: BiquadCoefficients::new(),
             channels: [DelayChannel::new(), DelayChannel::new()],
-        }
-    }
-
-    pub fn set_sample_rate(&mut self, sample_rate: defs::Sample) {
-        for channel in self.channels.iter_mut() {
-            channel.set_sample_rate(sample_rate);
         }
     }
 
@@ -242,6 +249,20 @@ impl Delay {
                     }
                 };
             }
+        }
+    }
+}
+
+impl traits::Processor for Delay {
+    fn set_sample_rate(&mut self, sample_rate: defs::Sample) {
+        for channel in self.channels.iter_mut() {
+            channel.set_sample_rate(sample_rate);
+        }
+    }
+
+    fn panic(&mut self) {
+        for channel in self.channels.iter_mut() {
+            channel.panic();
         }
     }
 }

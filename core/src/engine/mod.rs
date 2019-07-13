@@ -8,6 +8,7 @@ mod generator;
 mod filter;
 mod note_selector;
 mod pitch_bend;
+mod traits;
 mod waveshaper;
 
 use defs;
@@ -26,6 +27,7 @@ use engine::{
     generator::Generator,
     filter::Filter,
     note_selector::MonoNoteSelector,
+    traits::Processor,
 };
 use sample::slice;
 use std::sync::Arc;
@@ -213,6 +215,7 @@ impl Engine
         self.generator.midi_panic();
         self.adsr.midi_panic();
         self.filter.midi_panic();
+        self.delay.panic();
     }
 }
 
