@@ -1,6 +1,4 @@
 //! Synthesizer.
-//!
-//!
 extern crate baselisk_core;
 extern crate clap;
 extern crate jack;
@@ -20,44 +18,34 @@ use std::sync::{Arc, RwLock};
 #[warn(clippy::all)]
 #[allow(clippy::cast_precision_loss)]
 
+
 /// Try to open an audio stream with the device corresponding to the
 /// Return a Result indicating whether this was successful.
-pub fn connect_and_run<F>(engine: &mut Arc<RwLock<engine::Engine>>,
-                          f: F) -> Result<(), &'static str>
-where
-    F: FnOnce(),
+pub fn connect_and_run<F: FnOnce()>(
+    engine: &mut Arc<RwLock<engine::Engine>>,
+    f: F
+) -> Result<(), jack::Error>
 {
-    let (client, _status) = match jack::Client::new(defs::PLUGIN_NAME,
-                                                    jack::ClientOptions::NO_START_SERVER)
-    {
-        Err(_) => return Err("Failed to connect to JACK server"),
-        Ok((client, status)) => (client, status),
-    };
+    let (client, _status) = jack::Client::new(
+        defs::PLUGIN_NAME, jack::ClientOptions::NO_START_SERVER)?;
 
-    let mut left_output_port = match client.register_port("output_left",
-                                                     jack::AudioOut::default())
-    {
-        Err(_) => return Err("Failed to open output audio port"),
-        Ok(left_output_port) => left_output_port,
-    };
+    // Set up audio and MIDI ports with JACK
+    let mut left_output_port = client.register_port(
+        "output_left", jack::AudioOut::default())?;
+    let mut right_output_port = client.register_port(
+        "output_right", jack::AudioOut::default())?;
+    let midi_input_port = client.register_port(
+        "midi_input", jack::MidiIn::default())?;
 
-    let mut right_output_port = match client.register_port("output_right",
-                                                     jack::AudioOut::default())
-    {
-        Err(_) => return Err("Failed to open output audio port"),
-        Ok(right_output_port) => right_output_port,
-    };
+    // Configure sample rate to match JACK
+    engine.write().unwrap()
+        .set_sample_rate(client.sample_rate() as defs::Sample);
 
-    let midi_input_port = match client.register_port("midi_input",
-                                                     jack::MidiIn::default())
-    {
-        Err(_) => return Err("Failed to open input midi port"),
-        Ok(midi_input_port) => midi_input_port,
-    };
+    // We're going to start a background thread that will need a
+    // reference to the audio engine object.
+    let engine = Arc::clone(engine);
 
-    engine.write().unwrap().set_sample_rate(client.sample_rate() as defs::Sample);
-    let engine_callback = Arc::clone(engine);
-
+    // Define the background thread here
     let process = jack::ClosureProcessHandler::new(
         move |_client: &jack::Client, process_scope: &jack::ProcessScope| -> jack::Control {
             let left_output_buffer = left_output_port.as_mut_slice(process_scope)
@@ -67,16 +55,16 @@ where
 
             let raw_midi_iter = midi_input_port.iter(process_scope);
 
-            let mut engine_callback = engine_callback.write().unwrap();
+            let mut engine = engine.write().unwrap();
 
             // Clear old MIDI events and convert new JACK raw MIDI into a generic format
-            engine_callback.clear_midi_buffer();
+            engine.clear_midi_buffer();
             for jack_raw_midi_event in raw_midi_iter {
-                engine_callback.push_raw_midi(
+                engine.push_raw_midi(
                     midi::raw_midi_from_jack(&jack_raw_midi_event));
             }
 
-            engine_callback.audio_requested(left_output_buffer, right_output_buffer);
+            engine.audio_requested(left_output_buffer, right_output_buffer);
 
             jack::Control::Continue
         }
