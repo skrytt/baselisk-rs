@@ -8,27 +8,61 @@ use std::sync::atomic::{
     Ordering
 };
 
-pub const PARAM_ADSR_ATTACK: i32 = 0;
-pub const PARAM_ADSR_DECAY: i32 = 1;
-pub const PARAM_ADSR_SUSTAIN: i32 = 2;
-pub const PARAM_ADSR_RELEASE: i32 = 3;
-pub const PARAM_DELAY_TIME_LEFT: i32 = 4;
-pub const PARAM_DELAY_TIME_RIGHT: i32 = 5;
-pub const PARAM_DELAY_FEEDBACK: i32 = 6;
-pub const PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY: i32 = 7;
-pub const PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY: i32 = 8;
-pub const PARAM_DELAY_WET_GAIN: i32 = 9;
-pub const PARAM_FILTER_FREQUENCY: i32 = 10;
-pub const PARAM_FILTER_SWEEP_RANGE: i32 = 11;
-pub const PARAM_FILTER_RESONANCE: i32 = 12;
-pub const PARAM_GENERATOR_TYPE: i32 = 13;
-pub const PARAM_GENERATOR_PITCH: i32 = 14;
-pub const PARAM_GENERATOR_PULSE_WIDTH: i32 = 15;
-pub const PARAM_GENERATOR_MOD_FREQUENCY_RATIO: i32 = 16;
-pub const PARAM_GENERATOR_MOD_INDEX: i32 = 17;
-pub const PARAM_GENERATOR_PITCH_BEND_RANGE: i32 = 18;
-pub const PARAM_WAVESHAPER_INPUT_GAIN: i32 = 19;
-pub const PARAM_WAVESHAPER_OUTPUT_GAIN: i32 = 20;
+#[derive(Clone, Copy)]
+pub enum ParameterId {
+    AdsrAttack,
+    AdsrDecay,
+    AdsrSustain,
+    AdsrRelease,
+    DelayTimeLeft,
+    DelayTimeRight,
+    DelayFeedback,
+    DelayHighPassFilterFrequency,
+    DelayLowPassFilterFrequency,
+    DelayWetGain,
+    FilterFrequency,
+    FilterSweepRange,
+    FilterResonance,
+    GeneratorType,
+    GeneratorPitch,
+    GeneratorPulseWidth,
+    GeneratorModFrequencyRatio,
+    GeneratorModIndex,
+    GeneratorPitchBendRange,
+    WaveshaperInputGain,
+    WaveshaperOutputGain,
+}
+
+impl From<i32> for ParameterId {
+    /// Use an integer ID to retrieve a parameter enum type.
+    /// Used for VST support.
+    fn from(id: i32) -> ParameterId {
+        match id {
+            0 => ParameterId::AdsrAttack,
+            1 => ParameterId::AdsrDecay,
+            2 => ParameterId::AdsrSustain,
+            3 => ParameterId::AdsrRelease,
+            4 => ParameterId::DelayTimeLeft,
+            5 => ParameterId::DelayTimeRight,
+            6 => ParameterId::DelayFeedback,
+            7 => ParameterId::DelayHighPassFilterFrequency,
+            8 => ParameterId::DelayLowPassFilterFrequency,
+            9 => ParameterId::DelayWetGain,
+            10 => ParameterId::FilterFrequency,
+            11 => ParameterId::FilterSweepRange,
+            12 => ParameterId::FilterResonance,
+            13 => ParameterId::GeneratorType,
+            14 => ParameterId::GeneratorPitch,
+            15 => ParameterId::GeneratorPulseWidth,
+            16 => ParameterId::GeneratorModFrequencyRatio,
+            17 => ParameterId::GeneratorModIndex,
+            18 => ParameterId::GeneratorPitchBendRange,
+            19 => ParameterId::WaveshaperInputGain,
+            20 => ParameterId::WaveshaperOutputGain,
+            _ => panic!("Parameter ID out of bounds"),
+        }
+    }
+}
 pub const NUM_PARAMS: i32 = 21;
 
 pub enum ParameterUnit {
@@ -128,303 +162,310 @@ impl Default for BaseliskPluginParameters {
     }
 }
 
-/// Here we implement the VST PluginParameters trait.
-/// VST plugins use a range of 0.0 >= value >= 1.0 for all parameters.
-/// This means that when using the value, we need to transform i
+
+/// Implement the VST PluginParameters API using an adapter
+/// that converts i32 (as used in the VST API) to ParameterId
+/// (as preferred in this code).
 impl vst::plugin::PluginParameters for BaseliskPluginParameters {
     fn get_parameter(&self, index: i32) -> defs::Sample {
-        match index {
-            PARAM_ADSR_ATTACK =>
-                self.adsr_attack.get_vst_param(),
-            PARAM_ADSR_DECAY =>
-                self.adsr_decay.get_vst_param(),
-            PARAM_ADSR_SUSTAIN =>
-                self.adsr_sustain.get_vst_param(),
-            PARAM_ADSR_RELEASE =>
-                self.adsr_release.get_vst_param(),
-            PARAM_DELAY_TIME_LEFT =>
-                self.delay_time_left.get_vst_param(),
-            PARAM_DELAY_TIME_RIGHT =>
-                self.delay_time_right.get_vst_param(),
-            PARAM_DELAY_FEEDBACK =>
-                self.delay_feedback.get_vst_param(),
-            PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY =>
-                self.delay_high_pass_filter_frequency.get_vst_param(),
-            PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY =>
-                self.delay_low_pass_filter_frequency.get_vst_param(),
-            PARAM_DELAY_WET_GAIN =>
-                self.delay_wet_gain.get_vst_param(),
-            PARAM_FILTER_FREQUENCY =>
-                self.filter_frequency.get_vst_param(),
-            PARAM_FILTER_SWEEP_RANGE =>
-                self.filter_sweep_range.get_vst_param(),
-            PARAM_FILTER_RESONANCE =>
-                self.filter_quality.get_vst_param(),
-            PARAM_GENERATOR_TYPE =>
-                self.generator_type.get_vst_param(),
-            PARAM_GENERATOR_PITCH =>
-                self.generator_pitch.get_vst_param(),
-            PARAM_GENERATOR_PULSE_WIDTH =>
-                self.generator_pulse_width.get_vst_param(),
-            PARAM_GENERATOR_MOD_FREQUENCY_RATIO =>
-                self.generator_mod_frequency_ratio.get_vst_param(),
-            PARAM_GENERATOR_MOD_INDEX =>
-                self.generator_mod_index.get_vst_param(),
-            PARAM_GENERATOR_PITCH_BEND_RANGE =>
-                self.generator_pitch_bend_range.get_vst_param(),
-            PARAM_WAVESHAPER_INPUT_GAIN =>
-                self.waveshaper_input_gain.get_vst_param(),
-            PARAM_WAVESHAPER_OUTPUT_GAIN =>
-                self.waveshaper_output_gain.get_vst_param(),
-            _ => 0.0,
-        }
+         self.get_parameter(ParameterId::from(index))
     }
-
     fn get_parameter_text(&self, index: i32) -> String {
-        match index {
-            PARAM_ADSR_ATTACK =>
-                self.adsr_attack.get_value_text(),
-            PARAM_ADSR_DECAY =>
-                self.adsr_decay.get_value_text(),
-            PARAM_ADSR_SUSTAIN =>
-                self.adsr_sustain.get_value_text(),
-            PARAM_ADSR_RELEASE =>
-                self.adsr_release.get_value_text(),
-            PARAM_DELAY_TIME_LEFT =>
-                self.delay_time_left.get_value_text(),
-            PARAM_DELAY_TIME_RIGHT =>
-                self.delay_time_right.get_value_text(),
-            PARAM_DELAY_FEEDBACK =>
-                self.delay_feedback.get_value_text(),
-            PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY =>
-                self.delay_high_pass_filter_frequency.get_value_text(),
-            PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY =>
-                self.delay_low_pass_filter_frequency.get_value_text(),
-            PARAM_DELAY_WET_GAIN =>
-                self.delay_wet_gain.get_value_text(),
-            PARAM_FILTER_FREQUENCY =>
-                self.filter_frequency.get_value_text(),
-            PARAM_FILTER_SWEEP_RANGE =>
-                self.filter_sweep_range.get_value_text(),
-            PARAM_FILTER_RESONANCE =>
-                self.filter_quality.get_value_text(),
-            PARAM_GENERATOR_TYPE =>
-                self.generator_type.get_value_text(),
-            PARAM_GENERATOR_PITCH =>
-                self.generator_pitch.get_value_text(),
-            PARAM_GENERATOR_PULSE_WIDTH =>
-                self.generator_pulse_width.get_value_text(),
-            PARAM_GENERATOR_MOD_FREQUENCY_RATIO =>
-                self.generator_mod_frequency_ratio.get_value_text(),
-            PARAM_GENERATOR_MOD_INDEX =>
-                self.generator_mod_index.get_value_text(),
-            PARAM_GENERATOR_PITCH_BEND_RANGE =>
-                self.generator_pitch_bend_range.get_value_text(),
-            PARAM_WAVESHAPER_INPUT_GAIN =>
-                self.waveshaper_input_gain.get_value_text(),
-            PARAM_WAVESHAPER_OUTPUT_GAIN =>
-                self.waveshaper_output_gain.get_value_text(),
-            _ => String::from(""),
-        }
+        self.get_parameter_text(ParameterId::from(index))
     }
-
     fn get_parameter_name(&self, index: i32) -> String {
-        match index {
-            PARAM_ADSR_ATTACK =>
-                String::from("adsr attack"),
-            PARAM_ADSR_DECAY =>
-                String::from("adsr decay"),
-            PARAM_ADSR_SUSTAIN =>
-                String::from("adsr sustain"),
-            PARAM_ADSR_RELEASE =>
-                String::from("adsr release"),
-            PARAM_DELAY_TIME_LEFT =>
-                String::from("delay time left"),
-            PARAM_DELAY_TIME_RIGHT =>
-                String::from("delay time right"),
-            PARAM_DELAY_FEEDBACK =>
-                String::from("delay feedback"),
-            PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY=>
-                String::from("delay high pass filter frequency"),
-            PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY =>
-                String::from("delay low pass filter frequency"),
-            PARAM_DELAY_WET_GAIN =>
-                String::from("delay wet gain"),
-            PARAM_FILTER_FREQUENCY =>
-                String::from("filter frequency"),
-            PARAM_FILTER_SWEEP_RANGE =>
-                String::from("filter sweep range"),
-            PARAM_FILTER_RESONANCE =>
-                String::from("filter quality"),
-            PARAM_GENERATOR_TYPE =>
-                String::from("generator type"),
-            PARAM_GENERATOR_PITCH =>
-                String::from("generator pitch"),
-            PARAM_GENERATOR_PULSE_WIDTH =>
-                String::from("generator pulse width"),
-            PARAM_GENERATOR_MOD_FREQUENCY_RATIO =>
-                String::from("generator mod frequency ratio"),
-            PARAM_GENERATOR_MOD_INDEX =>
-                String::from("generator mod index"),
-            PARAM_GENERATOR_PITCH_BEND_RANGE =>
-                String::from("generator pitch bend range"),
-            PARAM_WAVESHAPER_INPUT_GAIN =>
-                String::from("waveshaper input gain"),
-            PARAM_WAVESHAPER_OUTPUT_GAIN =>
-                String::from("waveshaper output gain"),
-            _ => String::from(""),
-        }
+        self.get_parameter_name(ParameterId::from(index))
     }
-
-    /// set_parameter is called when a VST parameter is changed.
     fn set_parameter(&self, index: i32, val: defs::Sample) {
-        match index {
-            PARAM_ADSR_ATTACK =>
-                self.adsr_attack.update_vst_param(val),
-            PARAM_ADSR_DECAY =>
-                self.adsr_decay.update_vst_param(val),
-            PARAM_ADSR_SUSTAIN =>
-                self.adsr_sustain.update_vst_param(val),
-            PARAM_ADSR_RELEASE =>
-                self.adsr_release.update_vst_param(val),
-            PARAM_DELAY_TIME_LEFT =>
-                self.delay_time_left.update_vst_param(val),
-            PARAM_DELAY_TIME_RIGHT =>
-                self.delay_time_right.update_vst_param(val),
-            PARAM_DELAY_FEEDBACK =>
-                self.delay_feedback.update_vst_param(val),
-            PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY =>
-                self.delay_high_pass_filter_frequency.update_vst_param(val),
-            PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY =>
-                self.delay_low_pass_filter_frequency.update_vst_param(val),
-            PARAM_DELAY_WET_GAIN =>
-                self.delay_wet_gain.update_vst_param(val),
-            PARAM_FILTER_FREQUENCY =>
-                self.filter_frequency.update_vst_param(val),
-            PARAM_FILTER_SWEEP_RANGE =>
-                self.filter_sweep_range.update_vst_param(val),
-            PARAM_FILTER_RESONANCE =>
-                self.filter_quality.update_vst_param(val),
-            PARAM_GENERATOR_TYPE =>
-                self.generator_type.update_vst_param(val),
-            PARAM_GENERATOR_PITCH =>
-                self.generator_pitch.update_vst_param(val),
-            PARAM_GENERATOR_PULSE_WIDTH =>
-                self.generator_pulse_width.update_vst_param(val),
-            PARAM_GENERATOR_MOD_FREQUENCY_RATIO =>
-                self.generator_mod_frequency_ratio.update_vst_param(val),
-            PARAM_GENERATOR_MOD_INDEX =>
-                self.generator_mod_index.update_vst_param(val),
-            PARAM_GENERATOR_PITCH_BEND_RANGE =>
-                self.generator_pitch_bend_range.update_vst_param(val),
-            PARAM_WAVESHAPER_INPUT_GAIN =>
-                self.waveshaper_input_gain.update_vst_param(val),
-            PARAM_WAVESHAPER_OUTPUT_GAIN =>
-                self.waveshaper_output_gain.update_vst_param(val),
-            _ => (),
-        }
+        self.set_parameter(ParameterId::from(index), val)
     }
 }
 
+
 impl BaseliskPluginParameters
 {
-    pub fn update_real_value_from_string(&self,
-                                         index: i32,
-                                         value: String) -> Result<(), &'static str>
-    {
-        match index {
-            PARAM_ADSR_ATTACK =>
-                self.adsr_attack.update_real_value_from_string(value),
-            PARAM_ADSR_DECAY =>
-                self.adsr_decay.update_real_value_from_string(value),
-            PARAM_ADSR_SUSTAIN =>
-                self.adsr_sustain.update_real_value_from_string(value),
-            PARAM_ADSR_RELEASE =>
-                self.adsr_release.update_real_value_from_string(value),
-            PARAM_DELAY_TIME_LEFT =>
-                self.delay_time_left.update_real_value_from_string(value),
-            PARAM_DELAY_TIME_RIGHT =>
-                self.delay_time_right.update_real_value_from_string(value),
-            PARAM_DELAY_FEEDBACK =>
-                self.delay_feedback.update_real_value_from_string(value),
-            PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY =>
-                self.delay_high_pass_filter_frequency.update_real_value_from_string(value),
-            PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY =>
-                self.delay_low_pass_filter_frequency.update_real_value_from_string(value),
-            PARAM_DELAY_WET_GAIN =>
-                self.delay_wet_gain.update_real_value_from_string(value),
-            PARAM_FILTER_FREQUENCY =>
-                self.filter_frequency.update_real_value_from_string(value),
-            PARAM_FILTER_SWEEP_RANGE =>
-                self.filter_sweep_range.update_real_value_from_string(value),
-            PARAM_FILTER_RESONANCE =>
-                self.filter_quality.update_real_value_from_string(value),
-            PARAM_GENERATOR_TYPE =>
-                self.generator_type.update_real_value_from_string(value),
-            PARAM_GENERATOR_PITCH =>
-                self.generator_pitch.update_real_value_from_string(value),
-            PARAM_GENERATOR_PULSE_WIDTH =>
-                self.generator_pulse_width.update_real_value_from_string(value),
-            PARAM_GENERATOR_MOD_FREQUENCY_RATIO =>
-                self.generator_mod_frequency_ratio.update_real_value_from_string(value),
-            PARAM_GENERATOR_MOD_INDEX =>
-                self.generator_mod_index.update_real_value_from_string(value),
-            PARAM_GENERATOR_PITCH_BEND_RANGE =>
-                self.generator_pitch_bend_range.update_real_value_from_string(value),
-            PARAM_WAVESHAPER_INPUT_GAIN =>
-                self.waveshaper_input_gain.update_real_value_from_string(value),
-            PARAM_WAVESHAPER_OUTPUT_GAIN =>
-                self.waveshaper_output_gain.update_real_value_from_string(value),
-            _ => Err("Unknown parameter"),
+    pub fn get_parameter(&self, param: ParameterId) -> defs::Sample {
+        match param {
+            ParameterId::AdsrAttack =>
+                self.adsr_attack.get_vst_param(),
+            ParameterId::AdsrDecay =>
+                self.adsr_decay.get_vst_param(),
+            ParameterId::AdsrSustain =>
+                self.adsr_sustain.get_vst_param(),
+            ParameterId::AdsrRelease =>
+                self.adsr_release.get_vst_param(),
+            ParameterId::DelayTimeLeft =>
+                self.delay_time_left.get_vst_param(),
+            ParameterId::DelayTimeRight =>
+                self.delay_time_right.get_vst_param(),
+            ParameterId::DelayFeedback =>
+                self.delay_feedback.get_vst_param(),
+            ParameterId::DelayHighPassFilterFrequency =>
+                self.delay_high_pass_filter_frequency.get_vst_param(),
+            ParameterId::DelayLowPassFilterFrequency =>
+                self.delay_low_pass_filter_frequency.get_vst_param(),
+            ParameterId::DelayWetGain =>
+                self.delay_wet_gain.get_vst_param(),
+            ParameterId::FilterFrequency =>
+                self.filter_frequency.get_vst_param(),
+            ParameterId::FilterSweepRange =>
+                self.filter_sweep_range.get_vst_param(),
+            ParameterId::FilterResonance =>
+                self.filter_quality.get_vst_param(),
+            ParameterId::GeneratorType =>
+                self.generator_type.get_vst_param(),
+            ParameterId::GeneratorPitch =>
+                self.generator_pitch.get_vst_param(),
+            ParameterId::GeneratorPulseWidth =>
+                self.generator_pulse_width.get_vst_param(),
+            ParameterId::GeneratorModFrequencyRatio =>
+                self.generator_mod_frequency_ratio.get_vst_param(),
+            ParameterId::GeneratorModIndex =>
+                self.generator_mod_index.get_vst_param(),
+            ParameterId::GeneratorPitchBendRange =>
+                self.generator_pitch_bend_range.get_vst_param(),
+            ParameterId::WaveshaperInputGain =>
+                self.waveshaper_input_gain.get_vst_param(),
+            ParameterId::WaveshaperOutputGain =>
+                self.waveshaper_output_gain.get_vst_param(),
         }
     }
 
-    pub fn get_real_value(&self, index: i32) -> defs::Sample {
-        match index {
-            PARAM_ADSR_ATTACK =>
+    pub fn get_parameter_text(&self, param: ParameterId) -> String {
+        match param {
+            ParameterId::AdsrAttack =>
+                self.adsr_attack.get_value_text(),
+            ParameterId::AdsrDecay =>
+                self.adsr_decay.get_value_text(),
+            ParameterId::AdsrSustain =>
+                self.adsr_sustain.get_value_text(),
+            ParameterId::AdsrRelease =>
+                self.adsr_release.get_value_text(),
+            ParameterId::DelayTimeLeft =>
+                self.delay_time_left.get_value_text(),
+            ParameterId::DelayTimeRight =>
+                self.delay_time_right.get_value_text(),
+            ParameterId::DelayFeedback =>
+                self.delay_feedback.get_value_text(),
+            ParameterId::DelayHighPassFilterFrequency =>
+                self.delay_high_pass_filter_frequency.get_value_text(),
+            ParameterId::DelayLowPassFilterFrequency =>
+                self.delay_low_pass_filter_frequency.get_value_text(),
+            ParameterId::DelayWetGain =>
+                self.delay_wet_gain.get_value_text(),
+            ParameterId::FilterFrequency =>
+                self.filter_frequency.get_value_text(),
+            ParameterId::FilterSweepRange =>
+                self.filter_sweep_range.get_value_text(),
+            ParameterId::FilterResonance =>
+                self.filter_quality.get_value_text(),
+            ParameterId::GeneratorType =>
+                self.generator_type.get_value_text(),
+            ParameterId::GeneratorPitch =>
+                self.generator_pitch.get_value_text(),
+            ParameterId::GeneratorPulseWidth =>
+                self.generator_pulse_width.get_value_text(),
+            ParameterId::GeneratorModFrequencyRatio =>
+                self.generator_mod_frequency_ratio.get_value_text(),
+            ParameterId::GeneratorModIndex =>
+                self.generator_mod_index.get_value_text(),
+            ParameterId::GeneratorPitchBendRange =>
+                self.generator_pitch_bend_range.get_value_text(),
+            ParameterId::WaveshaperInputGain =>
+                self.waveshaper_input_gain.get_value_text(),
+            ParameterId::WaveshaperOutputGain =>
+                self.waveshaper_output_gain.get_value_text(),
+        }
+    }
+
+    pub fn get_parameter_name(&self, param: ParameterId) -> String {
+        match param {
+            ParameterId::AdsrAttack =>
+                String::from("adsr attack"),
+            ParameterId::AdsrDecay =>
+                String::from("adsr decay"),
+            ParameterId::AdsrSustain =>
+                String::from("adsr sustain"),
+            ParameterId::AdsrRelease =>
+                String::from("adsr release"),
+            ParameterId::DelayTimeLeft =>
+                String::from("delay time left"),
+            ParameterId::DelayTimeRight =>
+                String::from("delay time right"),
+            ParameterId::DelayFeedback =>
+                String::from("delay feedback"),
+            ParameterId::DelayHighPassFilterFrequency=>
+                String::from("delay high pass filter frequency"),
+            ParameterId::DelayLowPassFilterFrequency =>
+                String::from("delay low pass filter frequency"),
+            ParameterId::DelayWetGain =>
+                String::from("delay wet gain"),
+            ParameterId::FilterFrequency =>
+                String::from("filter frequency"),
+            ParameterId::FilterSweepRange =>
+                String::from("filter sweep range"),
+            ParameterId::FilterResonance =>
+                String::from("filter quality"),
+            ParameterId::GeneratorType =>
+                String::from("generator type"),
+            ParameterId::GeneratorPitch =>
+                String::from("generator pitch"),
+            ParameterId::GeneratorPulseWidth =>
+                String::from("generator pulse width"),
+            ParameterId::GeneratorModFrequencyRatio =>
+                String::from("generator mod frequency ratio"),
+            ParameterId::GeneratorModIndex =>
+                String::from("generator mod index"),
+            ParameterId::GeneratorPitchBendRange =>
+                String::from("generator pitch bend range"),
+            ParameterId::WaveshaperInputGain =>
+                String::from("waveshaper input gain"),
+            ParameterId::WaveshaperOutputGain =>
+                String::from("waveshaper output gain"),
+        }
+    }
+
+    pub fn set_parameter(&self, param: ParameterId, val: defs::Sample) {
+        match param {
+            ParameterId::AdsrAttack =>
+                self.adsr_attack.update_vst_param(val),
+            ParameterId::AdsrDecay =>
+                self.adsr_decay.update_vst_param(val),
+            ParameterId::AdsrSustain =>
+                self.adsr_sustain.update_vst_param(val),
+            ParameterId::AdsrRelease =>
+                self.adsr_release.update_vst_param(val),
+            ParameterId::DelayTimeLeft =>
+                self.delay_time_left.update_vst_param(val),
+            ParameterId::DelayTimeRight =>
+                self.delay_time_right.update_vst_param(val),
+            ParameterId::DelayFeedback =>
+                self.delay_feedback.update_vst_param(val),
+            ParameterId::DelayHighPassFilterFrequency =>
+                self.delay_high_pass_filter_frequency.update_vst_param(val),
+            ParameterId::DelayLowPassFilterFrequency =>
+                self.delay_low_pass_filter_frequency.update_vst_param(val),
+            ParameterId::DelayWetGain =>
+                self.delay_wet_gain.update_vst_param(val),
+            ParameterId::FilterFrequency =>
+                self.filter_frequency.update_vst_param(val),
+            ParameterId::FilterSweepRange =>
+                self.filter_sweep_range.update_vst_param(val),
+            ParameterId::FilterResonance =>
+                self.filter_quality.update_vst_param(val),
+            ParameterId::GeneratorType =>
+                self.generator_type.update_vst_param(val),
+            ParameterId::GeneratorPitch =>
+                self.generator_pitch.update_vst_param(val),
+            ParameterId::GeneratorPulseWidth =>
+                self.generator_pulse_width.update_vst_param(val),
+            ParameterId::GeneratorModFrequencyRatio =>
+                self.generator_mod_frequency_ratio.update_vst_param(val),
+            ParameterId::GeneratorModIndex =>
+                self.generator_mod_index.update_vst_param(val),
+            ParameterId::GeneratorPitchBendRange =>
+                self.generator_pitch_bend_range.update_vst_param(val),
+            ParameterId::WaveshaperInputGain =>
+                self.waveshaper_input_gain.update_vst_param(val),
+            ParameterId::WaveshaperOutputGain =>
+                self.waveshaper_output_gain.update_vst_param(val),
+        }
+    }
+    pub fn update_real_value_from_string(&self,
+                                         param: ParameterId,
+                                         value: String) -> Result<(), &'static str>
+    {
+        match param {
+            ParameterId::AdsrAttack =>
+                self.adsr_attack.update_real_value_from_string(value),
+            ParameterId::AdsrDecay =>
+                self.adsr_decay.update_real_value_from_string(value),
+            ParameterId::AdsrSustain =>
+                self.adsr_sustain.update_real_value_from_string(value),
+            ParameterId::AdsrRelease =>
+                self.adsr_release.update_real_value_from_string(value),
+            ParameterId::DelayTimeLeft =>
+                self.delay_time_left.update_real_value_from_string(value),
+            ParameterId::DelayTimeRight =>
+                self.delay_time_right.update_real_value_from_string(value),
+            ParameterId::DelayFeedback =>
+                self.delay_feedback.update_real_value_from_string(value),
+            ParameterId::DelayHighPassFilterFrequency =>
+                self.delay_high_pass_filter_frequency.update_real_value_from_string(value),
+            ParameterId::DelayLowPassFilterFrequency =>
+                self.delay_low_pass_filter_frequency.update_real_value_from_string(value),
+            ParameterId::DelayWetGain =>
+                self.delay_wet_gain.update_real_value_from_string(value),
+            ParameterId::FilterFrequency =>
+                self.filter_frequency.update_real_value_from_string(value),
+            ParameterId::FilterSweepRange =>
+                self.filter_sweep_range.update_real_value_from_string(value),
+            ParameterId::FilterResonance =>
+                self.filter_quality.update_real_value_from_string(value),
+            ParameterId::GeneratorType =>
+                self.generator_type.update_real_value_from_string(value),
+            ParameterId::GeneratorPitch =>
+                self.generator_pitch.update_real_value_from_string(value),
+            ParameterId::GeneratorPulseWidth =>
+                self.generator_pulse_width.update_real_value_from_string(value),
+            ParameterId::GeneratorModFrequencyRatio =>
+                self.generator_mod_frequency_ratio.update_real_value_from_string(value),
+            ParameterId::GeneratorModIndex =>
+                self.generator_mod_index.update_real_value_from_string(value),
+            ParameterId::GeneratorPitchBendRange =>
+                self.generator_pitch_bend_range.update_real_value_from_string(value),
+            ParameterId::WaveshaperInputGain =>
+                self.waveshaper_input_gain.update_real_value_from_string(value),
+            ParameterId::WaveshaperOutputGain =>
+                self.waveshaper_output_gain.update_real_value_from_string(value),
+        }
+    }
+
+    pub fn get_real_value(&self, param: ParameterId) -> defs::Sample {
+        match param {
+            ParameterId::AdsrAttack =>
                 self.adsr_attack.get_real_value(),
-            PARAM_ADSR_DECAY =>
+            ParameterId::AdsrDecay =>
                 self.adsr_decay.get_real_value(),
-            PARAM_ADSR_SUSTAIN =>
+            ParameterId::AdsrSustain =>
                 self.adsr_sustain.get_real_value(),
-            PARAM_ADSR_RELEASE =>
+            ParameterId::AdsrRelease =>
                 self.adsr_release.get_real_value(),
-            PARAM_DELAY_TIME_LEFT =>
+            ParameterId::DelayTimeLeft =>
                 self.delay_time_left.get_real_value(),
-            PARAM_DELAY_TIME_RIGHT =>
+            ParameterId::DelayTimeRight =>
                 self.delay_time_right.get_real_value(),
-            PARAM_DELAY_FEEDBACK =>
+            ParameterId::DelayFeedback =>
                 self.delay_feedback.get_real_value(),
-            PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY =>
+            ParameterId::DelayHighPassFilterFrequency =>
                 self.delay_high_pass_filter_frequency.get_real_value(),
-            PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY =>
+            ParameterId::DelayLowPassFilterFrequency =>
                 self.delay_low_pass_filter_frequency.get_real_value(),
-            PARAM_DELAY_WET_GAIN =>
+            ParameterId::DelayWetGain =>
                 self.delay_wet_gain.get_real_value(),
-            PARAM_FILTER_FREQUENCY =>
+            ParameterId::FilterFrequency =>
                 self.filter_frequency.get_real_value(),
-            PARAM_FILTER_SWEEP_RANGE =>
+            ParameterId::FilterSweepRange =>
                 self.filter_sweep_range.get_real_value(),
-            PARAM_FILTER_RESONANCE =>
+            ParameterId::FilterResonance =>
                 self.filter_quality.get_real_value(),
-            PARAM_GENERATOR_TYPE =>
+            ParameterId::GeneratorType =>
                 // Ew - need to make this better... can't return usize here.
                 self.generator_type.get_real_value() as defs::Sample,
-            PARAM_GENERATOR_PITCH =>
+            ParameterId::GeneratorPitch =>
                 self.generator_pitch.get_real_value(),
-            PARAM_GENERATOR_PULSE_WIDTH =>
+            ParameterId::GeneratorPulseWidth =>
                 self.generator_pulse_width.get_real_value(),
-            PARAM_GENERATOR_MOD_FREQUENCY_RATIO =>
+            ParameterId::GeneratorModFrequencyRatio =>
                 self.generator_mod_frequency_ratio.get_real_value(),
-            PARAM_GENERATOR_MOD_INDEX =>
+            ParameterId::GeneratorModIndex =>
                 self.generator_mod_index.get_real_value(),
-            PARAM_GENERATOR_PITCH_BEND_RANGE =>
+            ParameterId::GeneratorPitchBendRange =>
                 self.generator_pitch_bend_range.get_real_value(),
-            PARAM_WAVESHAPER_INPUT_GAIN =>
+            ParameterId::WaveshaperInputGain =>
                 self.waveshaper_input_gain.get_real_value(),
-            PARAM_WAVESHAPER_OUTPUT_GAIN =>
+            ParameterId::WaveshaperOutputGain =>
                 self.waveshaper_output_gain.get_real_value(),
-            _ => 0.0,
         }
     }
 }

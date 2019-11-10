@@ -4,14 +4,10 @@ use shared::{
     event::EngineEvent,
     parameter::{
         BaseliskPluginParameters,
-        PARAM_ADSR_ATTACK,
-        PARAM_ADSR_DECAY,
-        PARAM_ADSR_SUSTAIN,
-        PARAM_ADSR_RELEASE,
+        ParameterId,
     },
 };
 use std::slice;
-use vst::plugin::PluginParameters;
 
 /// States that ADSR can be in
 enum AdsrStages {
@@ -86,18 +82,18 @@ impl Adsr {
             Some(AdsrStages::HeldAttack) => {
                 self.state.gain_at_stage_start
                 + self.state.relative_gain_at_stage_end * (
-                    self.state.phase_time / params.get_real_value(PARAM_ADSR_ATTACK))
+                    self.state.phase_time / params.get_real_value(ParameterId::AdsrAttack))
             }
             Some(AdsrStages::HeldDecay) => {
                 self.state.gain_at_stage_start
                 + self.state.relative_gain_at_stage_end * (
-                    self.state.phase_time / params.get_real_value(PARAM_ADSR_DECAY))
+                    self.state.phase_time / params.get_real_value(ParameterId::AdsrDecay))
             }
-            Some(AdsrStages::HeldSustain) => params.get_real_value(PARAM_ADSR_SUSTAIN),
+            Some(AdsrStages::HeldSustain) => params.get_real_value(ParameterId::AdsrSustain),
             Some(AdsrStages::Released) => {
                 self.state.gain_at_stage_start
                 + self.state.relative_gain_at_stage_end * (
-                    self.state.phase_time / params.get_real_value(PARAM_ADSR_RELEASE))
+                    self.state.phase_time / params.get_real_value(ParameterId::AdsrRelease))
             }
         }
     }
@@ -126,10 +122,10 @@ impl Adsr {
                     // All note changes and ADSR parameter changes will trigger keyframes
                     EngineEvent::NoteChange{ .. } => (),
                     EngineEvent::ModulateParameter { param_id, .. } => match *param_id {
-                        PARAM_ADSR_ATTACK |
-                        PARAM_ADSR_DECAY |
-                        PARAM_ADSR_SUSTAIN |
-                        PARAM_ADSR_RELEASE => (),
+                        ParameterId::AdsrAttack |
+                        ParameterId::AdsrDecay |
+                        ParameterId::AdsrSustain |
+                        ParameterId::AdsrRelease => (),
                         _ => continue,
                     },
                     _ => continue,
@@ -175,10 +171,10 @@ impl Adsr {
                         self.state.selected_note = *note;
                     },
                     EngineEvent::ModulateParameter { param_id, value } => match *param_id {
-                        PARAM_ADSR_ATTACK |
-                        PARAM_ADSR_DECAY |
-                        PARAM_ADSR_SUSTAIN |
-                        PARAM_ADSR_RELEASE => params.set_parameter(*param_id, *value),
+                        ParameterId::AdsrAttack |
+                        ParameterId::AdsrDecay |
+                        ParameterId::AdsrSustain |
+                        ParameterId::AdsrRelease => params.set_parameter(*param_id, *value),
                         _ => (),
                     },
                     _ => (),
@@ -195,23 +191,23 @@ impl Adsr {
 
         // Handle attack -> decay advancing
         if let Some(AdsrStages::HeldAttack) = self.state.stage {
-            if self.state.phase_time >= params.get_real_value(PARAM_ADSR_ATTACK) {
+            if self.state.phase_time >= params.get_real_value(ParameterId::AdsrAttack) {
                 self.state.stage = Some(AdsrStages::HeldDecay);
                 self.state.gain_at_stage_start = 1.0;
                 self.state.relative_gain_at_stage_end =
-                    params.get_real_value(PARAM_ADSR_SUSTAIN) - self.state.gain_at_stage_start;
-                self.state.phase_time -= params.get_real_value(PARAM_ADSR_ATTACK);
+                    params.get_real_value(ParameterId::AdsrSustain) - self.state.gain_at_stage_start;
+                self.state.phase_time -= params.get_real_value(ParameterId::AdsrAttack);
             }
         }
         // Handle decay -> sustain advancing
         if let Some(AdsrStages::HeldDecay) = self.state.stage {
-            if self.state.phase_time >= params.get_real_value(PARAM_ADSR_DECAY) {
+            if self.state.phase_time >= params.get_real_value(ParameterId::AdsrDecay) {
                 self.state.stage = Some(AdsrStages::HeldSustain);
             }
         }
         // Handle release -> off advancing
         if let Some(AdsrStages::Released) = self.state.stage {
-            if self.state.phase_time >= params.get_real_value(PARAM_ADSR_RELEASE) {
+            if self.state.phase_time >= params.get_real_value(ParameterId::AdsrRelease) {
                 self.state.stage = None;
             }
         }
@@ -389,13 +385,13 @@ mod tests {
 
         let params = BaseliskPluginParameters::default();
         params.update_real_value_from_string(
-            PARAM_ADSR_ATTACK, format!("{}", attack_duration)).unwrap();
+            ParameterId::AdsrAttack, format!("{}", attack_duration)).unwrap();
         params.update_real_value_from_string(
-            PARAM_ADSR_DECAY, format!("{}", decay_duration)).unwrap();
+            ParameterId::AdsrDecay, format!("{}", decay_duration)).unwrap();
         params.update_real_value_from_string(
-            PARAM_ADSR_SUSTAIN, format!("{}", sustain_level)).unwrap();
+            ParameterId::AdsrSustain, format!("{}", sustain_level)).unwrap();
         params.update_real_value_from_string(
-            PARAM_ADSR_RELEASE, format!("{}", release_duration)).unwrap();
+            ParameterId::AdsrRelease, format!("{}", release_duration)).unwrap();
 
         let mut buffer = vec![[0.0]; comparison_buffer.len()];
 

@@ -6,14 +6,11 @@ use shared::{
     event::EngineEvent,
     parameter::{
         BaseliskPluginParameters,
-        PARAM_FILTER_FREQUENCY,
-        PARAM_FILTER_SWEEP_RANGE,
-        PARAM_FILTER_RESONANCE,
+        ParameterId,
     },
 };
 use sample::{Frame, slice};
 use std::default::Default;
-use vst::plugin::PluginParameters;
 
 /// A low pass filter type that can be used for audio processing.
 /// This is to be a constant-peak-gain two-pole resonator with
@@ -60,9 +57,9 @@ impl Filter
                 match engine_event {
                     EngineEvent::ModulateParameter { param_id, .. } => match *param_id {
                         // All filter events will trigger keyframes
-                        PARAM_FILTER_FREQUENCY |
-                        PARAM_FILTER_RESONANCE |
-                        PARAM_FILTER_SWEEP_RANGE => (),
+                        ParameterId::FilterFrequency |
+                        ParameterId::FilterResonance |
+                        ParameterId::FilterSweepRange => (),
                         _ => continue,
                     },
                     _ => continue,
@@ -80,9 +77,9 @@ impl Filter
                 let adsr_input_buffer_slice = adsr_input_buffer.get(
                         this_keyframe..next_keyframe).unwrap();
 
-                let quality_factor = params.get_real_value(PARAM_FILTER_RESONANCE);
-                let base_frequency_hz = params.get_real_value(PARAM_FILTER_FREQUENCY);
-                let adsr_sweep_octaves = params.get_real_value(PARAM_FILTER_SWEEP_RANGE);
+                let quality_factor = params.get_real_value(ParameterId::FilterResonance);
+                let base_frequency_hz = params.get_real_value(ParameterId::FilterFrequency);
+                let adsr_sweep_octaves = params.get_real_value(ParameterId::FilterSweepRange);
 
                 // This forces the biquad coefficients to be computed at least once this slice:
                 self.last_adsr_input_sample_bits = u32::max_value();
@@ -133,9 +130,9 @@ impl Filter
                 let (_, event) = next_event.unwrap();
                 if let EngineEvent::ModulateParameter { param_id, value } = event {
                    match *param_id {
-                        PARAM_FILTER_FREQUENCY |
-                        PARAM_FILTER_RESONANCE |
-                        PARAM_FILTER_SWEEP_RANGE => {
+                        ParameterId::FilterFrequency |
+                        ParameterId::FilterResonance |
+                        ParameterId::FilterSweepRange => {
                             params.set_parameter(*param_id, *value);
                         },
                         _ => (),

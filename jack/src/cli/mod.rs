@@ -7,29 +7,7 @@ use cli::tree::{
 };
 use cli::completer::Cli as Cli;
 use baselisk_core::shared::{
-    parameter::{
-        PARAM_ADSR_ATTACK,
-        PARAM_ADSR_DECAY,
-        PARAM_ADSR_SUSTAIN,
-        PARAM_ADSR_RELEASE,
-        PARAM_DELAY_TIME_LEFT,
-        PARAM_DELAY_TIME_RIGHT,
-        PARAM_DELAY_FEEDBACK,
-        PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY,
-        PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY,
-        PARAM_DELAY_WET_GAIN,
-        PARAM_FILTER_FREQUENCY,
-        PARAM_FILTER_SWEEP_RANGE,
-        PARAM_FILTER_RESONANCE,
-        PARAM_GENERATOR_TYPE,
-        PARAM_GENERATOR_PITCH,
-        PARAM_GENERATOR_PULSE_WIDTH,
-        PARAM_GENERATOR_MOD_FREQUENCY_RATIO,
-        PARAM_GENERATOR_MOD_INDEX,
-        PARAM_GENERATOR_PITCH_BEND_RANGE,
-        PARAM_WAVESHAPER_INPUT_GAIN,
-        PARAM_WAVESHAPER_OUTPUT_GAIN,
-    },
+    parameter::ParameterId,
     SharedState,
 };
 use std::str::{FromStr, SplitWhitespace};
@@ -50,7 +28,7 @@ where
 }
 
 pub fn update_parameter_from_tokens(shared_state: &Arc<SharedState>,
-                                    param_id: i32,
+                                    param: ParameterId,
                                     token_iter: &mut SplitWhitespace) -> Result<(), String>
 {
     let token = match parse_from_next_token::<String>(token_iter) {
@@ -66,17 +44,17 @@ pub fn update_parameter_from_tokens(shared_state: &Arc<SharedState>,
                 Ok(val) => val,
                 Err(reason) => return Err(reason),
             };
-            shared_state.modmatrix.bind_parameter(cc_number, param_id);
+            shared_state.modmatrix.bind_parameter(cc_number, param);
             return Ok(())
         },
         "learn" => {
             // No further parameters
-            shared_state.modmatrix.learn_parameter(param_id);
+            shared_state.modmatrix.learn_parameter(param);
             return Ok(())
         },
         _ => (),
     }
-    if let Err(reason) = shared_state.parameters.update_real_value_from_string(param_id, token) {
+    if let Err(reason) = shared_state.parameters.update_real_value_from_string(param, token) {
         return Err(String::from(reason))
     };
     Ok(())
@@ -90,7 +68,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_GENERATOR_PITCH_BEND_RANGE,
+                    ParameterId::GeneratorPitchBendRange,
                     &mut token_iter)
             },
             Some(String::from("<semitones>")),
@@ -103,7 +81,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_GENERATOR_TYPE,
+                    ParameterId::GeneratorType,
                     &mut token_iter)
             },
             Some(String::from("<type_name>")),
@@ -113,7 +91,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_GENERATOR_PITCH,
+                    ParameterId::GeneratorPitch,
                     &mut token_iter)
             },
             Some(String::from("<octaves>")),
@@ -123,7 +101,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_GENERATOR_PULSE_WIDTH,
+                    ParameterId::GeneratorPulseWidth,
                     &mut token_iter)
             },
             Some(String::from("<width>")),
@@ -133,7 +111,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_GENERATOR_MOD_FREQUENCY_RATIO,
+                    ParameterId::GeneratorModFrequencyRatio,
                     &mut token_iter)
             },
             Some(String::from("<freq_ratio>")),
@@ -143,7 +121,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_GENERATOR_MOD_INDEX,
+                    ParameterId::GeneratorModIndex,
                     &mut token_iter)
             },
             Some(String::from("<index>")),
@@ -156,7 +134,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_ADSR_ATTACK,
+                    ParameterId::AdsrAttack,
                     &mut token_iter)
             },
             Some(String::from("<duration>")),
@@ -166,7 +144,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_ADSR_DECAY,
+                    ParameterId::AdsrDecay,
                     &mut token_iter)
             },
             Some(String::from("<duration>")),
@@ -176,7 +154,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_ADSR_SUSTAIN,
+                    ParameterId::AdsrSustain,
                     &mut token_iter)
             },
             Some(String::from("<level>")),
@@ -186,7 +164,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_ADSR_RELEASE,
+                    ParameterId::AdsrRelease,
                     &mut token_iter)
             },
             Some(String::from("<duration>")),
@@ -200,7 +178,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_DELAY_TIME_LEFT,
+                    ParameterId::DelayTimeLeft,
                     &mut token_iter)
             },
             Some(String::from("<seconds>")),
@@ -210,7 +188,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_DELAY_TIME_RIGHT,
+                    ParameterId::DelayTimeRight,
                     &mut token_iter)
             },
             Some(String::from("<seconds>")),
@@ -220,7 +198,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_DELAY_FEEDBACK,
+                    ParameterId::DelayFeedback,
                     &mut token_iter)
             },
             Some(String::from("<Hz>")),
@@ -233,7 +211,7 @@ fn build_tree() -> Tree
                 |mut token_iter, shared_state| {
                     update_parameter_from_tokens(
                         shared_state,
-                        PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY,
+                        ParameterId::DelayLowPassFilterFrequency,
                         &mut token_iter)
                 },
                 Some(String::from("<Hz>")),
@@ -246,7 +224,7 @@ fn build_tree() -> Tree
                 |mut token_iter, shared_state| {
                     update_parameter_from_tokens(
                         shared_state,
-                        PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY,
+                        ParameterId::DelayHighPassFilterFrequency,
                         &mut token_iter)
                 },
                 Some(String::from("<Hz>")),
@@ -257,7 +235,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_DELAY_WET_GAIN,
+                    ParameterId::DelayWetGain,
                     &mut token_iter)
             },
             Some(String::from("<gain>")),
@@ -270,7 +248,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_FILTER_FREQUENCY,
+                    ParameterId::FilterFrequency,
                     &mut token_iter)
             },
             Some(String::from("<Hz>")),
@@ -280,7 +258,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_FILTER_SWEEP_RANGE,
+                    ParameterId::FilterSweepRange,
                     &mut token_iter)
             },
             Some(String::from("<octaves>")),
@@ -290,7 +268,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_FILTER_RESONANCE,
+                    ParameterId::FilterResonance,
                     &mut token_iter)
             },
             Some(String::from("<q>")),
@@ -303,7 +281,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_WAVESHAPER_INPUT_GAIN,
+                    ParameterId::WaveshaperInputGain,
                     &mut token_iter)
             },
             Some(String::from("<gain>")),
@@ -313,7 +291,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    PARAM_WAVESHAPER_OUTPUT_GAIN,
+                    ParameterId::WaveshaperOutputGain,
                     &mut token_iter)
             },
             Some(String::from("<gain>")),

@@ -4,13 +4,15 @@ use shared::{
         EngineEvent,
         MidiEvent
     },
-    parameter::BaseliskPluginParameters,
+    parameter::{
+        BaseliskPluginParameters,
+        ParameterId,
+    },
 };
 use std::sync::{
     Arc,
     atomic::{AtomicI32, Ordering},
 };
-use vst::plugin::PluginParameters;
 
 /// A modulation matrix implementation.
 /// Routes MIDI CC message data to the appropriate SingleController instance.
@@ -37,19 +39,19 @@ impl ModulationMatrix
     }
 
     /// Set that a param_id should be bound to the next MIDI CC received.
-    pub fn learn_parameter(&self, param_id: i32)
+    pub fn learn_parameter(&self, param: ParameterId)
     {
         println!("Starting MIDI learn for parameter {}",
-                 self.parameters.get_parameter_name(param_id));
-        self.param_id_to_learn.store(param_id, Ordering::Relaxed);
+                 self.parameters.get_parameter_name(param));
+        self.param_id_to_learn.store(param as i32, Ordering::Relaxed);
     }
 
-    pub fn bind_parameter(&self, number: u8, param_id: i32)
+    pub fn bind_parameter(&self, number: u8, param: ParameterId)
     {
         println!("Binding CC {} to parameter {}",
                  number,
-                 self.parameters.get_parameter_name(param_id));
-        self.controllers[number as usize].bind(param_id);
+                 self.parameters.get_parameter_name(param));
+        self.controllers[number as usize].bind(param as i32);
     }
 
     /// Process a MidiEvent.
@@ -59,7 +61,7 @@ impl ModulationMatrix
             let param_id = self.param_id_to_learn.load(Ordering::Relaxed);
             if param_id >= 0 {
                 self.param_id_to_learn.store(-1, Ordering::Relaxed);
-                self.bind_parameter(*number, param_id);
+                self.bind_parameter(*number, ParameterId::from(param_id));
             } else {
                 return self.controllers[*number as usize].process(*value);
             }
@@ -97,7 +99,7 @@ impl SingleController
             // Convert the MIDI value into a value in the range 0.0 <= val <= 1.0
             let value = defs::Sample::from(cc_value) / 127.0;
             return Some(EngineEvent::ModulateParameter{
-                param_id: param_id.clone(),
+                param_id: ParameterId::from(param_id),
                 value,
             })
         }

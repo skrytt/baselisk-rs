@@ -70,7 +70,7 @@ impl Plugin for BaseliskPlugin {
     }
 
     fn process(&mut self, vst_audio_buffer: &mut AudioBuffer<defs::Sample>) {
-        let (_, outputs) = vst_audio_buffer.split();
+        let (_, mut outputs) = vst_audio_buffer.split();
 
         // Currently will only output audio to first output buffer
         let left_output_buffer = outputs.get_mut(0)

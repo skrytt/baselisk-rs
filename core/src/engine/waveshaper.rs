@@ -5,12 +5,10 @@ use shared::{
     event::EngineEvent,
     parameter::{
         BaseliskPluginParameters,
-        PARAM_WAVESHAPER_INPUT_GAIN,
-        PARAM_WAVESHAPER_OUTPUT_GAIN,
+        ParameterId,
     },
 };
 use std::slice::Iter;
-use vst::plugin::PluginParameters;
 
 pub fn process_buffer(buffer: &mut defs::MonoFrameBufferSlice,
                       mut engine_event_iter: Iter<(usize, EngineEvent)>,
@@ -27,8 +25,8 @@ pub fn process_buffer(buffer: &mut defs::MonoFrameBufferSlice,
             match engine_event {
                 EngineEvent::ModulateParameter { param_id, .. } => match *param_id {
                     // Waveshaper parameter events will trigger keyframes
-                    PARAM_WAVESHAPER_INPUT_GAIN |
-                    PARAM_WAVESHAPER_OUTPUT_GAIN => (),
+                    ParameterId::WaveshaperInputGain |
+                    ParameterId::WaveshaperOutputGain => (),
                     _ => continue,
                 },
                 _ => continue,
@@ -41,8 +39,8 @@ pub fn process_buffer(buffer: &mut defs::MonoFrameBufferSlice,
 
         // Apply the old parameters up until next_keyframe.
         if let Some(buffer_slice) = buffer.get_mut(this_keyframe..next_keyframe) {
-            let input_gain = params.get_real_value(PARAM_WAVESHAPER_INPUT_GAIN);
-            let output_gain = params.get_real_value(PARAM_WAVESHAPER_OUTPUT_GAIN);
+            let input_gain = params.get_real_value(ParameterId::WaveshaperInputGain);
+            let output_gain = params.get_real_value(ParameterId::WaveshaperOutputGain);
             for frame in buffer_slice {
                 for sample in frame {
                     *sample = {
@@ -69,8 +67,8 @@ pub fn process_buffer(buffer: &mut defs::MonoFrameBufferSlice,
             let (_, event) = next_event.unwrap();
             if let EngineEvent::ModulateParameter { param_id, value } = event {
                 match *param_id {
-                    PARAM_WAVESHAPER_INPUT_GAIN |
-                    PARAM_WAVESHAPER_OUTPUT_GAIN => {
+                    ParameterId::WaveshaperInputGain |
+                    ParameterId::WaveshaperOutputGain => {
                         params.set_parameter(*param_id, *value);
                     },
                     _ => (),
@@ -93,7 +91,7 @@ mod tests {
     fn test_change_output_gain() {
         let mut engine_events = Vec::new();
         engine_events.push((2, EngineEvent::ModulateParameter{
-            param_id: PARAM_WAVESHAPER_OUTPUT_GAIN, value: 1.0}));
+            param_id: ParameterId::WaveshaperOutputGain, value: 1.0}));
 
         _test(1.0,
               0.0,
@@ -111,9 +109,9 @@ mod tests {
     {
         let params = BaseliskPluginParameters::default();
         params.update_real_value_from_string(
-            PARAM_WAVESHAPER_INPUT_GAIN, format!("{}", input_gain)).unwrap();
+            ParameterId::WaveshaperInputGain, format!("{}", input_gain)).unwrap();
         params.update_real_value_from_string(
-            PARAM_WAVESHAPER_OUTPUT_GAIN, format!("{}", output_gain)).unwrap();
+            ParameterId::WaveshaperOutputGain, format!("{}", output_gain)).unwrap();
 
         process_buffer(&mut buffer, engine_events.iter(), &params);
 

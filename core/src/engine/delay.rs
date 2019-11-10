@@ -5,12 +5,7 @@ use shared::{
     event::EngineEvent,
     parameter::{
         BaseliskPluginParameters,
-        PARAM_DELAY_TIME_LEFT,
-        PARAM_DELAY_TIME_RIGHT,
-        PARAM_DELAY_FEEDBACK,
-        PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY,
-        PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY,
-        PARAM_DELAY_WET_GAIN,
+        ParameterId,
     },
 };
 use engine::{
@@ -26,7 +21,6 @@ use engine::{
 };
 use sample::ring_buffer;
 use std::slice::Iter;
-use vst::plugin::PluginParameters;
 
 pub struct DelayChannel {
     delay_buffer: ring_buffer::Fixed<Vec<defs::Sample>>,
@@ -159,12 +153,12 @@ impl Delay {
                 match engine_event {
                     EngineEvent::ModulateParameter { param_id, .. } => match *param_id {
                         // All delay events will trigger keyframes
-                        PARAM_DELAY_TIME_LEFT |
-                        PARAM_DELAY_TIME_RIGHT |
-                        PARAM_DELAY_FEEDBACK |
-                        PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY |
-                        PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY |
-                        PARAM_DELAY_WET_GAIN => (),
+                        ParameterId::DelayTimeLeft |
+                        ParameterId::DelayTimeRight |
+                        ParameterId::DelayFeedback |
+                        ParameterId::DelayHighPassFilterFrequency |
+                        ParameterId::DelayLowPassFilterFrequency |
+                        ParameterId::DelayWetGain => (),
                         _ => continue,
                     },
                     _ => continue,
@@ -176,11 +170,11 @@ impl Delay {
             };
 
             // Apply the old parameters up until next_keyframe.
-            let feedback = params.get_real_value(PARAM_DELAY_FEEDBACK);
-            let wet_gain = params.get_real_value(PARAM_DELAY_WET_GAIN);
+            let feedback = params.get_real_value(ParameterId::DelayFeedback);
+            let wet_gain = params.get_real_value(ParameterId::DelayWetGain);
 
             let lowpass_frequency_hz = params.get_real_value(
-                PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY);
+                ParameterId::DelayLowPassFilterFrequency);
             let lowpass_quality = 0.707;
 
             // Lowpass filter coefficients
@@ -191,7 +185,7 @@ impl Delay {
                     &mut self.lowpass_coeffs);
 
             let highpass_frequency_hz = params.get_real_value(
-                PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY);
+                ParameterId::DelayHighPassFilterFrequency);
             let highpass_quality = 0.707;
 
             // Highpass filter coefficients
@@ -205,7 +199,7 @@ impl Delay {
             self.channels[0].process_between_keyframes(
                  this_keyframe,
                  next_keyframe,
-                 params.get_real_value(PARAM_DELAY_TIME_LEFT),
+                 params.get_real_value(ParameterId::DelayTimeLeft),
                  feedback,
                  wet_gain,
                  &self.highpass_coeffs,
@@ -216,7 +210,7 @@ impl Delay {
             self.channels[1].process_between_keyframes(
                  this_keyframe,
                  next_keyframe,
-                 params.get_real_value(PARAM_DELAY_TIME_RIGHT),
+                 params.get_real_value(ParameterId::DelayTimeRight),
                  feedback,
                  wet_gain,
                  &self.highpass_coeffs,
@@ -236,12 +230,12 @@ impl Delay {
                 let (_, event) = next_event.unwrap();
                 if let EngineEvent::ModulateParameter { param_id, value } = event {
                     match *param_id {
-                        PARAM_DELAY_TIME_LEFT |
-                        PARAM_DELAY_TIME_RIGHT |
-                        PARAM_DELAY_FEEDBACK |
-                        PARAM_DELAY_HIGH_PASS_FILTER_FREQUENCY |
-                        PARAM_DELAY_LOW_PASS_FILTER_FREQUENCY |
-                        PARAM_DELAY_WET_GAIN => {
+                        ParameterId::DelayTimeLeft |
+                        ParameterId::DelayTimeRight |
+                        ParameterId::DelayFeedback |
+                        ParameterId::DelayHighPassFilterFrequency |
+                        ParameterId::DelayLowPassFilterFrequency |
+                        ParameterId::DelayWetGain => {
                             params.set_parameter(*param_id, *value);
                         }
                         _ => (),

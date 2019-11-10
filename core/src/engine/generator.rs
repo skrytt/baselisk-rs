@@ -8,16 +8,10 @@ use shared::{
     event::EngineEvent,
     parameter::{
         BaseliskPluginParameters,
-        PARAM_GENERATOR_TYPE,
-        PARAM_GENERATOR_PITCH,
-        PARAM_GENERATOR_PULSE_WIDTH,
-        PARAM_GENERATOR_MOD_FREQUENCY_RATIO,
-        PARAM_GENERATOR_MOD_INDEX,
-        PARAM_GENERATOR_PITCH_BEND_RANGE,
+        ParameterId,
     },
 };
 use std::slice;
-use vst::plugin::PluginParameters;
 
 /// Convert a note number to a corresponding frequency,
 /// using 440 Hz as the pitch of the A above middle C.
@@ -88,7 +82,7 @@ impl Generator {
         let buffer_len = buffer.len();
 
         let generator_func: Option<fn(&mut State, &mut defs::MonoFrameBufferSlice)> =
-            match params.get_real_value(PARAM_GENERATOR_TYPE) as usize {
+            match params.get_real_value(ParameterId::GeneratorType) as usize {
                 0 => Some(sine_generator),
                 1 => Some(sawtooth_generator),
                 2 => Some(pulse_generator),
@@ -116,12 +110,12 @@ impl Generator {
                     // Pitch bends and generator parameter changes will also trigger keyframes
                     EngineEvent::PitchBend{ .. } => (),
                     EngineEvent::ModulateParameter { param_id, .. } => match *param_id {
-                        PARAM_GENERATOR_TYPE |
-                        PARAM_GENERATOR_PITCH |
-                        PARAM_GENERATOR_PULSE_WIDTH |
-                        PARAM_GENERATOR_MOD_FREQUENCY_RATIO |
-                        PARAM_GENERATOR_MOD_INDEX |
-                        PARAM_GENERATOR_PITCH_BEND_RANGE => (),
+                        ParameterId::GeneratorType |
+                        ParameterId::GeneratorPitch |
+                        ParameterId::GeneratorPulseWidth |
+                        ParameterId::GeneratorModFrequencyRatio |
+                        ParameterId::GeneratorModIndex |
+                        ParameterId::GeneratorPitchBendRange => (),
                         _ => continue,
                     },
                 }
@@ -136,7 +130,7 @@ impl Generator {
                 self.state.pitch_bend_wheel_value, params);
 
             self.state.target_base_frequency = get_frequency(defs::Sample::from(self.state.note)
-                                                + params.get_real_value(PARAM_GENERATOR_PITCH)
+                                                + params.get_real_value(ParameterId::GeneratorPitch)
                                                 + pitch_bend_semitones);
 
             // Smoothing for pitch bends, to reduce audible stepping for wide pitch bends
@@ -167,10 +161,10 @@ impl Generator {
             }
 
             self.state.mod_frequency = self.state.base_frequency
-                                       * params.get_real_value(PARAM_GENERATOR_MOD_FREQUENCY_RATIO);
+                                       * params.get_real_value(ParameterId::GeneratorModFrequencyRatio);
 
-            self.state.pulse_width = params.get_real_value(PARAM_GENERATOR_PULSE_WIDTH);
-            self.state.mod_index = params.get_real_value(PARAM_GENERATOR_MOD_INDEX);
+            self.state.pulse_width = params.get_real_value(ParameterId::GeneratorPulseWidth);
+            self.state.mod_index = params.get_real_value(ParameterId::GeneratorModIndex);
 
             // Generate all the samples for this buffer
             let buffer_slice = buffer.get_mut(this_keyframe..next_keyframe).unwrap();
@@ -197,7 +191,7 @@ impl Generator {
                             // frequency will be next iteration)
                             self.state.base_frequency = get_frequency(
                                                 defs::Sample::from(self.state.note)
-                                                + params.get_real_value(PARAM_GENERATOR_PITCH)
+                                                + params.get_real_value(ParameterId::GeneratorPitch)
                                                 + pitch_bend_semitones);
                         }
                     },
@@ -205,12 +199,12 @@ impl Generator {
                         self.state.pitch_bend_wheel_value = *wheel_value;
                     },
                     EngineEvent::ModulateParameter { param_id, value } => match *param_id {
-                        PARAM_GENERATOR_TYPE |
-                        PARAM_GENERATOR_PITCH |
-                        PARAM_GENERATOR_MOD_FREQUENCY_RATIO |
-                        PARAM_GENERATOR_PITCH_BEND_RANGE |
-                        PARAM_GENERATOR_PULSE_WIDTH |
-                        PARAM_GENERATOR_MOD_INDEX => {
+                        ParameterId::GeneratorType |
+                        ParameterId::GeneratorPitch |
+                        ParameterId::GeneratorModFrequencyRatio |
+                        ParameterId::GeneratorPitchBendRange |
+                        ParameterId::GeneratorPulseWidth |
+                        ParameterId::GeneratorModIndex => {
                             params.set_parameter(*param_id, *value);
                         }
                         _ => (),
