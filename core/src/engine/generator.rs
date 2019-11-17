@@ -224,22 +224,18 @@ impl traits::Processor for Generator {
 /// Generator function that produces a sine wave.
 fn sine_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
 {
+    // Load state
     let step = state.base_frequency / state.sample_rate;
     let mut main_phase = state.main_phase;
 
-    for frame_num in 0..buffer.len() {
-        // Advance main_phase
+    let buffer_iter = buffer.iter_mut();
+    for frame in buffer_iter {
         // Enforce range 0.0 <= main_phase < 1.0
-        main_phase += step;
-        while main_phase >= 1.0 {
-            main_phase -= 1.0;
-        }
-
-        // Compute the output
-        buffer[frame_num][0] = defs::Sample::sin(2.0 as defs::Sample * defs::PI * main_phase);
+        main_phase = (main_phase + step) % 1.0;
+        frame[0] = defs::Sample::sin(2.0 * defs::PI * main_phase);
     }
 
-    // Store the main_phase for next iteration
+    // Store state
     state.main_phase = main_phase;
 }
 
@@ -250,13 +246,10 @@ fn pulse_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
     let step = state.base_frequency / state.sample_rate;
     let mut main_phase = state.main_phase;
 
-    for frame_num in 0..buffer.len() {
-        // Advance main_phase
+    let buffer_iter = buffer.iter_mut();
+    for frame in buffer_iter {
         // Enforce range 0.0 <= main_phase < 1.0
-        main_phase += step;
-        while main_phase >= 1.0 {
-            main_phase -= 1.0;
-        }
+        main_phase = (main_phase + step) % 1.0;
 
         // Get the aliasing pulse value
         let mut res = if main_phase < state.pulse_width {
@@ -290,7 +283,7 @@ fn pulse_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice)
         res -= polyblep((main_phase + 1.0 - state.pulse_width) % 1.0, step);
 
         // Done
-        buffer[frame_num][0] = res;
+        frame[0] = res;
     }
 
     // Store the main_phase for next iteration
@@ -304,13 +297,10 @@ fn sawtooth_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice
     let step = state.base_frequency / state.sample_rate;
     let mut main_phase = state.main_phase;
 
-    for frame_num in 0..buffer.len() {
-        // Advance main_phase
+    let buffer_iter = buffer.iter_mut();
+    for frame in buffer_iter {
         // Enforce range 0.0 <= main_phase < 1.0
-        main_phase += step;
-        while main_phase >= 1.0 {
-            main_phase -= 1.0;
-        }
+        main_phase = (main_phase + step) % 1.0;
 
         // Get the aliasing saw value
         let mut res = 1.0 - 2.0 * main_phase;
@@ -333,7 +323,7 @@ fn sawtooth_generator(state: &mut State, buffer: &mut defs::MonoFrameBufferSlice
         }
 
         // Done
-        buffer[frame_num][0] = res;
+        frame[0] = res;
     }
 
     // Store the main_phase for next iteration
@@ -349,29 +339,22 @@ fn frequency_modulated_generator(state: &mut State, buffer: &mut defs::MonoFrame
 
     let mut main_phase = state.main_phase;
 
-    for frame_num in 0..buffer.len() {
-        // Advance main_phase of mod generator
-        // Enforce range 0.0 <= main_phase < 1.0
-        mod_phase += mod_step;
-        while mod_phase >= 1.0 {
-            mod_phase -= 1.0;
-        }
-
+    let buffer_iter = buffer.iter_mut();
+    for frame in buffer_iter {
+        // Advance modulator phase
+        // Enforce range 0.0 <= mod_phase < 1.0
+        mod_phase = (mod_phase + mod_step) % 1.0;
         let mod_res = defs::Sample::sin(2.0 as defs::Sample * defs::PI * mod_phase);
+
+        // Output of modulator oscillator determines phase advance of carrier oscillator
         let mod_freq_offset = state.mod_index * mod_res * mod_freq;
 
-        // Advance main_phase of main generator
+        // Advance carrier phase
         // Enforce range 0.0 <= main_phase < 1.0
         let main_step = (state.base_frequency + mod_freq_offset) / state.sample_rate;
-        main_phase += main_step;
-        // Due to rate modulation main_phase can go backwards as well as forwards
-        while main_phase < 0.0 {
-            main_phase += 1.0;
-        }
-        while main_phase >= 1.0 {
-            main_phase -= 1.0;
-        }
-        buffer[frame_num][0] = defs::Sample::sin(2.0 as defs::Sample * defs::PI * main_phase);
+        main_phase = (main_phase + main_step) % 1.0;
+
+        frame[0] = defs::Sample::sin(2.0 as defs::Sample * defs::PI * main_phase);
     }
 
     // Store the phases for next iteration
