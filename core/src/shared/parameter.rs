@@ -470,7 +470,7 @@ impl BaseliskPluginParameters
     }
 }
 
-pub trait Parameter<T> {
+pub trait Parameter {
     /// Update the parameter using the value the audio engine will use.
     fn update_real_value_from_string(&self, value: String) -> Result<(), &'static str>;
 
@@ -478,7 +478,7 @@ pub trait Parameter<T> {
     fn update_vst_param(&self, value: defs::Sample);
 
     /// Get the value the audio engine will use.
-    fn get_real_value(&self) -> T;
+    fn get_real_value(&self) -> defs::Sample;
 
     /// Get the value for a control with range 0.0 > value > 1.0.
     fn get_vst_param(&self) -> defs::Sample;
@@ -544,7 +544,7 @@ impl LinearParameter
         self
     }
 }
-impl Parameter<defs::Sample> for LinearParameter
+impl Parameter for LinearParameter
 {
     fn update_real_value_from_string(&self, value: String) -> Result<(), &'static str> {
         let mut value = match value.parse::<defs::Sample>() {
@@ -619,7 +619,7 @@ impl ExponentialParameter
     }
 }
 
-impl Parameter<defs::Sample> for ExponentialParameter {
+impl Parameter for ExponentialParameter {
     fn update_real_value_from_string(&self, value: String) -> Result<(), &'static str> {
         let mut value = match value.parse::<defs::Sample>() {
             Err(_) => return Err("Can't parse parameter value"),
@@ -667,7 +667,7 @@ impl EnumParameter {
     }
 }
 
-impl Parameter<usize> for EnumParameter {
+impl Parameter for EnumParameter {
     fn update_real_value_from_string(&self, value: String) -> Result<(), &'static str> {
         // Try to find the index of the item in the string
         for (i, candidate) in self.value_set.iter().enumerate() {
@@ -679,8 +679,8 @@ impl Parameter<usize> for EnumParameter {
         Err("Unrecognised value passed as argument")
     }
 
-    fn get_real_value(&self) -> usize {
-        self.current_value_index.load(Ordering::Relaxed)
+    fn get_real_value(&self) -> defs::Sample {
+        self.current_value_index.load(Ordering::Relaxed) as defs::Sample
     }
 
     fn get_vst_param(&self) -> defs::Sample {
@@ -816,24 +816,24 @@ mod tests {
             1, // default to "theremin"
         );
         // EnumParameter's real value is a usize
-        assert_eq!(parameter.get_real_value(), 1);
+        assert_eq!(parameter.get_real_value() as usize, 1);
         assert_eq!(parameter.get_value_text(), "theremin");
 
         parameter.update_real_value_from_string(String::from("trombone"))
             .unwrap();
-        assert_eq!(parameter.get_real_value(), 0);
+        assert_eq!(parameter.get_real_value() as usize, 0);
         assert_eq!(parameter.get_value_text(), "trombone");
 
         parameter.update_real_value_from_string(String::from("triangle"))
             .unwrap();
-        assert_eq!(parameter.get_real_value(), 2);
+        assert_eq!(parameter.get_real_value() as usize, 2);
         assert_eq!(parameter.get_value_text(), "triangle");
 
         // Fake instrument!! Check for error
         parameter.update_real_value_from_string(String::from("synthesizer"))
             .unwrap_err();
         // ...and check the value hasn't changed
-        assert_eq!(parameter.get_real_value(), 2);
+        assert_eq!(parameter.get_real_value() as usize, 2);
     }
 
     #[test]
@@ -843,31 +843,31 @@ mod tests {
             1, // default to "theremin"
         );
         // EnumParameter's real value is a usize
-        assert_eq!(parameter.get_real_value(), 1);
+        assert_eq!(parameter.get_real_value() as usize, 1);
         assert_eq!(parameter.get_value_text(), "theremin");
 
         // The VST param is divided into a list of ranges of equal size
         // where each range maps to an item in the parameter name list;
         // the ordering is the same between both lists.
         parameter.update_vst_param(0.17);
-        assert_eq!(parameter.get_real_value(), 0);
+        assert_eq!(parameter.get_real_value() as usize, 0);
         assert_eq!(parameter.get_value_text(), "trombone");
 
         parameter.update_vst_param(0.83);
-        assert_eq!(parameter.get_real_value(), 2);
+        assert_eq!(parameter.get_real_value() as usize, 2);
         assert_eq!(parameter.get_value_text(), "triangle");
 
         parameter.update_vst_param(0.5);
-        assert_eq!(parameter.get_real_value(), 1);
+        assert_eq!(parameter.get_real_value() as usize, 1);
         assert_eq!(parameter.get_value_text(), "theremin");
 
         // Test VST parameter boundary values also
         parameter.update_vst_param(0.0);
-        assert_eq!(parameter.get_real_value(), 0);
+        assert_eq!(parameter.get_real_value() as usize, 0);
         assert_eq!(parameter.get_value_text(), "trombone");
 
         parameter.update_vst_param(1.0);
-        assert_eq!(parameter.get_real_value(), 2);
+        assert_eq!(parameter.get_real_value() as usize, 2);
         assert_eq!(parameter.get_value_text(), "triangle");
     }
 }
