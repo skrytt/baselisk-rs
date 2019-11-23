@@ -58,7 +58,7 @@ impl Filter
                     EngineEvent::ModulateParameter { param_id, .. } => match *param_id {
                         // All filter events will trigger keyframes
                         ParameterId::FilterFrequency |
-                        ParameterId::FilterResonance |
+                        ParameterId::FilterQuality |
                         ParameterId::FilterSweepRange => (),
                         _ => continue,
                     },
@@ -77,7 +77,7 @@ impl Filter
                 let adsr_input_buffer_slice = adsr_input_buffer.get(
                         this_keyframe..next_keyframe).unwrap();
 
-                let quality_factor = params.get_real_value(ParameterId::FilterResonance);
+                let quality_factor = params.get_real_value(ParameterId::FilterQuality);
                 let base_frequency_hz = params.get_real_value(ParameterId::FilterFrequency);
                 let adsr_sweep_octaves = params.get_real_value(ParameterId::FilterSweepRange);
 
@@ -131,7 +131,7 @@ impl Filter
                 if let EngineEvent::ModulateParameter { param_id, value } = event {
                    match *param_id {
                         ParameterId::FilterFrequency |
-                        ParameterId::FilterResonance |
+                        ParameterId::FilterQuality |
                         ParameterId::FilterSweepRange => {
                             params.set_parameter(*param_id, *value);
                         },
