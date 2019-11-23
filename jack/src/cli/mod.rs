@@ -268,7 +268,7 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    ParameterId::FilterResonance,
+                    ParameterId::FilterQuality,
                     &mut token_iter)
             },
             Some(String::from("<q>")),
