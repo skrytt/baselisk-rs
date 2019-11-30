@@ -81,7 +81,7 @@ impl Generator {
         }
     }
 
-    fn getParameter(&self, param: GeneratorParams) -> ParameterId {
+    fn get_parameter(&self, param: GeneratorParams) -> ParameterId {
         match self.id {
             0 => match param {
                 GeneratorParams::Type => ParameterId::GeneratorAType,
@@ -140,7 +140,7 @@ impl Generator {
         let buffer_len = buffer.len();
 
         let generator_func: Option<fn(&mut State, &mut defs::MonoFrameBufferSlice)> =
-            match params.get_real_value(self.getParameter(GeneratorParams::Type)) as usize {
+            match params.get_real_value(self.get_parameter(GeneratorParams::Type)) as usize {
                 0 => Some(sine_generator),
                 1 => Some(sawtooth_generator),
                 2 => Some(pulse_generator),
@@ -182,7 +182,7 @@ impl Generator {
 
             self.state.target_base_frequency = get_frequency(defs::Sample::from(self.state.note)
                                                 + params.get_real_value(
-                                                    self.getParameter(GeneratorParams::Pitch))
+                                                    self.get_parameter(GeneratorParams::Pitch))
                                                 + pitch_bend_semitones);
 
             // Smoothing for pitch bends, to reduce audible stepping for wide pitch bends
@@ -214,12 +214,12 @@ impl Generator {
 
             self.state.mod_frequency = self.state.base_frequency
                                        * params.get_real_value(
-                                           self.getParameter(GeneratorParams::ModFrequencyRatio));
+                                           self.get_parameter(GeneratorParams::ModFrequencyRatio));
 
             self.state.pulse_width = params.get_real_value(
-                    self.getParameter(GeneratorParams::PulseWidth));
+                    self.get_parameter(GeneratorParams::PulseWidth));
             self.state.mod_index = params.get_real_value(
-                    self.getParameter(GeneratorParams::ModIndex));
+                    self.get_parameter(GeneratorParams::ModIndex));
 
             // Generate all the samples for this buffer
             let buffer_slice = buffer.get_mut(this_keyframe..next_keyframe).unwrap();
@@ -247,7 +247,7 @@ impl Generator {
                             self.state.base_frequency = get_frequency(
                                     defs::Sample::from(self.state.note)
                                     + params.get_real_value(
-                                        self.getParameter(GeneratorParams::Pitch))
+                                        self.get_parameter(GeneratorParams::Pitch))
                                     + pitch_bend_semitones);
                         }
                     },
