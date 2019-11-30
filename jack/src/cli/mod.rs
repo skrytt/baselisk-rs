@@ -68,60 +68,113 @@ fn build_tree() -> Tree
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    ParameterId::GeneratorPitchBendRange,
+                    ParameterId::PitchBendRange,
                     &mut token_iter)
             },
             Some(String::from("<semitones>")),
         ));
     }
     {
-        let generator = root.add_child("generator", Node::new_with_children());
+        let generator_a = root.add_child("generator_a", Node::new_with_children());
 
-        generator.add_child("type", Node::new_dispatch_event(
+        generator_a.add_child("type", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    ParameterId::GeneratorType,
+                    ParameterId::GeneratorAType,
                     &mut token_iter)
             },
             Some(String::from("<type_name>")),
         ));
 
-        generator.add_child("pitch", Node::new_dispatch_event(
+        generator_a.add_child("pitch", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    ParameterId::GeneratorPitch,
+                    ParameterId::GeneratorAPitch,
                     &mut token_iter)
             },
             Some(String::from("<octaves>")),
         ));
 
-        generator.add_child("pulsewidth", Node::new_dispatch_event(
+        generator_a.add_child("pulsewidth", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    ParameterId::GeneratorPulseWidth,
+                    ParameterId::GeneratorAPulseWidth,
                     &mut token_iter)
             },
             Some(String::from("<width>")),
         ));
 
-        generator.add_child("modfreqratio", Node::new_dispatch_event(
+        generator_a.add_child("modfreqratio", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    ParameterId::GeneratorModFrequencyRatio,
+                    ParameterId::GeneratorAModFrequencyRatio,
                     &mut token_iter)
             },
             Some(String::from("<freq_ratio>")),
         ));
 
-        generator.add_child("modindex", Node::new_dispatch_event(
+        generator_a.add_child("modindex", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
                     shared_state,
-                    ParameterId::GeneratorModIndex,
+                    ParameterId::GeneratorAModIndex,
+                    &mut token_iter)
+            },
+            Some(String::from("<index>")),
+        ));
+    }
+    {
+        let generator_b = root.add_child("generator_b", Node::new_with_children());
+
+        generator_b.add_child("type", Node::new_dispatch_event(
+            |mut token_iter, shared_state| {
+                update_parameter_from_tokens(
+                    shared_state,
+                    ParameterId::GeneratorBType,
+                    &mut token_iter)
+            },
+            Some(String::from("<type_name>")),
+        ));
+
+        generator_b.add_child("pitch", Node::new_dispatch_event(
+            |mut token_iter, shared_state| {
+                update_parameter_from_tokens(
+                    shared_state,
+                    ParameterId::GeneratorBPitch,
+                    &mut token_iter)
+            },
+            Some(String::from("<octaves>")),
+        ));
+
+        generator_b.add_child("pulsewidth", Node::new_dispatch_event(
+            |mut token_iter, shared_state| {
+                update_parameter_from_tokens(
+                    shared_state,
+                    ParameterId::GeneratorBPulseWidth,
+                    &mut token_iter)
+            },
+            Some(String::from("<width>")),
+        ));
+
+        generator_b.add_child("modfreqratio", Node::new_dispatch_event(
+            |mut token_iter, shared_state| {
+                update_parameter_from_tokens(
+                    shared_state,
+                    ParameterId::GeneratorBModFrequencyRatio,
+                    &mut token_iter)
+            },
+            Some(String::from("<freq_ratio>")),
+        ));
+
+        generator_b.add_child("modindex", Node::new_dispatch_event(
+            |mut token_iter, shared_state| {
+                update_parameter_from_tokens(
+                    shared_state,
+                    ParameterId::GeneratorBModIndex,
                     &mut token_iter)
             },
             Some(String::from("<index>")),
