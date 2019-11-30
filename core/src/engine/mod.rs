@@ -45,6 +45,7 @@ pub struct Engine
     timing_data: TimingData,
     dump_timing_info: bool,
     // Buffers
+    dummy_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     mono_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     generator_a_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     generator_b_buffer: ResizableFrameBuffer<defs::MonoFrame>,
@@ -71,6 +72,7 @@ impl Engine
             timing_data: TimingData::default(),
             dump_timing_info,
             // Buffers
+            dummy_buffer: ResizableFrameBuffer::new(),
             mono_buffer: ResizableFrameBuffer::new(),
             adsr_buffer: ResizableFrameBuffer::new(),
             generator_a_buffer: ResizableFrameBuffer::new(),
@@ -176,11 +178,14 @@ impl Engine
             // Signal Generator
             let generator_start_time = time::precise_time_ns();
 
+            let dummy_buffer = self.dummy_buffer.get_sized_mut(frames_this_buffer);
+
             let mut generator_a_buffer = self.generator_a_buffer.get_sized_mut(frames_this_buffer);
             let mut generator_b_buffer = self.generator_b_buffer.get_sized_mut(frames_this_buffer);
 
             self.generator_a.process_buffer(
                 &mut generator_a_buffer,
+                &dummy_buffer,
                 self.engine_event_buffer.iter(),
                 self.sample_rate,
                 &self.shared_state.parameters
@@ -188,12 +193,12 @@ impl Engine
 
             self.generator_b.process_buffer(
                 &mut generator_b_buffer,
+                &generator_a_buffer,
                 self.engine_event_buffer.iter(),
                 self.sample_rate,
                 &self.shared_state.parameters
             );
 
-            sample::slice::add_in_place(&mut mono_buffer, &generator_a_buffer);
             sample::slice::add_in_place(&mut mono_buffer, &generator_b_buffer);
 
             // Reduce level to avoid clipping at later stages

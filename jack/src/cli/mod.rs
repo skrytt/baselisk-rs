@@ -107,16 +107,6 @@ fn build_tree() -> Tree
             Some(String::from("<width>")),
         ));
 
-        generator_a.add_child("modfreqratio", Node::new_dispatch_event(
-            |mut token_iter, shared_state| {
-                update_parameter_from_tokens(
-                    shared_state,
-                    ParameterId::GeneratorAModFrequencyRatio,
-                    &mut token_iter)
-            },
-            Some(String::from("<freq_ratio>")),
-        ));
-
         generator_a.add_child("modindex", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
@@ -158,16 +148,6 @@ fn build_tree() -> Tree
                     &mut token_iter)
             },
             Some(String::from("<width>")),
-        ));
-
-        generator_b.add_child("modfreqratio", Node::new_dispatch_event(
-            |mut token_iter, shared_state| {
-                update_parameter_from_tokens(
-                    shared_state,
-                    ParameterId::GeneratorBModFrequencyRatio,
-                    &mut token_iter)
-            },
-            Some(String::from("<freq_ratio>")),
         ));
 
         generator_b.add_child("modindex", Node::new_dispatch_event(
