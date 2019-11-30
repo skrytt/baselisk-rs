@@ -3,8 +3,9 @@ extern crate sample;
 use defs;
 use sample::{Frame, Sample, slice};
 
-pub fn process_buffer(adsr_input_buffer: &defs::MonoFrameBufferSlice,
-                      output_buffer: &mut defs::MonoFrameBufferSlice,
+pub fn process_buffer(
+    adsr_input_buffer: &defs::MonoFrameBufferSlice,
+    output_buffer: &mut defs::MonoFrameBufferSlice,
 )
 {
     // Iterate over two buffers at once using a zip method
@@ -15,6 +16,21 @@ pub fn process_buffer(adsr_input_buffer: &defs::MonoFrameBufferSlice,
         output_frame.zip_map(adsr_input_frame,
                              |output_sample, adsr_input_sample| {
             output_sample.mul_amp(adsr_input_sample)
+        })
+    })
+}
+
+pub fn process_buffer_fixed_gain(
+    gain: defs::Sample,
+    output_buffer: &mut defs::MonoFrameBufferSlice,
+)
+{
+    // Iterate over two buffers at once using a zip method
+    slice::map_in_place(output_buffer, |output_frame|
+    {
+        // Iterate over the samples in each frame using a zip method
+        output_frame.map(|output_sample| {
+            output_sample.mul_amp(gain)
         })
     })
 }

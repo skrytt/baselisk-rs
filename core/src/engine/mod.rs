@@ -196,6 +196,9 @@ impl Engine
             sample::slice::add_in_place(&mut mono_buffer, &generator_a_buffer);
             sample::slice::add_in_place(&mut mono_buffer, &generator_b_buffer);
 
+            // Reduce level to avoid clipping at later stages
+            gain::process_buffer_fixed_gain(0.5, &mut mono_buffer);
+
             self.timing_data.generator = (time::precise_time_ns() - generator_start_time) / 1000;
 
             // Use ADSR to apply gain to generator output
@@ -218,7 +221,7 @@ impl Engine
 
         self.timing_data.filter = (time::precise_time_ns() - filter_start_time) / 1000;
 
-        // Waveshaper
+        // Waveshaper (signal should be in -1.0 <= x <= 1.0 range or hard clipping will occur
         let waveshaper_start_time = time::precise_time_ns();
 
         waveshaper::process_buffer(
