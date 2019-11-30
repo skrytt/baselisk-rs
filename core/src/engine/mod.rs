@@ -45,6 +45,9 @@ pub struct Engine
     timing_data: TimingData,
     dump_timing_info: bool,
     // Buffers
+    mono_buffer: ResizableFrameBuffer<defs::MonoFrame>,
+    generator_a_buffer: ResizableFrameBuffer<defs::MonoFrame>,
+    generator_b_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     adsr_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     // DSP Units
     generator_a: Generator,
@@ -68,7 +71,10 @@ impl Engine
             timing_data: TimingData::default(),
             dump_timing_info,
             // Buffers
+            mono_buffer: ResizableFrameBuffer::new(),
             adsr_buffer: ResizableFrameBuffer::new(),
+            generator_a_buffer: ResizableFrameBuffer::new(),
+            generator_b_buffer: ResizableFrameBuffer::new(),
             // DSP Units
             generator_a: Generator::new(0),
             generator_b: Generator::new(1),
@@ -144,14 +150,23 @@ impl Engine
 
         self.timing_data.pre = (time::precise_time_ns() - engine_start_time) / 1000;
 
+        let frames_this_buffer = left_output_buffer.len();
+
+        let mut mono_buffer = self.mono_buffer.get_sized_mut(frames_this_buffer);
+        slice::equilibrium(mono_buffer);
+
         // ADSR buffer for Gain and Filter (shared for now).
         let adsr_start_time = time::precise_time_ns();
-        let frames_this_buffer = left_output_buffer.len();
+
         let adsr_buffer = self.adsr_buffer.get_sized_mut(frames_this_buffer);
-        let adsr_any_nonzero_output = self.adsr.process_buffer(adsr_buffer,
-                                 self.engine_event_buffer.iter(),
-                                 self.sample_rate,
-                                 &self.shared_state.parameters);
+
+        let adsr_any_nonzero_output = self.adsr.process_buffer(
+            adsr_buffer,
+            self.engine_event_buffer.iter(),
+            self.sample_rate,
+            &self.shared_state.parameters
+        );
+
         self.timing_data.adsr = (time::precise_time_ns() - adsr_start_time) / 1000;
 
         // Optimization: when ADSR is in the off state for a whole buffer,
@@ -160,52 +175,76 @@ impl Engine
 
             // Signal Generator
             let generator_start_time = time::precise_time_ns();
-            self.generator_a.process_buffer(left_output_buffer,
-                                            self.engine_event_buffer.iter(),
-                                            self.sample_rate,
-                                            &self.shared_state.parameters);
-            self.generator_b.process_buffer(left_output_buffer,
-                                            self.engine_event_buffer.iter(),
-                                            self.sample_rate,
-                                            &self.shared_state.parameters);
+
+            let mut generator_a_buffer = self.generator_a_buffer.get_sized_mut(frames_this_buffer);
+            let mut generator_b_buffer = self.generator_b_buffer.get_sized_mut(frames_this_buffer);
+
+            self.generator_a.process_buffer(
+                &mut generator_a_buffer,
+                self.engine_event_buffer.iter(),
+                self.sample_rate,
+                &self.shared_state.parameters
+            );
+
+            self.generator_b.process_buffer(
+                &mut generator_b_buffer,
+                self.engine_event_buffer.iter(),
+                self.sample_rate,
+                &self.shared_state.parameters
+            );
+
+            sample::slice::add_in_place(&mut mono_buffer, &generator_a_buffer);
+            sample::slice::add_in_place(&mut mono_buffer, &generator_b_buffer);
+
             self.timing_data.generator = (time::precise_time_ns() - generator_start_time) / 1000;
 
             // Use ADSR to apply gain to generator output
             let gain_start_time = time::precise_time_ns();
-            gain::process_buffer(adsr_buffer,
-                                 left_output_buffer);
+            gain::process_buffer(adsr_buffer, mono_buffer);
             self.timing_data.gain = (time::precise_time_ns() - gain_start_time) / 1000;
 
         }
 
         // Filter
         let filter_start_time = time::precise_time_ns();
-        self.filter.process_buffer(adsr_buffer,
-                                   left_output_buffer,
-                                   self.engine_event_buffer.iter(),
-                                   self.sample_rate,
-                                   &self.shared_state.parameters);
+
+        self.filter.process_buffer(
+            adsr_buffer,
+            mono_buffer,
+            self.engine_event_buffer.iter(),
+            self.sample_rate,
+            &self.shared_state.parameters
+        );
+
         self.timing_data.filter = (time::precise_time_ns() - filter_start_time) / 1000;
 
         // Waveshaper
         let waveshaper_start_time = time::precise_time_ns();
-        waveshaper::process_buffer(left_output_buffer,
-                                   self.engine_event_buffer.iter(),
-                                   &self.shared_state.parameters);
+
+        waveshaper::process_buffer(
+            mono_buffer,
+            self.engine_event_buffer.iter(),
+            &self.shared_state.parameters
+        );
+
         self.timing_data.waveshaper = (time::precise_time_ns() - waveshaper_start_time) / 1000;
 
-        // Copy the left output to the right output
-        sample::slice::write(right_output_buffer, left_output_buffer);
+        // Copy the mono buffer to both outputs
+        sample::slice::write(left_output_buffer, mono_buffer);
+        sample::slice::write(right_output_buffer, mono_buffer);
 
         // Delay
         let delay_start_time = time::precise_time_ns();
-        self.delay.process_buffer(left_output_buffer,
-                                  right_output_buffer,
-                                  self.engine_event_buffer.iter(),
-                                  self.sample_rate,
-                                  &self.shared_state.parameters);
-        self.timing_data.delay = (time::precise_time_ns() - delay_start_time) / 1000;
 
+        self.delay.process_buffer(
+            left_output_buffer,
+            right_output_buffer,
+            self.engine_event_buffer.iter(),
+            self.sample_rate,
+            &self.shared_state.parameters
+        );
+
+        self.timing_data.delay = (time::precise_time_ns() - delay_start_time) / 1000;
 
         self.timing_data.total = (time::precise_time_ns() - engine_start_time) / 1000;
 
