@@ -59,16 +59,74 @@ impl State {
 
 /// Signal generator type that will be used for audio processing.
 pub struct Generator {
+    id: usize,
     state: State,
+}
+
+enum GeneratorParams {
+    Type,
+    Pitch,
+    PulseWidth,
+    ModFrequencyRatio,
+    ModIndex,
 }
 
 impl Generator {
 /// Function to construct new generators.
-    pub fn new() -> Self
+    pub fn new(id: usize) -> Self
     {
         Self {
+            id,
             state: State::new(),
         }
+    }
+
+    fn getParameter(&self, param: GeneratorParams) -> ParameterId {
+        match self.id {
+            0 => match param {
+                GeneratorParams::Type => ParameterId::GeneratorAType,
+                GeneratorParams::Pitch => ParameterId::GeneratorAPitch,
+                GeneratorParams::PulseWidth => ParameterId::GeneratorAPulseWidth,
+                GeneratorParams::ModFrequencyRatio => ParameterId::GeneratorAModFrequencyRatio,
+                GeneratorParams::ModIndex => ParameterId::GeneratorAModIndex,
+            },
+            1 => match param {
+                GeneratorParams::Type => ParameterId::GeneratorBType,
+                GeneratorParams::Pitch => ParameterId::GeneratorBPitch,
+                GeneratorParams::PulseWidth => ParameterId::GeneratorBPulseWidth,
+                GeneratorParams::ModFrequencyRatio => ParameterId::GeneratorBModFrequencyRatio,
+                GeneratorParams::ModIndex => ParameterId::GeneratorBModIndex,
+            },
+            _ => panic!("Unknown generator ID")
+        }
+    }
+
+    /// There are multiple generators, and some parameter changes correspond to
+    /// only one of them. This method returns true if a parameter change applies
+    /// to this generator.
+    fn should_trigger_keyframe_for_param(&self, param_id: ParameterId) -> bool {
+        match self.id {
+            0 => match param_id {
+                ParameterId::GeneratorAType |
+                ParameterId::GeneratorAPitch |
+                ParameterId::GeneratorAPulseWidth |
+                ParameterId::GeneratorAModFrequencyRatio |
+                ParameterId::GeneratorAModIndex |
+                ParameterId::PitchBendRange => true,
+                _ => false,
+            },
+            1 => match param_id {
+                ParameterId::GeneratorBType |
+                ParameterId::GeneratorBPitch |
+                ParameterId::GeneratorBPulseWidth |
+                ParameterId::GeneratorBModFrequencyRatio |
+                ParameterId::GeneratorBModIndex |
+                ParameterId::PitchBendRange => true,
+                _ => false,
+            },
+            _ => panic!("Unknown generator ID")
+        }
+
     }
 
     pub fn process_buffer(&mut self,
@@ -82,7 +140,7 @@ impl Generator {
         let buffer_len = buffer.len();
 
         let generator_func: Option<fn(&mut State, &mut defs::MonoFrameBufferSlice)> =
-            match params.get_real_value(ParameterId::GeneratorType) as usize {
+            match params.get_real_value(self.getParameter(GeneratorParams::Type)) as usize {
                 0 => Some(sine_generator),
                 1 => Some(sawtooth_generator),
                 2 => Some(pulse_generator),
@@ -109,15 +167,8 @@ impl Generator {
                     },
                     // Pitch bends and generator parameter changes will also trigger keyframes
                     EngineEvent::PitchBend{ .. } => (),
-                    EngineEvent::ModulateParameter { param_id, .. } => match *param_id {
-                        ParameterId::GeneratorType |
-                        ParameterId::GeneratorPitch |
-                        ParameterId::GeneratorPulseWidth |
-                        ParameterId::GeneratorModFrequencyRatio |
-                        ParameterId::GeneratorModIndex |
-                        ParameterId::GeneratorPitchBendRange => (),
-                        _ => continue,
-                    },
+                    EngineEvent::ModulateParameter { param_id, .. } =>
+                        if !self.should_trigger_keyframe_for_param(*param_id) { continue },
                 }
                 next_keyframe = *frame_num;
             } else {
@@ -130,7 +181,8 @@ impl Generator {
                 self.state.pitch_bend_wheel_value, params);
 
             self.state.target_base_frequency = get_frequency(defs::Sample::from(self.state.note)
-                                                + params.get_real_value(ParameterId::GeneratorPitch)
+                                                + params.get_real_value(
+                                                    self.getParameter(GeneratorParams::Pitch))
                                                 + pitch_bend_semitones);
 
             // Smoothing for pitch bends, to reduce audible stepping for wide pitch bends
@@ -161,10 +213,13 @@ impl Generator {
             }
 
             self.state.mod_frequency = self.state.base_frequency
-                                       * params.get_real_value(ParameterId::GeneratorModFrequencyRatio);
+                                       * params.get_real_value(
+                                           self.getParameter(GeneratorParams::ModFrequencyRatio));
 
-            self.state.pulse_width = params.get_real_value(ParameterId::GeneratorPulseWidth);
-            self.state.mod_index = params.get_real_value(ParameterId::GeneratorModIndex);
+            self.state.pulse_width = params.get_real_value(
+                    self.getParameter(GeneratorParams::PulseWidth));
+            self.state.mod_index = params.get_real_value(
+                    self.getParameter(GeneratorParams::ModIndex));
 
             // Generate all the samples for this buffer
             let buffer_slice = buffer.get_mut(this_keyframe..next_keyframe).unwrap();
@@ -190,25 +245,19 @@ impl Generator {
                             // No portamento (set base frequency to what target
                             // frequency will be next iteration)
                             self.state.base_frequency = get_frequency(
-                                                defs::Sample::from(self.state.note)
-                                                + params.get_real_value(ParameterId::GeneratorPitch)
-                                                + pitch_bend_semitones);
+                                    defs::Sample::from(self.state.note)
+                                    + params.get_real_value(
+                                        self.getParameter(GeneratorParams::Pitch))
+                                    + pitch_bend_semitones);
                         }
                     },
                     EngineEvent::PitchBend{ wheel_value } => {
                         self.state.pitch_bend_wheel_value = *wheel_value;
                     },
-                    EngineEvent::ModulateParameter { param_id, value } => match *param_id {
-                        ParameterId::GeneratorType |
-                        ParameterId::GeneratorPitch |
-                        ParameterId::GeneratorModFrequencyRatio |
-                        ParameterId::GeneratorPitchBendRange |
-                        ParameterId::GeneratorPulseWidth |
-                        ParameterId::GeneratorModIndex => {
+                    EngineEvent::ModulateParameter { param_id, value } =>
+                        if self.should_trigger_keyframe_for_param(*param_id) {
                             params.set_parameter(*param_id, *value);
                         }
-                        _ => (),
-                    },
                 };
             }
         }

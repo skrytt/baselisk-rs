@@ -47,7 +47,8 @@ pub struct Engine
     // Buffers
     adsr_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     // DSP Units
-    generator: Generator,
+    generator_a: Generator,
+    generator_b: Generator,
     adsr: Adsr,
     filter: Filter,
     delay: Delay,
@@ -69,7 +70,8 @@ impl Engine
             // Buffers
             adsr_buffer: ResizableFrameBuffer::new(),
             // DSP Units
-            generator: Generator::new(),
+            generator_a: Generator::new(0),
+            generator_b: Generator::new(1),
             adsr: Adsr::new(),
             filter: Filter::new(),
             delay: Delay::new(),
@@ -158,10 +160,14 @@ impl Engine
 
             // Signal Generator
             let generator_start_time = time::precise_time_ns();
-            self.generator.process_buffer(left_output_buffer,
-                                           self.engine_event_buffer.iter(),
-                                           self.sample_rate,
-                                           &self.shared_state.parameters);
+            self.generator_a.process_buffer(left_output_buffer,
+                                            self.engine_event_buffer.iter(),
+                                            self.sample_rate,
+                                            &self.shared_state.parameters);
+            self.generator_b.process_buffer(left_output_buffer,
+                                            self.engine_event_buffer.iter(),
+                                            self.sample_rate,
+                                            &self.shared_state.parameters);
             self.timing_data.generator = (time::precise_time_ns() - generator_start_time) / 1000;
 
             // Use ADSR to apply gain to generator output
@@ -212,7 +218,8 @@ impl Engine
 
     fn handle_midi_panic(&mut self) {
         self.note_selector.panic();
-        self.generator.panic();
+        self.generator_a.panic();
+        self.generator_b.panic();
         self.adsr.panic();
         self.filter.panic();
         self.delay.panic();

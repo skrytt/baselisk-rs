@@ -12,7 +12,7 @@ pub fn get_pitch_bend_semitones(midi_pitch_wheel_value: u16,
     // 0 => -2
     // 8192 => 0
     // 16383 => ~= +2 (0.012% of a semitone below 2; but who's going to notice?)
-    params.get_real_value(ParameterId::GeneratorPitchBendRange) * (
+    params.get_real_value(ParameterId::PitchBendRange) * (
             defs::Sample::from(midi_pitch_wheel_value) - 8192.0) / 8192.0
 }
 
@@ -71,7 +71,7 @@ mod tests {
         // Optionally set a pitch bend range
         if let Some(range_to_set) = range_to_set {
             let result = params.update_real_value_from_string(
-                ParameterId::GeneratorPitchBendRange, format!("{}", range_to_set));
+                ParameterId::PitchBendRange, format!("{}", range_to_set));
             assert!(result.is_ok());
         }
 

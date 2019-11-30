@@ -23,12 +23,17 @@ pub enum ParameterId {
     FilterFrequency,
     FilterSweepRange,
     FilterQuality,
-    GeneratorType,
-    GeneratorPitch,
-    GeneratorPulseWidth,
-    GeneratorModFrequencyRatio,
-    GeneratorModIndex,
-    GeneratorPitchBendRange,
+    GeneratorAType,
+    GeneratorAPitch,
+    GeneratorAPulseWidth,
+    GeneratorAModFrequencyRatio,
+    GeneratorAModIndex,
+    GeneratorBType,
+    GeneratorBPitch,
+    GeneratorBPulseWidth,
+    GeneratorBModFrequencyRatio,
+    GeneratorBModIndex,
+    PitchBendRange,
     WaveshaperInputGain,
     WaveshaperOutputGain,
 }
@@ -51,14 +56,19 @@ impl From<i32> for ParameterId {
             10 => ParameterId::FilterFrequency,
             11 => ParameterId::FilterSweepRange,
             12 => ParameterId::FilterQuality,
-            13 => ParameterId::GeneratorType,
-            14 => ParameterId::GeneratorPitch,
-            15 => ParameterId::GeneratorPulseWidth,
-            16 => ParameterId::GeneratorModFrequencyRatio,
-            17 => ParameterId::GeneratorModIndex,
-            18 => ParameterId::GeneratorPitchBendRange,
-            19 => ParameterId::WaveshaperInputGain,
-            20 => ParameterId::WaveshaperOutputGain,
+            13 => ParameterId::GeneratorAType,
+            14 => ParameterId::GeneratorAPitch,
+            15 => ParameterId::GeneratorAPulseWidth,
+            16 => ParameterId::GeneratorAModFrequencyRatio,
+            17 => ParameterId::GeneratorAModIndex,
+            19 => ParameterId::GeneratorBType,
+            20 => ParameterId::GeneratorBPitch,
+            21 => ParameterId::GeneratorBPulseWidth,
+            22 => ParameterId::GeneratorBModFrequencyRatio,
+            23 => ParameterId::GeneratorBModIndex,
+            24 => ParameterId::PitchBendRange,
+            25 => ParameterId::WaveshaperInputGain,
+            26 => ParameterId::WaveshaperOutputGain,
             _ => panic!("Parameter ID out of bounds"),
         }
     }
@@ -99,12 +109,17 @@ pub struct BaseliskPluginParameters {
     filter_frequency: Parameter,
     filter_sweep_range: Parameter,
     filter_quality: Parameter,
-    generator_type: Parameter,
-    generator_pitch: Parameter,
-    generator_pulse_width: Parameter,
-    generator_mod_frequency_ratio: Parameter,
-    generator_mod_index: Parameter,
-    generator_pitch_bend_range: Parameter,
+    generator_a_type: Parameter,
+    generator_a_pitch: Parameter,
+    generator_a_pulse_width: Parameter,
+    generator_a_mod_frequency_ratio: Parameter,
+    generator_a_mod_index: Parameter,
+    generator_b_type: Parameter,
+    generator_b_pitch: Parameter,
+    generator_b_pulse_width: Parameter,
+    generator_b_mod_frequency_ratio: Parameter,
+    generator_b_mod_index: Parameter,
+    pitch_bend_range: Parameter,
     waveshaper_input_gain: Parameter,
     waveshaper_output_gain: Parameter,
 }
@@ -151,26 +166,45 @@ impl Default for BaseliskPluginParameters {
             filter_quality: Parameter::new_exponential(
                 "filter quality",
                 ParameterUnit::NoUnit, 0.5, 10.0, 0.707),
-            generator_type: Parameter::new_enum(
-                "generator type",
+            generator_a_type: Parameter::new_enum(
+                "generator a type",
                 vec!["sine", "saw", "pulse", "fm", "noise"],
                 1,
             ),
-            generator_pitch: Parameter::new_linear(
-                "generator pitch",
+            generator_a_pitch: Parameter::new_linear(
+                "generator a pitch",
                 ParameterUnit::Semitones, -36.0, 36.0, 0.0
             ).enable_int_snapping(),
-            generator_pulse_width: Parameter::new_linear(
-                "generator pulse width",
+            generator_a_pulse_width: Parameter::new_linear(
+                "generator a pulse width",
                 ParameterUnit::NoUnit, 0.01, 0.99, 0.5),
-            generator_mod_frequency_ratio: Parameter::new_linear(
-                "generator mod frequency ratio",
+            generator_a_mod_frequency_ratio: Parameter::new_linear(
+                "generator a mod frequency ratio",
                 ParameterUnit::NoUnit, 1.0, 8.0, 1.0
             ).enable_int_snapping(),
-            generator_mod_index: Parameter::new_linear(
-                "generator mod index",
+            generator_a_mod_index: Parameter::new_linear(
+                "generator a mod index",
                 ParameterUnit::NoUnit, 0.0, 8.0, 1.0),
-            generator_pitch_bend_range: Parameter::new_linear(
+            generator_b_type: Parameter::new_enum(
+                "generator b type",
+                vec!["sine", "saw", "pulse", "fm", "noise"],
+                1,
+            ),
+            generator_b_pitch: Parameter::new_linear(
+                "generator b pitch",
+                ParameterUnit::Semitones, -36.0, 36.0, 0.0
+            ).enable_int_snapping(),
+            generator_b_pulse_width: Parameter::new_linear(
+                "generator b pulse width",
+                ParameterUnit::NoUnit, 0.01, 0.99, 0.5),
+            generator_b_mod_frequency_ratio: Parameter::new_linear(
+                "generator b mod frequency ratio",
+                ParameterUnit::NoUnit, 1.0, 8.0, 1.0
+            ).enable_int_snapping(),
+            generator_b_mod_index: Parameter::new_linear(
+                "generator b mod index",
+                ParameterUnit::NoUnit, 0.0, 8.0, 1.0),
+            pitch_bend_range: Parameter::new_linear(
                 "generator pitch bend range",
                 ParameterUnit::Semitones, 0.0, 36.0, 2.0),
             waveshaper_input_gain: Parameter::new_linear(
@@ -220,12 +254,17 @@ impl BaseliskPluginParameters
             ParameterId::FilterFrequency => &self.filter_frequency,
             ParameterId::FilterSweepRange => &self.filter_sweep_range,
             ParameterId::FilterQuality => &self.filter_quality,
-            ParameterId::GeneratorType => &self.generator_type,
-            ParameterId::GeneratorPitch => &self.generator_pitch,
-            ParameterId::GeneratorPulseWidth => &self.generator_pulse_width,
-            ParameterId::GeneratorModFrequencyRatio => &self.generator_mod_frequency_ratio,
-            ParameterId::GeneratorModIndex => &self.generator_mod_index,
-            ParameterId::GeneratorPitchBendRange => &self.generator_pitch_bend_range,
+            ParameterId::GeneratorAType => &self.generator_a_type,
+            ParameterId::GeneratorAPitch => &self.generator_a_pitch,
+            ParameterId::GeneratorAPulseWidth => &self.generator_a_pulse_width,
+            ParameterId::GeneratorAModFrequencyRatio => &self.generator_a_mod_frequency_ratio,
+            ParameterId::GeneratorAModIndex => &self.generator_a_mod_index,
+            ParameterId::GeneratorBType => &self.generator_b_type,
+            ParameterId::GeneratorBPitch => &self.generator_b_pitch,
+            ParameterId::GeneratorBPulseWidth => &self.generator_b_pulse_width,
+            ParameterId::GeneratorBModFrequencyRatio => &self.generator_b_mod_frequency_ratio,
+            ParameterId::GeneratorBModIndex => &self.generator_b_mod_index,
+            ParameterId::PitchBendRange => &self.pitch_bend_range,
             ParameterId::WaveshaperInputGain => &self.waveshaper_input_gain,
             ParameterId::WaveshaperOutputGain => &self.waveshaper_output_gain,
         }
