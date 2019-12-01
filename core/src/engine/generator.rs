@@ -91,6 +91,18 @@ impl Generator {
                 GeneratorParams::PulseWidth => ParameterId::GeneratorBPulseWidth,
                 GeneratorParams::ModIndex => ParameterId::GeneratorBModIndex,
             },
+            2 => match param {
+                GeneratorParams::Type => ParameterId::GeneratorCType,
+                GeneratorParams::Pitch => ParameterId::GeneratorCPitch,
+                GeneratorParams::PulseWidth => ParameterId::GeneratorCPulseWidth,
+                GeneratorParams::ModIndex => ParameterId::GeneratorCModIndex,
+            },
+            3 => match param {
+                GeneratorParams::Type => ParameterId::GeneratorDType,
+                GeneratorParams::Pitch => ParameterId::GeneratorDPitch,
+                GeneratorParams::PulseWidth => ParameterId::GeneratorDPulseWidth,
+                GeneratorParams::ModIndex => ParameterId::GeneratorDModIndex,
+            },
             _ => panic!("Unknown generator ID")
         }
     }
@@ -113,6 +125,22 @@ impl Generator {
                 ParameterId::GeneratorBPitch |
                 ParameterId::GeneratorBPulseWidth |
                 ParameterId::GeneratorBModIndex |
+                ParameterId::PitchBendRange => true,
+                _ => false,
+            },
+            2 => match param_id {
+                ParameterId::GeneratorCType |
+                ParameterId::GeneratorCPitch |
+                ParameterId::GeneratorCPulseWidth |
+                ParameterId::GeneratorCModIndex |
+                ParameterId::PitchBendRange => true,
+                _ => false,
+            },
+            3 => match param_id {
+                ParameterId::GeneratorDType |
+                ParameterId::GeneratorDPitch |
+                ParameterId::GeneratorDPulseWidth |
+                ParameterId::GeneratorDModIndex |
                 ParameterId::PitchBendRange => true,
                 _ => false,
             },

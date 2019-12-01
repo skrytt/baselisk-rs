@@ -161,6 +161,92 @@ fn build_tree() -> Tree
         ));
     }
     {
+        let generator_c = root.add_child("generator_c", Node::new_with_children());
+
+        generator_c.add_child("type", Node::new_dispatch_event(
+            |mut token_iter, shared_state| {
+                update_parameter_from_tokens(
+                    shared_state,
+                    ParameterId::GeneratorCType,
+                    &mut token_iter)
+            },
+            Some(String::from("<type_name>")),
+        ));
+
+        generator_c.add_child("pitch", Node::new_dispatch_event(
+            |mut token_iter, shared_state| {
+                update_parameter_from_tokens(
+                    shared_state,
+                    ParameterId::GeneratorCPitch,
+                    &mut token_iter)
+            },
+            Some(String::from("<octaves>")),
+        ));
+
+        generator_c.add_child("pulsewidth", Node::new_dispatch_event(
+            |mut token_iter, shared_state| {
+                update_parameter_from_tokens(
+                    shared_state,
+                    ParameterId::GeneratorCPulseWidth,
+                    &mut token_iter)
+            },
+            Some(String::from("<width>")),
+        ));
+
+        generator_c.add_child("modindex", Node::new_dispatch_event(
+            |mut token_iter, shared_state| {
+                update_parameter_from_tokens(
+                    shared_state,
+                    ParameterId::GeneratorCModIndex,
+                    &mut token_iter)
+            },
+            Some(String::from("<index>")),
+        ));
+    }
+    {
+        let generator_d = root.add_child("generator_d", Node::new_with_children());
+
+        generator_d.add_child("type", Node::new_dispatch_event(
+            |mut token_iter, shared_state| {
+                update_parameter_from_tokens(
+                    shared_state,
+                    ParameterId::GeneratorDType,
+                    &mut token_iter)
+            },
+            Some(String::from("<type_name>")),
+        ));
+
+        generator_d.add_child("pitch", Node::new_dispatch_event(
+            |mut token_iter, shared_state| {
+                update_parameter_from_tokens(
+                    shared_state,
+                    ParameterId::GeneratorDPitch,
+                    &mut token_iter)
+            },
+            Some(String::from("<octaves>")),
+        ));
+
+        generator_d.add_child("pulsewidth", Node::new_dispatch_event(
+            |mut token_iter, shared_state| {
+                update_parameter_from_tokens(
+                    shared_state,
+                    ParameterId::GeneratorDPulseWidth,
+                    &mut token_iter)
+            },
+            Some(String::from("<width>")),
+        ));
+
+        generator_d.add_child("modindex", Node::new_dispatch_event(
+            |mut token_iter, shared_state| {
+                update_parameter_from_tokens(
+                    shared_state,
+                    ParameterId::GeneratorDModIndex,
+                    &mut token_iter)
+            },
+            Some(String::from("<index>")),
+        ));
+    }
+    {
         let adsr = root.add_child("adsr", Node::new_with_children());
 
         adsr.add_child("attack", Node::new_dispatch_event(

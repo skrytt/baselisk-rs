@@ -49,10 +49,14 @@ pub struct Engine
     mono_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     generator_a_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     generator_b_buffer: ResizableFrameBuffer<defs::MonoFrame>,
+    generator_c_buffer: ResizableFrameBuffer<defs::MonoFrame>,
+    generator_d_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     adsr_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     // DSP Units
     generator_a: Generator,
     generator_b: Generator,
+    generator_c: Generator,
+    generator_d: Generator,
     adsr: Adsr,
     filter: Filter,
     delay: Delay,
@@ -77,9 +81,13 @@ impl Engine
             adsr_buffer: ResizableFrameBuffer::new(),
             generator_a_buffer: ResizableFrameBuffer::new(),
             generator_b_buffer: ResizableFrameBuffer::new(),
+            generator_c_buffer: ResizableFrameBuffer::new(),
+            generator_d_buffer: ResizableFrameBuffer::new(),
             // DSP Units
             generator_a: Generator::new(0),
             generator_b: Generator::new(1),
+            generator_c: Generator::new(2),
+            generator_d: Generator::new(3),
             adsr: Adsr::new(),
             filter: Filter::new(),
             delay: Delay::new(),
@@ -180,8 +188,16 @@ impl Engine
 
             let dummy_buffer = self.dummy_buffer.get_sized_mut(frames_this_buffer);
 
+            // For now, routing looks like this:
+            //
+            // A -> B -v
+            //         |-> out
+            // C -> D -^
+
             let mut generator_a_buffer = self.generator_a_buffer.get_sized_mut(frames_this_buffer);
             let mut generator_b_buffer = self.generator_b_buffer.get_sized_mut(frames_this_buffer);
+            let mut generator_c_buffer = self.generator_c_buffer.get_sized_mut(frames_this_buffer);
+            let mut generator_d_buffer = self.generator_d_buffer.get_sized_mut(frames_this_buffer);
 
             self.generator_a.process_buffer(
                 &mut generator_a_buffer,
@@ -199,7 +215,24 @@ impl Engine
                 &self.shared_state.parameters
             );
 
+            self.generator_c.process_buffer(
+                &mut generator_c_buffer,
+                &dummy_buffer,
+                self.engine_event_buffer.iter(),
+                self.sample_rate,
+                &self.shared_state.parameters
+            );
+
+            self.generator_d.process_buffer(
+                &mut generator_d_buffer,
+                &generator_c_buffer,
+                self.engine_event_buffer.iter(),
+                self.sample_rate,
+                &self.shared_state.parameters
+            );
+
             sample::slice::add_in_place(&mut mono_buffer, &generator_b_buffer);
+            sample::slice::add_in_place(&mut mono_buffer, &generator_d_buffer);
 
             // Reduce level to avoid clipping at later stages
             gain::process_buffer_fixed_gain(0.5, &mut mono_buffer);
