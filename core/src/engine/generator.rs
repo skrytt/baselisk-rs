@@ -29,6 +29,7 @@ pub struct State {
     target_base_frequency: defs::Sample,
     pitchbend_portamento_multiplier: defs::Sample,
     mod_index: defs::Sample,
+    target_mod_index: defs::Sample,
     phase: defs::Sample, // 0 <= phase <= 1
 }
 
@@ -42,6 +43,7 @@ impl State {
             target_base_frequency: 0.0,
             pitchbend_portamento_multiplier: 1.0,
             mod_index: 4.0,
+            target_mod_index: 4.0,
             phase: 0.0,
             sample_rate: 0.0,
         }
@@ -207,7 +209,7 @@ impl Generator {
 
             self.state.pulse_width = params.get_real_value(
                     self.get_parameter(GeneratorParams::PulseWidth));
-            self.state.mod_index = params.get_real_value(
+            self.state.target_mod_index = params.get_real_value(
                     self.get_parameter(GeneratorParams::ModIndex));
 
             // Generate all the samples for this buffer
@@ -279,7 +281,13 @@ fn sine_generator(
         // Advance carrier phase
         // Enforce range 0.0 <= phase < 1.0
         let step = (state.base_frequency + freq_offset) / state.sample_rate;
-        phase = (phase + step) % 1.0;
+        phase = phase + step;
+        if phase >= 1.0 {
+            // We should only update mod index after the end of a period
+            // to keep oscillators in sync so do that now
+            state.mod_index = state.target_mod_index;
+            phase %= 1.0;
+        }
 
         frame[0] = defs::Sample::sin(2.0 as defs::Sample * defs::PI * phase);
     }
@@ -307,7 +315,13 @@ fn pulse_generator(
 
         // Enforce range 0.0 <= phase < 1.0
         let step = (state.base_frequency + freq_offset) / state.sample_rate;
-        phase = (phase + step) % 1.0;
+        phase = phase + step;
+        if phase >= 1.0 {
+            // We should only update mod index after the end of a period
+            // to keep oscillators in sync so do that now
+            state.mod_index = state.target_mod_index;
+            phase %= 1.0;
+        }
 
         // Get the aliasing pulse value
         let mut res = if phase < state.pulse_width {
@@ -367,7 +381,13 @@ fn sawtooth_generator(
 
         let step = (state.base_frequency + freq_offset) / state.sample_rate;
         // Enforce range 0.0 <= phase < 1.0
-        phase = (phase + step) % 1.0;
+        phase = phase + step;
+        if phase >= 1.0 {
+            // We should only update mod index after the end of a period
+            // to keep oscillators in sync so do that now
+            state.mod_index = state.target_mod_index;
+            phase %= 1.0;
+        }
 
         // Get the aliasing saw value
         let mut res = 1.0 - 2.0 * phase;
