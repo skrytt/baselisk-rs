@@ -8,7 +8,7 @@ use std::sync::atomic::{
     Ordering
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum ParameterId {
     AdsrAttack,
     AdsrDecay,
@@ -39,6 +39,7 @@ pub enum ParameterId {
     GeneratorDPitch,
     GeneratorDPulseWidth,
     GeneratorDModIndex,
+    GeneratorRouting,
     PitchBendRange,
     WaveshaperInputGain,
     WaveshaperOutputGain,
@@ -78,14 +79,15 @@ impl From<i32> for ParameterId {
             26 => ParameterId::GeneratorDPitch,
             27 => ParameterId::GeneratorDPulseWidth,
             28 => ParameterId::GeneratorDModIndex,
-            29 => ParameterId::PitchBendRange,
-            30 => ParameterId::WaveshaperInputGain,
-            31 => ParameterId::WaveshaperOutputGain,
+            29 => ParameterId::GeneratorRouting,
+            30 => ParameterId::PitchBendRange,
+            31 => ParameterId::WaveshaperInputGain,
+            32 => ParameterId::WaveshaperOutputGain,
             _ => panic!("Parameter ID out of bounds"),
         }
     }
 }
-pub const NUM_PARAMS: i32 = 32;
+pub const NUM_PARAMS: i32 = 33;
 
 pub enum ParameterUnit {
     NoUnit,
@@ -137,6 +139,7 @@ pub struct BaseliskPluginParameters {
     generator_d_pitch: Parameter,
     generator_d_pulse_width: Parameter,
     generator_d_mod_index: Parameter,
+    generator_routing: Parameter,
     pitch_bend_range: Parameter,
     waveshaper_input_gain: Parameter,
     waveshaper_output_gain: Parameter,
@@ -244,6 +247,11 @@ impl Default for BaseliskPluginParameters {
             generator_d_mod_index: Parameter::new_linear(
                 "generator d mod index",
                 ParameterUnit::NoUnit, 0.0, 8.0, 1.0),
+            generator_routing: Parameter::new_enum(
+                "generator routing",
+                vec!["2simple", "3stack", "3branch"],
+                0,
+            ),
             pitch_bend_range: Parameter::new_linear(
                 "generator pitch bend range",
                 ParameterUnit::Semitones, 0.0, 36.0, 2.0),
@@ -310,6 +318,7 @@ impl BaseliskPluginParameters
             ParameterId::GeneratorDPitch => &self.generator_d_pitch,
             ParameterId::GeneratorDPulseWidth => &self.generator_d_pulse_width,
             ParameterId::GeneratorDModIndex => &self.generator_d_mod_index,
+            ParameterId::GeneratorRouting => &self.generator_routing,
             ParameterId::PitchBendRange => &self.pitch_bend_range,
             ParameterId::WaveshaperInputGain => &self.waveshaper_input_gain,
             ParameterId::WaveshaperOutputGain => &self.waveshaper_output_gain,

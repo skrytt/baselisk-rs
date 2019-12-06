@@ -18,6 +18,9 @@ use shared::{
         MidiEvent,
         RawMidi
     },
+    parameter::{
+        ParameterId,
+    },
     SharedState,
 };
 use engine::{
@@ -47,6 +50,7 @@ pub struct Engine
     // Buffers
     dummy_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     mono_buffer: ResizableFrameBuffer<defs::MonoFrame>,
+    mod_sum_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     generator_a_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     generator_b_buffer: ResizableFrameBuffer<defs::MonoFrame>,
     generator_c_buffer: ResizableFrameBuffer<defs::MonoFrame>,
@@ -78,6 +82,7 @@ impl Engine
             // Buffers
             dummy_buffer: ResizableFrameBuffer::new(),
             mono_buffer: ResizableFrameBuffer::new(),
+            mod_sum_buffer: ResizableFrameBuffer::new(),
             adsr_buffer: ResizableFrameBuffer::new(),
             generator_a_buffer: ResizableFrameBuffer::new(),
             generator_b_buffer: ResizableFrameBuffer::new(),
@@ -140,8 +145,7 @@ impl Engine
                 if let Some(engine_event) = self.note_selector.process_event(&midi_event) {
                     self.engine_event_buffer.push((frame_num, engine_event));
                 }
-                if let MidiEvent::PitchBend{ value } = midi_event
-                {
+                if let MidiEvent::PitchBend{ value } = midi_event {
                     let engine_event = EngineEvent::PitchBend{ wheel_value: value };
                     self.engine_event_buffer.push((frame_num, engine_event));
                 }
@@ -163,7 +167,6 @@ impl Engine
         let frames_this_buffer = left_output_buffer.len();
 
         let mut mono_buffer = self.mono_buffer.get_sized_mut(frames_this_buffer);
-        slice::equilibrium(mono_buffer);
 
         // ADSR buffer for Gain and Filter (shared for now).
         let adsr_start_time = time::precise_time_ns();
@@ -188,52 +191,138 @@ impl Engine
 
             let dummy_buffer = self.dummy_buffer.get_sized_mut(frames_this_buffer);
 
-            // For now, routing looks like this:
-            //
-            // A -> B -v
-            //         |-> out
-            // C -> D -^
-
             let mut generator_a_buffer = self.generator_a_buffer.get_sized_mut(frames_this_buffer);
             let mut generator_b_buffer = self.generator_b_buffer.get_sized_mut(frames_this_buffer);
             let mut generator_c_buffer = self.generator_c_buffer.get_sized_mut(frames_this_buffer);
             let mut generator_d_buffer = self.generator_d_buffer.get_sized_mut(frames_this_buffer);
+            let mut mod_sum_buffer = self.mod_sum_buffer.get_sized_mut(frames_this_buffer);
 
-            self.generator_a.process_buffer(
-                &mut generator_a_buffer,
-                &dummy_buffer,
-                self.engine_event_buffer.iter(),
-                self.sample_rate,
-                &self.shared_state.parameters
-            );
+            match self.shared_state.parameters.get_real_value(
+                ParameterId::GeneratorRouting) as usize {
+            0 => {
+                // Parallel Stacks
+                // A -> B -v
+                //         |-> out
+                // C -> D -^
+                self.generator_a.process_buffer(
+                    &mut generator_a_buffer,
+                    &dummy_buffer,
+                    self.engine_event_buffer.iter(),
+                    self.sample_rate,
+                    &self.shared_state.parameters
+                );
 
-            self.generator_b.process_buffer(
-                &mut generator_b_buffer,
-                &generator_a_buffer,
-                self.engine_event_buffer.iter(),
-                self.sample_rate,
-                &self.shared_state.parameters
-            );
+                self.generator_b.process_buffer(
+                    &mut generator_b_buffer,
+                    &generator_a_buffer,
+                    self.engine_event_buffer.iter(),
+                    self.sample_rate,
+                    &self.shared_state.parameters
+                );
 
-            self.generator_c.process_buffer(
-                &mut generator_c_buffer,
-                &dummy_buffer,
-                self.engine_event_buffer.iter(),
-                self.sample_rate,
-                &self.shared_state.parameters
-            );
+                self.generator_c.process_buffer(
+                    &mut generator_c_buffer,
+                    &dummy_buffer,
+                    self.engine_event_buffer.iter(),
+                    self.sample_rate,
+                    &self.shared_state.parameters
+                );
 
-            self.generator_d.process_buffer(
-                &mut generator_d_buffer,
-                &generator_c_buffer,
-                self.engine_event_buffer.iter(),
-                self.sample_rate,
-                &self.shared_state.parameters
-            );
+                self.generator_d.process_buffer(
+                    &mut generator_d_buffer,
+                    &generator_c_buffer,
+                    self.engine_event_buffer.iter(),
+                    self.sample_rate,
+                    &self.shared_state.parameters
+                );
 
-            sample::slice::add_in_place(&mut mono_buffer, &generator_b_buffer);
-            sample::slice::add_in_place(&mut mono_buffer, &generator_d_buffer);
+                slice::equilibrium(mono_buffer);
+                sample::slice::add_in_place(&mut mono_buffer, &generator_b_buffer);
+                sample::slice::add_in_place(&mut mono_buffer, &generator_d_buffer);
+            },
+            1 => {
+                // Triple Mod Stack
+                // A -> B -> C -> D -> out
+                self.generator_a.process_buffer(
+                    &mut generator_a_buffer,
+                    &dummy_buffer,
+                    self.engine_event_buffer.iter(),
+                    self.sample_rate,
+                    &self.shared_state.parameters
+                );
 
+                self.generator_b.process_buffer(
+                    &mut generator_b_buffer,
+                    &generator_a_buffer,
+                    self.engine_event_buffer.iter(),
+                    self.sample_rate,
+                    &self.shared_state.parameters
+                );
+
+                self.generator_c.process_buffer(
+                    &mut generator_c_buffer,
+                    &generator_b_buffer,
+                    self.engine_event_buffer.iter(),
+                    self.sample_rate,
+                    &self.shared_state.parameters
+                );
+
+                self.generator_d.process_buffer(
+                    &mut generator_d_buffer,
+                    &generator_c_buffer,
+                    self.engine_event_buffer.iter(),
+                    self.sample_rate,
+                    &self.shared_state.parameters
+                );
+
+                sample::slice::write(&mut mono_buffer, &generator_d_buffer);
+            },
+            2 => {
+                // Triple Mod Branch
+                // A -v
+                // B -+-> D -> out
+                // C -^
+                self.generator_a.process_buffer(
+                    &mut generator_a_buffer,
+                    &dummy_buffer,
+                    self.engine_event_buffer.iter(),
+                    self.sample_rate,
+                    &self.shared_state.parameters
+                );
+
+                self.generator_b.process_buffer(
+                    &mut generator_b_buffer,
+                    &dummy_buffer,
+                    self.engine_event_buffer.iter(),
+                    self.sample_rate,
+                    &self.shared_state.parameters
+                );
+
+                self.generator_c.process_buffer(
+                    &mut generator_c_buffer,
+                    &dummy_buffer,
+                    self.engine_event_buffer.iter(),
+                    self.sample_rate,
+                    &self.shared_state.parameters
+                );
+
+                slice::equilibrium(mod_sum_buffer);
+                sample::slice::add_in_place(&mut mod_sum_buffer, &generator_a_buffer);
+                sample::slice::add_in_place(&mut mod_sum_buffer, &generator_b_buffer);
+                sample::slice::add_in_place(&mut mod_sum_buffer, &generator_c_buffer);
+
+                self.generator_d.process_buffer(
+                    &mut generator_d_buffer,
+                    &mod_sum_buffer,
+                    self.engine_event_buffer.iter(),
+                    self.sample_rate,
+                    &self.shared_state.parameters
+                );
+
+                sample::slice::write(&mut mono_buffer, &generator_d_buffer);
+            },
+            _ => panic!("Unknown generator routing"),
+            };
             // Reduce level to avoid clipping at later stages
             gain::process_buffer_fixed_gain(0.5, &mut mono_buffer);
 

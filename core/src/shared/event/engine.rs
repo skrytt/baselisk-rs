@@ -1,5 +1,6 @@
 use super::super::parameter;
 
+#[derive(Debug)]
 pub enum EngineEvent {
     NoteChange { note: Option<u8> },
     PitchBend { wheel_value: u16 },

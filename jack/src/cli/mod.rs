@@ -64,6 +64,18 @@ fn build_tree() -> Tree
 {
     let mut root = Node::new_with_children();
     {
+        root.add_child("generator_routing", Node::new_dispatch_event(
+            |mut token_iter, shared_state| {
+                update_parameter_from_tokens(
+                    shared_state,
+                    ParameterId::GeneratorRouting,
+                    &mut token_iter)
+            },
+            Some(String::from("<algo_name>")),
+        ));
+
+    }
+    {
         root.add_child("pitchbend", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
