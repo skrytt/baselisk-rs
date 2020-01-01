@@ -96,7 +96,7 @@ fn build_tree() -> Tree
                     ParameterId::GeneratorAPitch,
                     &mut token_iter)
             },
-            Some(String::from("<octaves>")),
+            Some(String::from("<semitones>")),
         ));
 
         generator_a.add_child("modindex", Node::new_dispatch_event(
@@ -119,7 +119,7 @@ fn build_tree() -> Tree
                     ParameterId::GeneratorBPitch,
                     &mut token_iter)
             },
-            Some(String::from("<octaves>")),
+            Some(String::from("<semitones>")),
         ));
 
         generator_b.add_child("modindex", Node::new_dispatch_event(
@@ -142,7 +142,7 @@ fn build_tree() -> Tree
                     ParameterId::GeneratorCPitch,
                     &mut token_iter)
             },
-            Some(String::from("<octaves>")),
+            Some(String::from("<semitones>")),
         ));
 
         generator_c.add_child("modindex", Node::new_dispatch_event(
@@ -165,7 +165,7 @@ fn build_tree() -> Tree
                     ParameterId::GeneratorDPitch,
                     &mut token_iter)
             },
-            Some(String::from("<octaves>")),
+            Some(String::from("<semitones>")),
         ));
 
         generator_d.add_child("modindex", Node::new_dispatch_event(
