@@ -3,7 +3,6 @@ use engine::{
     pitch_bend,
     traits,
 };
-use rand;
 use shared::{
     event::EngineEvent,
     parameter::{
@@ -24,7 +23,6 @@ pub struct State {
     sample_rate: defs::Sample,
     note: u8,
     pitch_bend_wheel_value: u16,
-    pulse_width: defs::Sample,
     base_frequency: defs::Sample,
     target_base_frequency: defs::Sample,
     pitchbend_portamento_multiplier: defs::Sample,
@@ -38,7 +36,6 @@ impl State {
         Self {
             note: 69,
             pitch_bend_wheel_value: 8192,
-            pulse_width: 0.5,
             base_frequency: 1.0,
             target_base_frequency: 0.0,
             pitchbend_portamento_multiplier: 1.0,
@@ -61,9 +58,7 @@ pub struct Generator {
 }
 
 enum GeneratorParams {
-    Type,
     Pitch,
-    PulseWidth,
     ModIndex,
 }
 
@@ -80,27 +75,19 @@ impl Generator {
     fn get_parameter(&self, param: GeneratorParams) -> ParameterId {
         match self.id {
             0 => match param {
-                GeneratorParams::Type => ParameterId::GeneratorAType,
                 GeneratorParams::Pitch => ParameterId::GeneratorAPitch,
-                GeneratorParams::PulseWidth => ParameterId::GeneratorAPulseWidth,
                 GeneratorParams::ModIndex => ParameterId::GeneratorAModIndex,
             },
             1 => match param {
-                GeneratorParams::Type => ParameterId::GeneratorBType,
                 GeneratorParams::Pitch => ParameterId::GeneratorBPitch,
-                GeneratorParams::PulseWidth => ParameterId::GeneratorBPulseWidth,
                 GeneratorParams::ModIndex => ParameterId::GeneratorBModIndex,
             },
             2 => match param {
-                GeneratorParams::Type => ParameterId::GeneratorCType,
                 GeneratorParams::Pitch => ParameterId::GeneratorCPitch,
-                GeneratorParams::PulseWidth => ParameterId::GeneratorCPulseWidth,
                 GeneratorParams::ModIndex => ParameterId::GeneratorCModIndex,
             },
             3 => match param {
-                GeneratorParams::Type => ParameterId::GeneratorDType,
                 GeneratorParams::Pitch => ParameterId::GeneratorDPitch,
-                GeneratorParams::PulseWidth => ParameterId::GeneratorDPulseWidth,
                 GeneratorParams::ModIndex => ParameterId::GeneratorDModIndex,
             },
             _ => panic!("Unknown generator ID")
@@ -113,33 +100,25 @@ impl Generator {
     fn should_trigger_keyframe_for_param(&self, param_id: ParameterId) -> bool {
         match self.id {
             0 => match param_id {
-                ParameterId::GeneratorAType |
                 ParameterId::GeneratorAPitch |
-                ParameterId::GeneratorAPulseWidth |
                 ParameterId::GeneratorAModIndex |
                 ParameterId::PitchBendRange => true,
                 _ => false,
             },
             1 => match param_id {
-                ParameterId::GeneratorBType |
                 ParameterId::GeneratorBPitch |
-                ParameterId::GeneratorBPulseWidth |
                 ParameterId::GeneratorBModIndex |
                 ParameterId::PitchBendRange => true,
                 _ => false,
             },
             2 => match param_id {
-                ParameterId::GeneratorCType |
                 ParameterId::GeneratorCPitch |
-                ParameterId::GeneratorCPulseWidth |
                 ParameterId::GeneratorCModIndex |
                 ParameterId::PitchBendRange => true,
                 _ => false,
             },
             3 => match param_id {
-                ParameterId::GeneratorDType |
                 ParameterId::GeneratorDPitch |
-                ParameterId::GeneratorDPulseWidth |
                 ParameterId::GeneratorDModIndex |
                 ParameterId::PitchBendRange => true,
                 _ => false,
@@ -159,18 +138,6 @@ impl Generator {
         self.state.sample_rate = sample_rate;
         // Store buffer len to avoid multiple mutable buffer accesses later on
         let buffer_len = buffer.len();
-
-        let generator_func: Option<fn(
-            &mut State,
-            &defs::MonoFrameBufferSlice,
-            &mut defs::MonoFrameBufferSlice
-        )> = match params.get_real_value(self.get_parameter(GeneratorParams::Type)) as usize {
-                0 => Some(sine_generator),
-                1 => Some(sawtooth_generator),
-                2 => Some(pulse_generator),
-                3 => Some(noise_generator),
-                _ => None,
-        };
 
         // Generate the outputs per-frame
         let mut this_keyframe: usize = 0;
@@ -235,17 +202,13 @@ impl Generator {
                 self.state.pitchbend_portamento_multiplier = 1.0;
             }
 
-            self.state.pulse_width = params.get_real_value(
-                    self.get_parameter(GeneratorParams::PulseWidth));
             self.state.target_mod_index = params.get_real_value(
                     self.get_parameter(GeneratorParams::ModIndex));
 
             // Generate all the samples for this buffer
             let buffer_slice = buffer.get_mut(this_keyframe..next_keyframe).unwrap();
             let mod_buffer_slice = mod_buffer.get(this_keyframe..next_keyframe).unwrap();
-            if let Some(generator_func) = generator_func {
-                (generator_func)(&mut self.state, &mod_buffer_slice, buffer_slice);
-            }
+            sine_generator(&mut self.state, &mod_buffer_slice, buffer_slice);
 
             // We've reached the next_keyframe.
             this_keyframe = next_keyframe;
@@ -324,135 +287,3 @@ fn sine_generator(
     state.phase = phase;
 }
 
-/// Generator function that produces a pulse wave.
-/// Uses PolyBLEP smoothing to reduce aliasing.
-fn pulse_generator(
-    state: &mut State,
-    mod_buffer: &defs::MonoFrameBufferSlice,
-    buffer: &mut defs::MonoFrameBufferSlice,
-)
-{
-    let mut phase = state.phase;
-
-    for (frame, mod_frame) in buffer.iter_mut().zip(mod_buffer.iter()) {
-        // Modulator influence is a function of modulator output value
-        // and the mod_index of this oscillator (i.e. how much we want the value of
-        // modulator oscillator to influence the freuqnecy of this oscillator)
-        // TBC: should this be multiplied by mod freq, not this osc freq?
-        let freq_offset = state.mod_index * mod_frame[0] * state.base_frequency;
-
-        // Enforce range 0.0 <= phase < 1.0
-        let step = (state.base_frequency + freq_offset) / state.sample_rate;
-        phase = phase + step;
-        if phase >= 1.0 {
-            // We should only update mod index after the end of a period
-            // to keep oscillators in sync so do that now
-            state.mod_index = state.target_mod_index;
-            phase %= 1.0;
-        }
-
-        // Get the aliasing pulse value
-        let mut res = if phase < state.pulse_width {
-            1.0
-        } else {
-            -1.0
-        };
-
-        // PolyBLEP smoothing algorithm to reduce aliasing by smoothing discontinuities.
-        let polyblep = |phase: defs::Sample, step: defs::Sample| -> defs::Sample {
-            // Apply PolyBLEP Smoothing for 0 < phase < (freq / sample_rate)
-            //   phase == 0:    x = 0.0
-            //   phase == step: x = 1.0
-            if phase < step {
-                let x = phase / step;
-                2.0 * x - x * x - 1.0
-            }
-            // Apply PolyBLEP Smoothing for (1.0 - (freq / sample_rate)) < phase < 1.0:
-            //   phase == (1.0 - step): x = 1.0
-            //   phase == 1.0:          x = 0.0
-            else if phase > (1.0 - step) {
-                let x = (phase - 1.0) / step;
-                2.0 * x + x * x + 1.0
-            } else {
-                0.0
-            }
-        };
-        // Apply PolyBLEP to the first (upward) discontinuity
-        res += polyblep(phase, step);
-        // Apply PolyBLEP to the second (downward) discontinuity
-        res -= polyblep((phase + 1.0 - state.pulse_width) % 1.0, step);
-
-        // Done
-        frame[0] = res;
-    }
-
-    // Store the phase for next iteration
-    state.phase = phase;
-}
-
-/// Generator function that produces a sawtooth wave.
-/// Uses PolyBLEP smoothing to reduce aliasing.
-fn sawtooth_generator(
-    state: &mut State,
-    mod_buffer: &defs::MonoFrameBufferSlice,
-    buffer: &mut defs::MonoFrameBufferSlice,
-)
-{
-    let mut phase = state.phase;
-
-    for (frame, mod_frame) in buffer.iter_mut().zip(mod_buffer.iter()) {
-        // Modulator influence is a function of modulator output value
-        // and the mod_index of this oscillator (i.e. how much we want the value of
-        // modulator oscillator to influence the freuqnecy of this oscillator)
-        // TBC: should this be multiplied by mod freq, not this osc freq?
-        let freq_offset = state.mod_index * mod_frame[0] * state.base_frequency;
-
-        let step = (state.base_frequency + freq_offset) / state.sample_rate;
-        // Enforce range 0.0 <= phase < 1.0
-        phase = phase + step;
-        if phase >= 1.0 {
-            // We should only update mod index after the end of a period
-            // to keep oscillators in sync so do that now
-            state.mod_index = state.target_mod_index;
-            phase %= 1.0;
-        }
-
-        // Get the aliasing saw value
-        let mut res = 1.0 - 2.0 * phase;
-
-        // PolyBLEP smoothing to reduce aliasing by smoothing discontinuities,
-        // which always occur at phase == 0.0.
-        // Apply PolyBLEP Smoothing for 0 < phase < (freq / sample_rate)
-        //   phase == 0:    x = 0.0
-        //   phase == step: x = 1.0
-        if phase < step {
-            let x = phase / step;
-            res += 2.0 * x - x * x - 1.0;
-        }
-        // Apply PolyBLEP Smoothing for (1.0 - (freq / sample_rate)) < phase < 1.0:
-        //   phase == (1.0 - step): x = 1.0
-        //   phase == 1.0:          x = 0.0
-        else if phase > (1.0 - step) {
-            let x = (phase - 1.0) / step;
-            res += 2.0 * x + x * x + 1.0;
-        }
-
-        // Done
-        frame[0] = res;
-    }
-
-    // Store the phase for next iteration
-    state.phase = phase;
-}
-
-/// Generator function that produces noise.
-fn noise_generator(
-    _state: &mut State,
-    _mod_buffer: &defs::MonoFrameBufferSlice,
-    buffer: &mut defs::MonoFrameBufferSlice
-)
-{
-    for frame_num in 0..buffer.len() {
-        buffer[frame_num][0] = rand::random();
-    }
-}

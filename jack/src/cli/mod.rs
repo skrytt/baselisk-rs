@@ -89,16 +89,6 @@ fn build_tree() -> Tree
     {
         let generator_a = root.add_child("generator_a", Node::new_with_children());
 
-        generator_a.add_child("type", Node::new_dispatch_event(
-            |mut token_iter, shared_state| {
-                update_parameter_from_tokens(
-                    shared_state,
-                    ParameterId::GeneratorAType,
-                    &mut token_iter)
-            },
-            Some(String::from("<type_name>")),
-        ));
-
         generator_a.add_child("pitch", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
@@ -107,16 +97,6 @@ fn build_tree() -> Tree
                     &mut token_iter)
             },
             Some(String::from("<octaves>")),
-        ));
-
-        generator_a.add_child("pulsewidth", Node::new_dispatch_event(
-            |mut token_iter, shared_state| {
-                update_parameter_from_tokens(
-                    shared_state,
-                    ParameterId::GeneratorAPulseWidth,
-                    &mut token_iter)
-            },
-            Some(String::from("<width>")),
         ));
 
         generator_a.add_child("modindex", Node::new_dispatch_event(
@@ -132,16 +112,6 @@ fn build_tree() -> Tree
     {
         let generator_b = root.add_child("generator_b", Node::new_with_children());
 
-        generator_b.add_child("type", Node::new_dispatch_event(
-            |mut token_iter, shared_state| {
-                update_parameter_from_tokens(
-                    shared_state,
-                    ParameterId::GeneratorBType,
-                    &mut token_iter)
-            },
-            Some(String::from("<type_name>")),
-        ));
-
         generator_b.add_child("pitch", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
@@ -150,16 +120,6 @@ fn build_tree() -> Tree
                     &mut token_iter)
             },
             Some(String::from("<octaves>")),
-        ));
-
-        generator_b.add_child("pulsewidth", Node::new_dispatch_event(
-            |mut token_iter, shared_state| {
-                update_parameter_from_tokens(
-                    shared_state,
-                    ParameterId::GeneratorBPulseWidth,
-                    &mut token_iter)
-            },
-            Some(String::from("<width>")),
         ));
 
         generator_b.add_child("modindex", Node::new_dispatch_event(
@@ -175,16 +135,6 @@ fn build_tree() -> Tree
     {
         let generator_c = root.add_child("generator_c", Node::new_with_children());
 
-        generator_c.add_child("type", Node::new_dispatch_event(
-            |mut token_iter, shared_state| {
-                update_parameter_from_tokens(
-                    shared_state,
-                    ParameterId::GeneratorCType,
-                    &mut token_iter)
-            },
-            Some(String::from("<type_name>")),
-        ));
-
         generator_c.add_child("pitch", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
@@ -193,16 +143,6 @@ fn build_tree() -> Tree
                     &mut token_iter)
             },
             Some(String::from("<octaves>")),
-        ));
-
-        generator_c.add_child("pulsewidth", Node::new_dispatch_event(
-            |mut token_iter, shared_state| {
-                update_parameter_from_tokens(
-                    shared_state,
-                    ParameterId::GeneratorCPulseWidth,
-                    &mut token_iter)
-            },
-            Some(String::from("<width>")),
         ));
 
         generator_c.add_child("modindex", Node::new_dispatch_event(
@@ -218,16 +158,6 @@ fn build_tree() -> Tree
     {
         let generator_d = root.add_child("generator_d", Node::new_with_children());
 
-        generator_d.add_child("type", Node::new_dispatch_event(
-            |mut token_iter, shared_state| {
-                update_parameter_from_tokens(
-                    shared_state,
-                    ParameterId::GeneratorDType,
-                    &mut token_iter)
-            },
-            Some(String::from("<type_name>")),
-        ));
-
         generator_d.add_child("pitch", Node::new_dispatch_event(
             |mut token_iter, shared_state| {
                 update_parameter_from_tokens(
@@ -236,16 +166,6 @@ fn build_tree() -> Tree
                     &mut token_iter)
             },
             Some(String::from("<octaves>")),
-        ));
-
-        generator_d.add_child("pulsewidth", Node::new_dispatch_event(
-            |mut token_iter, shared_state| {
-                update_parameter_from_tokens(
-                    shared_state,
-                    ParameterId::GeneratorDPulseWidth,
-                    &mut token_iter)
-            },
-            Some(String::from("<width>")),
         ));
 
         generator_d.add_child("modindex", Node::new_dispatch_event(
